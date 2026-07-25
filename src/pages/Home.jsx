@@ -28,15 +28,15 @@ function Home() {
       </section>
       <section className="stats-bar">
         <div className="stat">
-        <div className="stat-number">n+</div>
+        <div className="stat-number">500+</div>
         <div className="stat-label">Students</div>
         </div>
         <div className="stat">
-        <div className="stat-number">n+</div>
+        <div className="stat-number">1000+</div>
         <div className="stat-label">Projects</div>
         </div>
         <div className="stat">
-        <div className="stat-number">n+</div>
+        <div className="stat-number">150+</div>
         <div className="stat-label">Internships</div>
         </div>
       </section>

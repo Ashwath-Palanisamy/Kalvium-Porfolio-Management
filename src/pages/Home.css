@@ -9,7 +9,10 @@
   align-items: center;
 }
 
-.hero-headline { grid-area: headline; }
+.hero-headline { 
+  grid-area: headline;
+  font-family: 'Inter', sans-serif;
+ }
 .hero-visual   { grid-area: image; }
 .hero-subtext  { grid-area: para; }
 .hero-buttons  { grid-area: buttons; }
@@ -18,7 +21,7 @@
   display: flex;
   gap: 16px;        /* space between the two buttons */
   margin-top: 32px; 
-  
+  font-family: 'Inter', sans-serif;
 
 }
 
@@ -114,4 +117,8 @@
 }
 .hero-subtext {
   font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+
+section{
+  font-family: 'Inter', sans-serif;
 }
