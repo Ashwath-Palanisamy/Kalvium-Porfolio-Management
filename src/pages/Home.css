@@ -25,6 +25,11 @@
 
 }
 
+.hero-subtext{
+  margin: 10px;
+  font-size: 20px;
+}
+
 /* Shared styles — anything both buttons have in common goes here */
 .btn {
   padding: 14px 28px;
@@ -91,16 +96,84 @@
 
 /* stack on mobile instead of squeezing 3 into one row */
 @media (max-width: 768px) {
-  .stats-bar {
-    grid-template-columns: 1fr;
-    gap: 24px;
-    margin: 24px 20px 28px;
+
+  /* Hero */
+  .hero{
+    grid-template-columns:1fr;
+    grid-template-areas:
+      "headline"
+      "image"
+      "para"
+      "buttons";
+    text-align:center;
+    padding:40px 20px;
   }
+
+  .hero-buttons{
+    flex-direction:column;
+    align-items:center;
+    gap:15px;
+  }
+
+  .btn{
+    width:100%;
+    max-width:280px;
+    justify-content:center;
+  }
+
+  /* Stats */
+  .stats-bar{
+    grid-template-columns:1fr;
+    gap:24px;
+    margin:24px 20px 28px;
+    padding:24px;
+  }
+
+  /* Featured Students */
+  .students{
+    grid-template-columns:1fr;
+    gap:20px;
+  }
+
+  .student-card{
+    padding:20px;
+  }
+
+  .student-card img{
+    width:120px;
+    height:120px;
+    margin:auto;
+  }
+
+  /* Features */
+  .features{
+    grid-template-columns:repeat(2,1fr);
+    gap:15px;
+  }
+
+  /* Container */
+  .featured-container{
+    width:95%;
+  }
+
+  /* Text */
+  h1{
+    font-size:2rem;
+  }
+
+  h2{
+    font-size:1.7rem;
+  }
+
+  p{
+    font-size:15px;
+  }
+}
 
   .hero {
     padding: 48px 20px 20px;
   }
-}
+
 .hero {
   padding: 60px 40px 24px;
 }
@@ -121,4 +194,83 @@
 
 section{
   font-family: 'Inter', sans-serif;
+}
+
+.featured-container{
+    width:90%;
+    max-width:1200px;
+    margin:70px auto;
+}
+
+.students{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+    gap:25px;
+}
+.student-card{
+    background:#fff;
+    border:1px solid #ececec;
+    border-radius:18px;
+    padding:30px 20px;
+    text-align:center;
+    transition:.3s;
+    margin: 20px;
+}
+
+.student-card:hover{
+    transform:translateY(-6px);
+    box-shadow:0 10px 30px rgba(0,0,0,.08);
+}
+
+
+
+.features{
+    display:grid;
+    grid-template-columns:repeat(6,1fr);
+    gap:20px;
+    margin-top:40px;
+}
+
+.student-card button{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    margin-top:24px;
+    padding:12px 24px;
+    border:none;
+    border-radius:30px;
+    background:#f3f3f3;
+    cursor:pointer;
+    transition:.3s;
+}
+
+.student-card button:hover{
+    background:#e8342a;
+    color:#fff;
+}
+
+h3{
+  text-align: center;
+}
+
+.student-card h4{
+    font-size:26px;
+    margin-bottom:8px;
+}
+
+.student-card p{
+    color:#666;
+    margin-bottom:20px;
+}
+
+.featured-container h2{
+    text-align:center;
+    margin-bottom:40px;
+    font-size:2rem;
+}
+
+.hero.container{
+  font-size:30px;
+  padding: 8%;
 }

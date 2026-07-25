@@ -1,4 +1,5 @@
 import "./Home.css"
+import { NavLink } from "react-router-dom";
 
 function Home() {
   return (
@@ -11,14 +12,14 @@ function Home() {
             <span className="accent">GET</span> DISCOVERED.
           </h1>
           <p className="hero-subtext">
-            The official portfolio platform for Kalvium students.
-            Showcase projects, achievements, skills, certifications,
-            and connect with recruiters through one profile.
+            The official portfolio platform for Kalvium students. <br />
+            Showcase projects, achievements, skills, certifications, <br />
+            and connect with recruiters through one profile. <br />
         
           </p>
           <div className="hero-buttons">
-            <a href="#" className="btn btn-primary">Explore Portfolios →</a>
-            <a href="#" className="btn btn-secondary">Create Portfolio →</a>
+            <NavLink to="/students" className="btn btn-primary">Explore Portfolios →</NavLink>
+            <a href="#" className="btn btn-secondary">Manage Portfolio →</a>
           </div>
         </div>
         <div className="hero-visual">
@@ -40,8 +41,45 @@ function Home() {
         <div className="stat-label">Internships</div>
         </div>
       </section>
+
+      {/* students scroll */}
+
+      <section className="featured-container">
+        <h3>Features Students</h3>
+        <div className="students">
+
+          <div className="student-card">
+            <img src="sfad" alt="profile-1" />
+            <h4>Dhinesh</h4>
+            <p>AI Developer</p>
+            <button>View Profile →</button>
+          </div>
+
+          <div className="student-card">
+            <img src="sfad" alt="profile-2" />
+            <h4>Ashwath</h4>
+            <p>AI Developer</p>
+            <button>View Profile →</button>
+          </div>
+
+          <div className="student-card">
+            <img src="sfad" alt="profile-3" />
+            <h4>Ashwin</h4>
+            <p>AI Developer</p>
+            <button>View Profile →</button>
+          </div>
+
+          <div className="student-card">
+            <img src="sfad" alt="profile-4" />
+            <h4>Nithya</h4>
+            <p>AI Developer</p>
+            <button>View Profile →</button>
+          </div>
+
+        </div>
+      </section>
     </div>
-    
+
     
   );
 }
