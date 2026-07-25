@@ -1,12 +1,7 @@
 import { Routes, Route, useLocation } from "react-router-dom"
+import Home from "./pages/Home"
 import Navbar from "./components/Navbar"
 import LoginPage from "./pages/LoginPage"
-
-function Home(){
-  return(
-    <h1>Home</h1>
-  )
-}
 
 function App() {
   const location = useLocation();
