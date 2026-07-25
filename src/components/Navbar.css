@@ -85,7 +85,7 @@ nav ul li a:hover,
 nav ul li a.active {
     color: #ff3b3b;
 }
-.login{
+.login-btn{
     background-color: red;
     padding: 10px;
     border-radius: 10px;
@@ -93,6 +93,6 @@ nav ul li a.active {
 }
 
 
-.login:hover{
+.login-btn:hover{
     color: black !important;
 }

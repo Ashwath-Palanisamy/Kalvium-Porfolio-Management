@@ -1,6 +1,7 @@
 import React from "react";
 import "./LoginPage.css"
 import GoogleIcon from "../assets/icons8-google.svg"
+import KalviumLogo from "../assets/kalvium-logo.svg"
 
 
 export default function LoginPage() {
@@ -14,8 +15,9 @@ export default function LoginPage() {
 
             <section className="login-right-side">
                 <div className="top-header">
-                    <p>Kalvium | Profile Manager</p>
+                    <p><img src={KalviumLogo}/>Kalvium | Profile Manager</p>
                 </div>
+                <hr/>
                 <p></p>
                 <div className="google-login-container">
                     <div className="google-login-card">
