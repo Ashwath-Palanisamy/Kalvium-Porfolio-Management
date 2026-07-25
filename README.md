@@ -19,7 +19,7 @@ Follow the Conventional Commits specification:
 | `feat` | Add a new feature | `feat: add mentor dashboard` |
 | `fix` | Fix a bug | `fix: resolve login validation issue` |
 | `chore` | Maintenance, cleanup, dependency updates | `chore: remove unused components` |
-| `docs` | Documentation changes | `docs: update README` |
+| `docs` | Documentation changes | `docs: update README` |bu
 | `style` | Code formatting (no logic changes) | `style: format files using Prettier` |
 | `refactor` | Improve code without changing functionality | `refactor: simplify authentication logic` |
 | `test` | Add or update tests | `test: add login page tests` |
