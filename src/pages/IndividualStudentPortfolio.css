@@ -27,14 +27,21 @@
 }
 
 #left-side-color {
-    background-color: #DC2626;
+    background-color: #991b1b;
+    box-shadow: inset -4px 0 16px rgba(0, 0, 0, 0.25);
     width: 30%;
     animation: slideInFromTop 0.8s ease-out forwards;
-    padding-bottom: 20px; 
+    padding-bottom: 20px;
 }
 
+
 #right-side-color {
-    background-color: black;
+    background-color: #0b0b0d;
+    background-image: 
+        radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+        radial-gradient(circle at top right, rgba(220, 38, 38, 0.12) 0%, transparent 45%);
+    background-size: 24px 24px, 100% 100%;
+    background-attachment: fixed;
     flex: 1;
     animation: slideInFromBottom 0.8s ease-out forwards;
     color: white;
@@ -51,7 +58,8 @@
     border-radius: 12px;
     margin: 25px;
     padding: 25px;
-    background-color: #1a1a1a;
+    background-color: rgba(26, 26, 26, 0.85);
+    backdrop-filter: blur(8px);
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
     border: 1px solid #333;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -366,7 +374,8 @@
 }
 
 .project-card {
-    background-color: #111111;
+    background-color: rgba(17, 17, 17, 0.85);
+    backdrop-filter: blur(6px);
     border: 1px solid #2a2a2a;
     border-radius: 12px;
     padding: 25px;
@@ -617,4 +626,4 @@
         width: 100%;
         box-sizing: border-box;
     }
-}
+}   
