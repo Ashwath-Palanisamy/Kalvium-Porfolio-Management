@@ -60,34 +60,38 @@ function Home() {
             <img src="sfad" alt="profile-1" />
             <h4>Dhinesh</h4>
             <p>AI Developer</p>
-            <button>View Profile →</button>
+            {/* Updated to link to individual student ID */}
+            <NavLink to="/student/1" className="student-redirect">View Profile →</NavLink>
           </div>
 
           <div className="student-card">
             <img src="sfad" alt="profile-2" />
             <h4>Ashwath</h4>
             <p>AI Developer</p>
-            <button>View Profile →</button>
+            {/* Updated to link to individual student ID */}
+            <NavLink to="/student/2" className="student-redirect">View Profile →</NavLink>
           </div>
 
           <div className="student-card">
             <img src="sfad" alt="profile-3" />
             <h4>Ashwin</h4>
             <p>AI Developer</p>
-            <button>View Profile →</button>
+            {/* Updated to link to individual student ID */}
+            <NavLink to="/student/3" className="student-redirect">View Profile →</NavLink>
           </div>
 
           <div className="student-card">
             <img src="sfad" alt="profile-4" />
             <h4>Nithya</h4>
             <p>AI Developer</p>
-            <button>View Profile →</button>
-          </div>
+            {/* Updated to link to individual student ID */}
+            <NavLink to="/student/4" className="student-redirect">View Profile →</NavLink>
         </div>
 
         <div className="view-all-container">
           <NavLink to="/students" className="home-all-student">View All Students ▶</NavLink>
         </div>
+        </div> {/* Added missing closing tag for .students */}
       </section>
 
       <section className="why-section">
