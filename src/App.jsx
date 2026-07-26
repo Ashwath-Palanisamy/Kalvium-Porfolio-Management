@@ -4,6 +4,7 @@ import Navbar from "./components/Navbar"
 import LoginPage from "./pages/LoginPage"
 import Footer from './components/Footer'
 import IndividualStudentPortfolio from "./pages/IndividualStudentPortfolio"
+import Students from "./pages/Students"
 
 function App() {
   const location = useLocation();
@@ -19,7 +20,7 @@ function App() {
     <Routes>
       <Route path="/" element={<Home />}/>
       <Route path="/login" element={<LoginPage/>}/>
-      <Route path='/students' element={<IndividualStudentPortfolio/>}/>
+      <Route path='/students' element={<Students/>}/>
     </Routes>
     {showNavbar && <Footer/ >}
   </>
