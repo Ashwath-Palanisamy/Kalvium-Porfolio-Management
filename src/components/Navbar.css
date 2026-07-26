@@ -25,6 +25,13 @@
 
 }
 
+@media (max-width: 768px) {
+    .header {
+        flex-direction: column;
+        gap: 30px;
+    }
+}
+
 .logo{
     width: auto;
     height: auto;
