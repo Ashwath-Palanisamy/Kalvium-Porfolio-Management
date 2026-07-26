@@ -45,7 +45,6 @@ function About() {
       <section className="about-hero">
         <div className="about-container">
           {/* Left Side */}
-
           <div className="hero-content">
             <p className="hero-tag">ABOUT THE KALVIUM PORTFOLIO</p>
 
@@ -65,39 +64,33 @@ function About() {
           </div>
 
           {/* Right Side */}
-
           <div className="about-img">
             <div className="hero-circle">
               {/* Top */}
-
               <div className="circle-item top">
                 <div className="icon-box">📁</div>
                 <p>Projects</p>
               </div>
 
               {/* Left */}
-
               <div className="circle-item left">
                 <div className="icon-box">🏆</div>
                 <p>Achievements</p>
               </div>
 
               {/* Right */}
-
               <div className="circle-item right">
                 <div className="icon-box">👥</div>
                 <p>Recruiters</p>
               </div>
 
               {/* Bottom */}
-
               <div className="circle-item bottom">
                 <div className="icon-box">📊</div>
                 <p>Opportunities</p>
               </div>
 
               {/* Center */}
-
               <div className="center-image">
                 <img
                   src={Coder}
@@ -118,24 +111,20 @@ function About() {
 
           <div className="why-left">
             <p className="why-tag">WHY WE BUILT THIS</p>
-
             <h2 className="why-title">
               "Talent deserves
               <br />
               to be discovered."
             </h2>
-
             <div className="red-line"></div>
           </div>
 
           {/* Right */}
-
           <div className="why-right">
             <p>
               Students do incredible work, but their achievements are scattered
               across multiple platforms and rarely seen by the right people.
             </p>
-
             <p>
               Kalvium Portfolio brings everything together in one place— making
               it simple to showcase, connect, and grow.
@@ -144,11 +133,9 @@ function About() {
         </div>
 
         {/* Statistics */}
-
         <div className="stats-container">
           <div className="stat-card">
             <div className="stat-icon">👨‍🎓</div>
-
             <div>
               <h3>500+</h3>
               <p>Students</p>
@@ -163,19 +150,15 @@ function About() {
               <p>Projects</p>
             </div>
           </div>
-
           <div className="stat-card">
             <div className="stat-icon">💼</div>
-
             <div>
               <h3>150+</h3>
               <p>Internships</p>
             </div>
           </div>
-
           <div className="stat-card">
             <div className="stat-icon">🏢</div>
-
             <div>
               <h3>50+</h3>
               <p>Recruiter Partners</p>
@@ -194,7 +177,6 @@ function About() {
             <div className="platform-icon">📁</div>
 
             <h3>Projects</h3>
-
             <p>
               Showcase your best work with rich project details, tech stack and
               links.
@@ -212,7 +194,6 @@ function About() {
             <div className="platform-icon">🏆</div>
 
             <h3>Achievements</h3>
-
             <p>Display certifications, hackathons, awards and milestones.</p>
           </div>
 
@@ -220,7 +201,6 @@ function About() {
             <div className="platform-icon">📄</div>
 
             <h3>Resume</h3>
-
             <p>Generate an ATS-friendly resume instantly.</p>
           </div>
         </div>
@@ -230,16 +210,12 @@ function About() {
 
       <section className="philosophy-section">
         <h2 className="section-heading">OUR PHILOSOPHY</h2>
-
         <div className="philosophy-grid">
           {/* Card 1 */}
-
           <div className="philosophy-card">
             <div className="philosophy-icon red">💡</div>
-
             <div>
               <h3>Simplicity</h3>
-
               <p>
                 A clean and minimal platform that keeps the focus on what truly
                 matters — your work.
@@ -248,13 +224,10 @@ function About() {
           </div>
 
           {/* Card 2 */}
-
           <div className="philosophy-card">
             <div className="philosophy-icon green">🛡️</div>
-
             <div>
               <h3>Authenticity</h3>
-
               <p>
                 Every project, every achievement represents the real effort of
                 students.
@@ -263,13 +236,10 @@ function About() {
           </div>
 
           {/* Card 3 */}
-
           <div className="philosophy-card">
             <div className="philosophy-icon orange">🎯</div>
-
             <div>
               <h3>Opportunity</h3>
-
               <p>
                 We connect talent with the right opportunities and help students
                 take the next step.
