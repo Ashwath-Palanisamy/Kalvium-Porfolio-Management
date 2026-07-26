@@ -112,7 +112,10 @@ export default function Students() {
   };
 
   return (
+
+    
     <div className="students-page-container">
+      <title>Kalvium Portfolio | Students</title>
       {/* Header Section */}
       <div className="students-header">
         <div className="header-text">

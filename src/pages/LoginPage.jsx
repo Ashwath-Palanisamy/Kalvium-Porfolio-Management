@@ -7,6 +7,9 @@ export default function LoginPage() {
 
     return (
         <div className="login">
+
+            <title>Kalvium Portfolio | Profile Manager</title>
+
             <section className="login-left-side">
                 <h1>Kalvium <span style={{"color": "red"}}>Portfolio</span></h1>
                 <p>Build Your Future.<br />Showcase Your Talent</p>
