@@ -48,7 +48,7 @@
         repeating-linear-gradient(-45deg, transparent, transparent 2px, rgba(255, 255, 255, 0.015) 2px, rgba(255, 255, 255, 0.015) 4px);
     background-size: 10px 10px;
     
-    /* Added Animation */
+    
     animation: slideInFromLeft 0.8s ease-out forwards;
 }
 
@@ -77,7 +77,6 @@
     background-image: radial-gradient(rgba(0, 0, 0, 0.06) 1px, transparent 1px);
     background-size: 15px 15px;
     
-    /* Added Animation */
     animation: slideInFromRight 0.8s ease-out forwards;
 }
 

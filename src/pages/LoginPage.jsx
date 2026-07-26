@@ -1,4 +1,3 @@
-import React from "react";
 import "./LoginPage.css"
 import GoogleIcon from "../assets/icons8-google.svg"
 import KalviumLogo from "../assets/kalvium-logo.svg"
