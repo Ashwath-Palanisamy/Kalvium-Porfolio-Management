@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import "./SearchPage.css";
+import "./searchPage.css";
 import { FiSearch, FiFilter, FiBookmark, FiChevronDown, FiChevronLeft, FiChevronRight, FiArrowRight } from "react-icons/fi";
 
 const studentsData = [
