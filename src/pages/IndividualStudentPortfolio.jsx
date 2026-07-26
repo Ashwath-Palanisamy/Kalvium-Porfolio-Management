@@ -1,6 +1,6 @@
-import "./PublicStudentPortfolio.css"
+import "./IndividualStudentPortfolio.css"
 
-export default function PublicStudentPortfolio() {
+export default function IndividualStudentPortfolio() {
     return (
         <div id="portfolio-background">
             <div id="left-side-color">
