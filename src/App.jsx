@@ -3,7 +3,6 @@ import Home from "./pages/Home"
 import Navbar from "./components/Navbar"
 import LoginPage from "./pages/LoginPage"
 import Footer from './components/Footer'
-import PublicStudentPortfolio from "./pages/IndividualStudentPortfolio"
 import IndividualStudentPortfolio from "./pages/IndividualStudentPortfolio"
 
 function App() {
