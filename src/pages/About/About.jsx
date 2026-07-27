@@ -24,14 +24,7 @@ function About() {
       icon: <FaRobot />,
       title: "AI Engineers",
     },
-    {
-      icon: <FaLaptopCode />,
-      title: "Flutter Developers",
-    },
-    {
-      icon: <FaServer />,
-      title: "Backend Developers",
-    },
+
     {
       icon: <FaChartPie />,
       title: "Data Scientists",
@@ -198,10 +191,10 @@ function About() {
           </div>
 
           <div className="platform-card">
-            <div className="platform-icon">📄</div>
+            <div className="platform-icon">🌐</div>
 
-            <h3>Resume</h3>
-            <p>Generate an ATS-friendly resume instantly.</p>
+            <h3>Portfolio</h3>
+            <p>Create a professional portfolio that reflects your journey and accomplishments.</p>
           </div>
         </div>
       </section>
@@ -290,9 +283,9 @@ function About() {
 
           <div className="journey-arrow">→</div>
           <div className="journey-step">
-            <div className="step-icon">📈</div>
-            <h4>Get Discovered</h4>
-            <p>Get noticed by recruiters.</p>
+            <div className="step-icon">🌱</div>
+            <h4>Continue Growing</h4>
+            <p>Keep learning, building, and improving every day.</p>
           </div>
         </div>
       </section>

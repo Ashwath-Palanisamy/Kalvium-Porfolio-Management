@@ -21,7 +21,7 @@ function Home() {
             <span className="accent">GET</span> DISCOVERED.
           </h1>
           <p className="hero-subtext">
-            The official portfolio platform for Kalvium students. <br />
+            The portfolio platform for Kalvium students. <br />
             Showcase projects, achievements, skills, certifications, <br />
             and connect with recruiters through one profile. <br />
           </p>
