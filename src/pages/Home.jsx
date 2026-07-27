@@ -1,17 +1,19 @@
 import "./Home.css"
 import { NavLink } from "react-router-dom";
 import { useState } from "react";
-import { FiUsers, FiFolder, FiGithub, FiFileText, FiBriefcase, FiGlobe, FiWifi, FiUser } from "react-icons/fi";
+import { FiUsers, FiFolder, FiGithub, FiFileText, FiBriefcase, FiGlobe, FiWifi } from "react-icons/fi";
 import { LuBadgeCheck, LuCpu } from "react-icons/lu";
 import { SiFlutter } from "react-icons/si";
+import CountUp from '../components/CountUp/CountUp'
+
 
 function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  
+
   return (
     <div>
 
-      
+
 
       {/* Hero section */}
       <section className="hero container">
@@ -42,15 +44,45 @@ function Home() {
 
       <section className="stats-bar">
         <div className="stat">
-          <div className="stat-number">500+</div>
+          <div className="stat-number">
+            <CountUp
+              from={500}
+              to={0}
+              separator=","
+              direction="down"
+              duration={1}
+              className="count-up-text"
+              delay={0}
+            />+
+          </div>
           <div className="stat-label">Students</div>
         </div>
         <div className="stat">
-          <div className="stat-number">1000+</div>
+          <div className="stat-number">
+            <CountUp
+              from={1000}
+              to={0}
+              separator=","
+              direction="down"
+              duration={1}
+              className="count-up-text"
+              delay={0}
+            />+
+          </div>
           <div className="stat-label">Projects</div>
         </div>
         <div className="stat">
-          <div className="stat-number">150+</div>
+          <div className="stat-number">
+            <CountUp
+              from={150}
+              to={0}
+              separator=","
+              direction="down"
+              duration={1}
+              className="count-up-text"
+              delay={0}
+            />+
+          </div>
           <div className="stat-label">Internships</div>
         </div>
       </section>
@@ -89,11 +121,11 @@ function Home() {
             <p>AI Developer</p>
             {/* Updated to link to individual student ID */}
             <NavLink to="/student/4" className="student-redirect">View Profile →</NavLink>
-        </div>
+          </div>
 
-        <div className="view-all-container">
-          <NavLink to="/students" className="home-all-student">View All Students ▶</NavLink>
-        </div>
+          <div className="view-all-container">
+            <NavLink to="/students" className="home-all-student">View All Students ▶</NavLink>
+          </div>
         </div> {/* Added missing closing tag for .students */}
       </section>
 
@@ -105,51 +137,51 @@ function Home() {
             <div className="icon-circle">
               <LuBadgeCheck size={28} color="#ff3b3b" />
             </div>
-            <p>Professional<br/>Digital Identity</p>
+            <p>Professional<br />Digital Identity</p>
           </div>
 
           <div className="why-item">
             <div className="icon-circle">
               <FiUsers size={28} color="#ff3b3b" />
             </div>
-            <p>Recruiter<br/>Friendly</p>
+            <p>Recruiter<br />Friendly</p>
           </div>
 
           <div className="why-item">
             <div className="icon-circle">
               <FiFolder size={28} color="#ff3b3b" />
             </div>
-            <p>Showcase Projects<br/>& Certifications</p>
+            <p>Showcase Projects<br />& Certifications</p>
           </div>
 
           <div className="why-item">
             <div className="icon-circle">
               <FiGithub size={28} color="#ff3b3b" />
             </div>
-            <p>GitHub & LinkedIn<br/>Integration</p>
+            <p>GitHub & LinkedIn<br />Integration</p>
           </div>
 
           <div className="why-item">
             <div className="icon-circle">
               <FiFileText size={28} color="#ff3b3b" />
             </div>
-            <p>Resume<br/>Download</p>
+            <p>Resume<br />Download</p>
           </div>
 
           <div className="why-item">
             <div className="icon-circle">
               <FiBriefcase size={28} color="#ff3b3b" />
             </div>
-            <p>Internship<br/>Ready</p>
+            <p>Internship<br />Ready</p>
           </div>
         </div>
       </section>
 
       <section className="recent-projects-section">
         <h3>Recent Projects</h3>
-        
+
         <div className="projects-container">
-          
+
           <div className="project-card card-ai">
             <div className="card-icon">
               <LuCpu size={48} color="#a855f7" />
@@ -209,7 +241,7 @@ function Home() {
       <section className="cta-section">
         <h2>Ready to Build Your Portfolio?</h2>
         <p>"One Profile. Endless Opportunities."</p>
-        
+
         {isLoggedIn ? (
           <NavLink to="/manage" className="btn-create-portfolio">
             Manage Portfolio →
@@ -219,7 +251,7 @@ function Home() {
             Login Account →
           </NavLink>
         )}
-        
+
       </section>
     </div>
   );
