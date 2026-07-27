@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import "./LoginPage.css"
 import GoogleIcon from "../assets/icons8-google.svg"
 import KalviumLogo from "../assets/kalvium-logo.svg"
@@ -27,6 +28,7 @@ export default function LoginPage() {
                         <p>Login to continue to Profile Manager</p>
 
                         <button ><img src={GoogleIcon}></img>Login with Google</button>
+                        <Link to="/" className="back-home-btn">Back to Home</Link>
                     </div>
                 </div>
             </section>
