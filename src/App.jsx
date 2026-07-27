@@ -15,7 +15,7 @@ function App() {
 
   return(
   <>
-    
+      <title>Kalvium Portfolio | Home</title>
     {showNavbar && <Navbar />}
     
     <Routes>

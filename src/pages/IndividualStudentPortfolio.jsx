@@ -3,7 +3,11 @@ import "./IndividualStudentPortfolio.css"
 export default function IndividualStudentPortfolio() {
     return (
         <div id="portfolio-background">
+
+            <title>Kalvium Portfolio | Peers</title>
+
             <div id="left-side-color">
+
                 
                 {/* LeetCode Info Box */}
                 <div className="coding-profile-card">
