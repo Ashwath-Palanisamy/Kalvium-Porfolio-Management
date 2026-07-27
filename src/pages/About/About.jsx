@@ -1,4 +1,6 @@
 import Coder from "./Low code development-amico.svg";
+
+
 import {
   FaCode,
   FaPaintBrush,
@@ -7,6 +9,7 @@ import {
   FaServer,
   FaChartPie,
 } from "react-icons/fa";
+import CountUp from "../../components/CountUp/CountUp"
 
 import "./About.css";
 
@@ -130,7 +133,17 @@ function About() {
           <div className="stat-card">
             <div className="stat-icon">👨‍🎓</div>
             <div>
-              <h3>500+</h3>
+              <h3>
+                <CountUp
+                    from={500}
+                    to={0}
+                    separator=","
+                    direction="down"
+                    duration={0.1}
+                    className="count-up-text"
+                    delay={0}
+                  />+
+                </h3>
               <p>Students</p>
             </div>
           </div>
@@ -139,21 +152,51 @@ function About() {
             <div className="stat-icon">🚀</div>
 
             <div>
-              <h3>1000+</h3>
+              <h3>
+                <CountUp
+                    from={1000}
+                    to={0}
+                    separator=","
+                    direction="down"
+                    duration={0.1}
+                    className="count-up-text"
+                    delay={0}
+                  />+
+              </h3>
               <p>Projects</p>
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-icon">💼</div>
             <div>
-              <h3>150+</h3>
+              <h3>
+                <CountUp
+                    from={150}
+                    to={0}
+                    separator=","
+                    direction="down"
+                    duration={0.1}
+                    className="count-up-text"
+                    delay={0}
+                  />+
+              </h3>
               <p>Internships</p>
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-icon">🏢</div>
             <div>
-              <h3>50+</h3>
+              <h3>
+                <CountUp
+                    from={50}
+                    to={0}
+                    separator=","
+                    direction="down"
+                    duration={0.1}
+                    className="count-up-text"
+                    delay={0}
+                  />+
+              </h3>
               <p>Recruiter Partners</p>
             </div>
           </div>
