@@ -5,7 +5,6 @@ import LoginPage from "./pages/LoginPage"
 import Footer from './components/Footer'
 import IndividualStudentPortfolio from "./pages/IndividualStudentPortfolio"
 import Students from "./pages/Students"
-import SearchPage from "./pages/searchPage"
 import About from "./pages/About/About"
 
 function App() {
@@ -24,7 +23,6 @@ function App() {
       <Route path="/login" element={<LoginPage/>}/>
       <Route path='/students' element={<Students/>}/>
       <Route path='/manage' element={<IndividualStudentPortfolio/>}/>
-      <Route path="/search" element={<SearchPage/>}/>
       <Route path="/about" element={<About />}/>
       
     </Routes>
