@@ -172,6 +172,13 @@
     box-shadow: 0 8px 16px 0 rgba(0,0,0,0.6);
     transform: translateY(-2px);
 }
+.back-home-btn{
+    color:red;
+    text-decoration: none;
+}
+.back-home-btn:hover{
+    text-decoration: underline;
+}
 
 @media (max-width: 678px) {
     .login-left-side {
