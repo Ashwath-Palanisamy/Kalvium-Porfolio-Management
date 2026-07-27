@@ -3,8 +3,6 @@ import {
   FaCode,
   FaPaintBrush,
   FaRobot,
-  FaLaptopCode,
-  FaServer,
   FaChartPie,
 } from "react-icons/fa";
 
