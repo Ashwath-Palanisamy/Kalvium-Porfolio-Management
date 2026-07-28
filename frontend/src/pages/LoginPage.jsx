@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "./LoginPage.css";
 import GoogleIcon from "../assets/icons8-google.svg";
 import KalviumLogo from "../assets/kalvium-logo.svg";
@@ -9,6 +9,8 @@ import { GoogleLogin } from "@react-oauth/google";
 export default function LoginPage() {
     const [errorMessage, setErrorMessage] = useState("");
     const [isExiting, setIsExiting] = useState(false);
+
+    const navigate = useNavigate()
 
     useEffect(() => {
         if (!errorMessage) return;
@@ -62,6 +64,12 @@ export default function LoginPage() {
 
             setErrorMessage("");
             console.log("Backend Response:", data);
+
+            localStorage.setItem("token", data.token)
+
+            localStorage.setItem("user", JSON.stringify(data.user))
+
+            navigate("/profile")
 
         } catch (error) {
             console.log("Login Error:", error);
