@@ -366,34 +366,31 @@ section{
 }
 
 /* Flex container for the items */
-.why-container {
-  display: flex;
-  justify-content: space-between; /* Spaces items evenly */
-  align-items: flex-start;
-  gap: 15px;
-  flex-wrap: wrap; /* Allows stacking on smaller mobile screens */
-}
+@media (max-width: 768px) {
+  
+  .why-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
 
-/* Individual item styling */
-.why-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1; 
-  min-width: 120px; 
+  .why-item {
+    width: 100%;
+    max-width: 180px;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 /* Circular border around icons */
 .icon-circle {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  border: 1px solid #eaeaea; /* Light gray circle */
+  margin: 0 auto 16px;
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 16px;
-  background-color: #ffffff;
 }
 
 /* Sizing for the red icons */

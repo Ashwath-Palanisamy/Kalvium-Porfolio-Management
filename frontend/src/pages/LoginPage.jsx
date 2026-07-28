@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import "./LoginPage.css"
 import GoogleIcon from "../assets/icons8-google.svg"
 import KalviumLogo from "../assets/kalvium-logo.svg"
@@ -64,6 +65,7 @@ export default function LoginPage() {
                                 console.log("Google Login Failed")
                             }}
                         />
+                        <Link to="/" className="back-home-btn">Back to Home</Link>
                     </div>
                 </div>
             </section>
