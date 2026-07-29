@@ -11,7 +11,7 @@ import EditProfile from "./pages/studentdashboard/EditProfile";
 function App() {
   const location = useLocation();
 
-  const showNavbar = location.pathname !== "/login";
+  const showNavbar = location.pathname !== "/login" && location.pathname !== "/dashboard";
   const showFooter =
     location.pathname !== "/login" &&
     location.pathname !== "/dashboard";
