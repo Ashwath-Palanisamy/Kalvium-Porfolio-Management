@@ -6,7 +6,7 @@ import { LuBadgeCheck, LuCpu } from "react-icons/lu";
 import { SiFlutter } from "react-icons/si";
 
 function Home() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
   
   return (
     <div>
@@ -28,7 +28,7 @@ function Home() {
           <div className="hero-buttons">
             <NavLink to="/students" className="btn btn-primary">Explore Portfolios →</NavLink>
             {isLoggedIn ? (
-              <NavLink to="/manage" className="btn btn-secondary">Manage Portfolio →</NavLink>
+              <NavLink to="/dashboard" className="btn btn-secondary">Manage Portfolio →</NavLink>
             ) : (
               <NavLink to="/login" className="btn btn-secondary">Login →</NavLink>
             )}
