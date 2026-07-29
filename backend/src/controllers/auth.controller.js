@@ -44,7 +44,7 @@ export const googleLogin = async (req, res) => {
         })
 
         if (!user){
-            user = User.create({
+            user = await User.create({
                 googleId,
                 name,
                 email,
