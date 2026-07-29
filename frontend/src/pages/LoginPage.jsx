@@ -11,7 +11,7 @@ export default function LoginPage() {
     const [isExiting, setIsExiting] = useState(false);
 
     const navigate = useNavigate()
-
+    
     useEffect(() => {
         if (!errorMessage) return;
 
@@ -68,7 +68,8 @@ export default function LoginPage() {
             localStorage.setItem("token", data.token)
 
             localStorage.setItem("user", JSON.stringify(data.user))
-
+            window.dispatchEvent(new Event("authChanged"));
+            
             navigate("/dashboard")
 
         } catch (error) {
