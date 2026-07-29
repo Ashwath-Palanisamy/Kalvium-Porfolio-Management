@@ -69,7 +69,7 @@ export default function LoginPage() {
 
             localStorage.setItem("user", JSON.stringify(data.user))
 
-            navigate("/profile")
+            navigate("/dashboard")
 
         } catch (error) {
             console.log("Login Error:", error);

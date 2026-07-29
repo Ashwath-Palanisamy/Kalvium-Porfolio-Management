@@ -6,7 +6,7 @@ import Footer from "./components/Footer";
 import IndividualStudentPortfolio from "./pages/IndividualStudentPortfolio";
 import Students from "./pages/Students";
 import About from "./pages/About/About";
-import EditProfile from "./pages/EditProfile/EditProfile";
+import EditProfile from "./pages/studentdashboard/EditProfile";
 
 function App() {
   const location = useLocation();
@@ -14,7 +14,7 @@ function App() {
   const showNavbar = location.pathname !== "/login";
   const showFooter =
     location.pathname !== "/login" &&
-    location.pathname !== "/editprofile";
+    location.pathname !== "/dashboard";
 
   return (
     <>
@@ -26,9 +26,9 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/students" element={<Students />} />
-        <Route path="/manage" element={<IndividualStudentPortfolio />} />
+        <Route path="/profile/:id" element={<IndividualStudentPortfolio />} />
         <Route path="/about" element={<About />} />
-        <Route path="/editprofile" element={<EditProfile />} />
+        <Route path="/dashboard" element={<EditProfile />} />
       </Routes>
 
       {showFooter && <Footer />}
