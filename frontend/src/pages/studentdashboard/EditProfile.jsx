@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import {
   LayoutDashboard,
@@ -7,7 +8,6 @@ import {
   FileText,
   Settings,
   LogOut,
-  Bell,
   Mail,
   Link2,
   Globe,
@@ -37,7 +37,7 @@ export default function EditProfile() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeNav, setActiveNav] = useState("Profile");
   const [isCollapsed, setIsCollapsed] = useState(false);
-
+  const navigate = useNavigate();
   const [profile, setProfile] = useState({
     name: "name",
     kalviumEmail: "example@kalvium.community",
@@ -66,13 +66,21 @@ export default function EditProfile() {
   const handleButtonClick = () => {
     fileInputRef.current?.click();
   };
-
+  
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       setFileName(e.target.files[0].name);
     }
   };
+  const handleLogout = () => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
 
+        // Notify Navbar that auth status changed
+        window.dispatchEvent(new Event("authChanged"));
+
+        navigate("/");
+  }
   return (
     <div className="pm-layout">
       {/* Collapsible Sidebar */}
@@ -146,7 +154,7 @@ export default function EditProfile() {
           </div>
           <div className="pm-topbar-actions">
             <button type="button" className="pm-icon-btn" aria-label="Notifications">
-              <Bell size={18} />
+              <ArrowLeft size={50} />Logout
             </button>
             
           </div>
@@ -154,8 +162,13 @@ export default function EditProfile() {
 
         {/* Page Head */}
         <div className="pm-page-head">
-          <button type="button" className="pm-back-btn" aria-label="Go back">
-            <ArrowLeft size={18} />
+          <button
+            type="button"
+            className="pm-icon-btn"
+            onClick={handleLogout}
+          >
+            <LogOut size={18} />
+            Logout
           </button>
           <div>
             <h1>Edit Student Profile</h1>
