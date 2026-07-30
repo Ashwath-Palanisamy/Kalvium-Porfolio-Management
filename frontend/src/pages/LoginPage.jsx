@@ -1,16 +1,14 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import "./LoginPage.css";
 import GoogleIcon from "../assets/icons8-google.svg";
 import KalviumLogo from "../assets/kalvium-logo.svg";
-
-import { GoogleLogin } from "@react-oauth/google";
+import { supabase } from "../lib/supabase.js";
 
 export default function LoginPage() {
     const [errorMessage, setErrorMessage] = useState("");
     const [isExiting, setIsExiting] = useState(false);
 
-    const navigate = useNavigate()
     
     useEffect(() => {
         if (!errorMessage) return;
@@ -40,43 +38,19 @@ export default function LoginPage() {
         setErrorMessage(msg);
     };
 
-    const handleGoogleLogin = async (credentialResponse) => {
-        try {
-            const response = await fetch(
-                "http://localhost:8000/api/auth/google",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        token: credentialResponse.credential
-                    })
-                }
-            );
-
-            const data = await response.json();
-
-            if (!response.ok || data.error) {
-                showError("Access restricted: Please log in using an official @kalvium.community or @kalvium.com account.");
-                return;
+    const handleGoogleLogin = async () => {
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider : "google",
+            options: {
+                redirectTo : "http://localhost:5173/dashboard"
             }
+        })
 
-            setErrorMessage("");
-            console.log("Backend Response:", data);
-
-            localStorage.setItem("token", data.token)
-
-            localStorage.setItem("user", JSON.stringify(data.user))
-            window.dispatchEvent(new Event("authChanged"));
-            
-            navigate("/dashboard")
-
-        } catch (error) {
-            console.log("Login Error:", error);
-            showError("Access restricted: Please log in using an official @kalvium.community or @kalvium.com account.");
+        if (error){
+            showError(error.message)
         }
-    };
+    }
+
 
     return (
         <div className="login">
@@ -104,13 +78,10 @@ export default function LoginPage() {
                         <p>Welcome back!</p>
                         <p>Login to continue to Profile Manager</p>
 
-                        <GoogleLogin
-                            onSuccess={handleGoogleLogin}
-                            onError={() => {
-                                console.log("Google Login Failed");
-                                showError("Access restricted: Please log in using an official @kalvium.community or @kalvium.com account.");
-                            }}
-                        />
+                        <button className="google-btn-login" onClick={handleGoogleLogin}>
+                            <img src={GoogleIcon} alt="google"/>
+                            Continue With Google
+                        </button>
                         <Link to="/" className="back-home-btn">Back to Home</Link>
                     </div>
                 </div>
