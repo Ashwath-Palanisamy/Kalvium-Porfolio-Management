@@ -17,7 +17,8 @@ import {
   CheckCircle2,
   Lock,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  Clock
 } from "lucide-react";
 
 import kalviumLogo from "../../assets/kalvium-logo.svg";
@@ -175,11 +176,19 @@ export default function ProfileTab() {
 
         <div className="pm-page-head">
           <div>
-            <h1>{activeNav === "Dashboard" ? "Dashboard Overview" : "Edit Student Profile"}</h1>
+            <h1>
+              {activeNav === "Dashboard"
+                ? "Dashboard Overview"
+                : activeNav === "Profile"
+                ? "Edit Student Profile"
+                : `${activeNav}`}
+            </h1>
             <p>
-              {activeNav === "Dashboard" 
+              {activeNav === "Dashboard"
                 ? "Here is a quick summary of your profile details and links."
-                : "Update your information and keep your portfolio up to date."}
+                : activeNav === "Profile"
+                ? "Update your information and keep your portfolio up to date."
+                : "Feature module currently under active development."}
             </p>
           </div>
         </div>
@@ -399,35 +408,52 @@ export default function ProfileTab() {
             </>
           )}
 
-          {activeNav === "Projects" && (
-            <div style={{ gridColumn: "1 / -1", padding: "40px", textAlign: "center", background: "#fff", borderRadius: "12px" }}>
-              <h2>Projects Section</h2>
-              <p style={{ color: "#718096", marginTop: "8px" }}>Manage and view your projects here.</p>
-            </div>
-          )}
-
-          {activeNav === "Achievements" && (
-            <div style={{ gridColumn: "1 / -1", padding: "40px", textAlign: "center", background: "#fff", borderRadius: "12px" }}>
-              <h2>Achievements Section</h2>
-              <p style={{ color: "#718096", marginTop: "8px" }}>View your earned badges and milestones.</p>
-            </div>
-          )}
-
-          {activeNav === "Resume" && (
-            <div style={{ gridColumn: "1 / -1", padding: "40px", textAlign: "center", background: "#fff", borderRadius: "12px" }}>
-              <h2>Resume Preview Section</h2>
-              <p style={{ color: "#718096", marginTop: "8px" }}>Preview your uploaded CV documents here.</p>
-            </div>
-          )}
-
-          {activeNav === "Settings" && (
-            <div style={{ gridColumn: "1 / -1", padding: "40px", textAlign: "center", background: "#fff", borderRadius: "12px" }}>
-              <h2>Account Settings</h2>
-              <p style={{ color: "#718096", marginTop: "8px" }}>Modify your application preferences.</p>
-            </div>
+          {activeNav !== "Dashboard" && activeNav !== "Profile" && (
+            <ComingSoon featureName={activeNav} />
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+function ComingSoon({ featureName }) {
+  return (
+    <div
+      style={{
+        gridColumn: "1 / -1",
+        padding: "60px 20px",
+        textAlign: "center",
+        background: "#ffffff",
+        borderRadius: "12px",
+        border: "1px dashed #e2e8f0",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <div
+        style={{
+          width: "56px",
+          height: "56px",
+          borderRadius: "50%",
+          backgroundColor: "#f7fafc",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: "16px",
+          color: "#4a5568",
+        }}
+      >
+        <Clock size={28} />
+      </div>
+      <h2 style={{ fontSize: "20px", fontWeight: "600", color: "#2d3748" }}>
+        {featureName} Coming Soon
+      </h2>
+      <p style={{ color: "#718096", marginTop: "8px", maxWidth: "400px", fontSize: "14px" }}>
+        We are actively working on building the {featureName.toLowerCase()} section. Stay tuned for future updates!
+      </p>
     </div>
   );
 }
