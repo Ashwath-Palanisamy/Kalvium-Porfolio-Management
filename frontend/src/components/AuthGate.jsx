@@ -1,20 +1,46 @@
 import { Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase"; // Update the path if yours is different
+import { supabase } from "../lib/supabase";
 
 function AuthGate({ children }) {
     const [loading, setLoading] = useState(true);
     const [user, setUser] = useState(null);
 
     useEffect(() => {
-        supabase.auth.getSession().then(({ data }) => {
-            setUser(data.session?.user ?? null);
-            setLoading(false);
+        let isMounted = true;
+
+        async function checkSession() {
+            // Give Supabase a moment to process any incoming URL hash/query tokens from Google
+            const { data: { session }, error } = await supabase.auth.getSession();
+            
+            if (error) {
+                console.error("Session error:", error.message);
+            }
+
+            if (isMounted) {
+                setUser(session?.user ?? null);
+                setLoading(false);
+            }
+        }
+
+        checkSession();
+
+        // Listen for future auth state changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (isMounted) {
+                setUser(session?.user ?? null);
+                setLoading(false);
+            }
         });
+
+        return () => {
+            isMounted = false;
+            subscription.unsubscribe();
+        };
     }, []);
 
     if (loading) {
-        return <h1>Loading...</h1>;
+        return <div style={{ display: 'grid', placeItems: 'center', height: '100vh' }}><h1>Loading...</h1></div>;
     }
 
     if (!user) {

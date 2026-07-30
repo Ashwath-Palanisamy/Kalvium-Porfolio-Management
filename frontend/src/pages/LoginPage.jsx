@@ -9,7 +9,25 @@ export default function LoginPage() {
     const [errorMessage, setErrorMessage] = useState("");
     const [isExiting, setIsExiting] = useState(false);
 
-    
+    // Intercept database rejections when redirected back here from Google/Supabase
+    useEffect(() => {
+        const handleAuthCallbackErrors = async () => {
+            const queryParams = new URLSearchParams(window.location.search);
+            const errorCode = queryParams.get("error_code");
+            const errorDescription = queryParams.get("error_description");
+
+            if (errorCode || errorDescription) {
+                showError("Access Denied: You must use an official @kalvium.com or @kalvium.community email address.");
+                
+                // Clear out any partial tokens and strip the error text from the URL bar
+                await supabase.auth.signOut();
+                window.history.replaceState(null, "", window.location.pathname);
+            }
+        };
+
+        handleAuthCallbackErrors();
+    }, []);
+
     useEffect(() => {
         if (!errorMessage) return;
 
@@ -40,17 +58,17 @@ export default function LoginPage() {
 
     const handleGoogleLogin = async () => {
         const { error } = await supabase.auth.signInWithOAuth({
-            provider : "google",
+            provider: "google",
             options: {
-                redirectTo : "http://localhost:5173/dashboard"
+                // Redirect back to login page so blocked users are caught here
+                redirectTo: "http://localhost:5173/login"
             }
-        })
+        });
 
-        if (error){
-            showError(error.message)
+        if (error) {
+            showError(error.message);
         }
-    }
-
+    };
 
     return (
         <div className="login">

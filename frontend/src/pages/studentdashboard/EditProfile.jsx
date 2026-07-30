@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 
 import kalviumLogo from "../../assets/kalvium-logo.svg";
+import { supabase } from "../../lib/supabase.js";
 import "./EditProfile.css";
 
 const NAV_ITEMS = [
@@ -38,9 +39,10 @@ export default function EditProfile() {
   const [activeNav, setActiveNav] = useState("Profile");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const navigate = useNavigate();
+  
   const [profile, setProfile] = useState({
-    name: "name",
-    kalviumEmail: "example@kalvium.community",
+    name: "",
+    kalviumEmail: "",
     personalEmail: "",
     squadId: "",
     title: "",
@@ -54,9 +56,25 @@ export default function EditProfile() {
   const fileInputRef = useRef(null);
   const [fileName, setFileName] = useState("");
 
+  // Fetch actual logged-in user details from Supabase on load
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 800);
-    return () => clearTimeout(timer);
+    const fetchUserData = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        const userEmail = session.user.email || "";
+        const fullName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || userEmail.split("@")[0];
+        
+        setProfile((prev) => ({
+          ...prev,
+          name: fullName,
+          kalviumEmail: userEmail,
+        }));
+      }
+      setIsLoading(false);
+    };
+
+    fetchUserData();
   }, []);
 
   const handleChange = (field, value) => {
@@ -72,21 +90,17 @@ export default function EditProfile() {
       setFileName(e.target.files[0].name);
     }
   };
-  const handleLogout = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
 
-        // Notify Navbar that auth status changed
-        window.dispatchEvent(new Event("authChanged"));
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/login");
+  };
 
-        navigate("/");
-  }
   return (
     <div className="pm-layout">
       {/* Collapsible Sidebar */}
       <aside className={`pm-sidebar ${isCollapsed ? "is-collapsed" : ""}`}>
         <div className="pm-brand-header">
-          {/* Hide logo and brand title when collapsed */}
           {!isCollapsed && (
             <div className="pm-brand">
               <div className="pm-brand-mark">
@@ -124,10 +138,10 @@ export default function EditProfile() {
           ))}
         </nav>
 
-        {/* Logout Button (shows icon-only when collapsed) */}
         <button
           type="button"
           className="pm-logout"
+          onClick={handleLogout}
           title={isCollapsed ? "Logout" : ""}
         >
           <LogOut size={18} />
@@ -137,7 +151,6 @@ export default function EditProfile() {
 
       {/* Main Workspace */}
       <main className="pm-main">
-        {/* Header Status Bar */}
         <header className="pm-topbar">
           <div className="pm-welcome">
             <span className="pm-wave">👋</span>
@@ -153,30 +166,19 @@ export default function EditProfile() {
             </div>
           </div>
           <div className="pm-topbar-actions">
-            <button type="button" className="pm-icon-btn" aria-label="Notifications">
-              <ArrowLeft size={50} />Logout
+            <button type="button" className="pm-icon-btn" onClick={handleLogout} aria-label="Logout">
+              <LogOut size={18} /> Logout
             </button>
-            
           </div>
         </header>
 
-        {/* Page Head */}
         <div className="pm-page-head">
-          <button
-            type="button"
-            className="pm-icon-btn"
-            onClick={handleLogout}
-          >
-            <LogOut size={18} />
-            Logout
-          </button>
           <div>
             <h1>Edit Student Profile</h1>
             <p>Update your information and keep your portfolio up to date.</p>
           </div>
         </div>
 
-        {/* Form and Preview Grid */}
         <div className="pm-content-grid">
           {/* Profile Overview Card */}
           <section className="pm-profile-card">
@@ -243,14 +245,14 @@ export default function EditProfile() {
               ) : (
                 <div className="pm-grid-2">
                   <Field
-                    label="Name "
+                    label="Name"
                     placeholder="e.g. name"
                     value={profile.name}
                     onChange={(e) => handleChange("name", e.target.value)}
                     disabled
                   />
                   <Field
-                    label="Kalvium Email "
+                    label="Kalvium Email"
                     placeholder="e.g. example@kalvium.community"
                     value={profile.kalviumEmail}
                     onChange={(e) => handleChange("kalviumEmail", e.target.value)}
@@ -258,13 +260,13 @@ export default function EditProfile() {
                   />
                   <Field
                     label="Personal Email"
-                    placeholder="e.g. exmaple@gmail.com"
+                    placeholder="e.g. example@gmail.com"
                     value={profile.personalEmail}
                     onChange={(e) => handleChange("personalEmail", e.target.value)}
                     leftIcon={<Mail size={14} />}
                   />
                   <Field
-                    label="Squad "
+                    label="Squad"
                     placeholder="e.g. Squad 12"
                     value={profile.squadId}
                     onChange={(e) => handleChange("squadId", e.target.value)}
