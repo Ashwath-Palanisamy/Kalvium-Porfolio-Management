@@ -8,6 +8,7 @@ import Students from "./pages/Students";
 import About from "./pages/About/About";
 import EditProfile from "./pages/studentdashboard/EditProfile";
 import ErrorPage from "./pages/ErrorPage/404page";
+import AuthGate from "./components/AuthGate";
 
 function App() {
   const location = useLocation();
@@ -29,7 +30,13 @@ function App() {
         <Route path="/students" element={<Students />} />
         <Route path="/profile/:id" element={<IndividualStudentPortfolio />} />
         <Route path="/about" element={<About />} />
-        <Route path="/dashboard" element={<EditProfile />} />
+        <Route path="/dashboard"
+          element={
+            <AuthGate>
+              <EditProfile />
+            </AuthGate>
+          }
+        />
         
         <Route path="*" element={<ErrorPage />} />
       </Routes>
