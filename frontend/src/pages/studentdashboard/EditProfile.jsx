@@ -8,23 +8,25 @@ import {
   FileText,
   Settings,
   LogOut,
-  Bell,
   Mail,
   Link2,
   Globe,
   Code2,
   Upload,
-  ArrowLeft,
   X,
   CheckCircle2,
   Lock,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  Clock
 } from "lucide-react";
 
 import kalviumLogo from "../../assets/kalvium-logo.svg";
 import { supabase } from "../../lib/supabase.js";
 import "./EditProfile.css";
+
+// Import your Dashboard tab component
+import DashboardTab from "./DashboardTab.jsx";
 
 const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard },
@@ -35,7 +37,7 @@ const NAV_ITEMS = [
   { label: "Settings", icon: Settings },
 ];
 
-export default function EditProfile() {
+export default function ProfileTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeNav, setActiveNav] = useState("Profile");
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -57,7 +59,6 @@ export default function EditProfile() {
   const fileInputRef = useRef(null);
   const [fileName, setFileName] = useState("");
 
-  // Fetch actual logged-in user details from Supabase on load
   useEffect(() => {
     const fetchUserData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -175,211 +176,284 @@ export default function EditProfile() {
 
         <div className="pm-page-head">
           <div>
-            <h1>Edit Student Profile</h1>
-            <p>Update your information and keep your portfolio up to date.</p>
+            <h1>
+              {activeNav === "Dashboard"
+                ? "Dashboard Overview"
+                : activeNav === "Profile"
+                ? "Edit Student Profile"
+                : `${activeNav}`}
+            </h1>
+            <p>
+              {activeNav === "Dashboard"
+                ? "Here is a quick summary of your profile details and links."
+                : activeNav === "Profile"
+                ? "Update your information and keep your portfolio up to date."
+                : "Feature module currently under active development."}
+            </p>
           </div>
         </div>
 
+        {/* Dynamic Tab Renderer based on Sidebar State */}
         <div className="pm-content-grid">
-          {/* Profile Overview Card */}
-          <section className="pm-profile-card">
-            {isLoading ? (
-              <div className="pm-card-skeleton-wrap">
-                <div className="skeleton skeleton-avatar"></div>
-                <div className="skeleton skeleton-text width-60 mt-12"></div>
-                <div className="skeleton skeleton-text width-40 mt-8"></div>
-                <div className="skeleton skeleton-block mt-20"></div>
-              </div>
-            ) : (
-              <>
-                <div className="pm-profile-photo-container">
-                  <div className="pm-profile-photo">
-                    <User size={38} strokeWidth={1.5} />
+          {activeNav === "Dashboard" && (
+            <div style={{ gridColumn: "1 / -1" }}>
+              <DashboardTab
+                profile={profile}
+                fileName={fileName}
+                bio={bio}
+                isLoading={isLoading}
+              />
+            </div>
+          )}
+
+          {activeNav === "Profile" && (
+            <>
+              {/* Profile Overview Card */}
+              <section className="pm-profile-card">
+                {isLoading ? (
+                  <div className="pm-card-skeleton-wrap">
+                    <div className="skeleton skeleton-avatar"></div>
+                    <div className="skeleton skeleton-text width-60 mt-12"></div>
+                    <div className="skeleton skeleton-text width-40 mt-8"></div>
+                    <div className="skeleton skeleton-block mt-20"></div>
                   </div>
-                  <button
-                    type="button"
-                    className="pm-photo-edit"
-                    title="Change photo"
-                    aria-label="Change photo"
-                  >
-                    <Upload size={12} />
-                  </button>
-                </div>
-
-                <h2 className="pm-profile-name">{profile.name || "Student Name"}</h2>
-                <span className="pm-profile-role">
-                  {profile.title || "Student Role"}
-                </span>
-
-                <div className="pm-profile-meta">
-                  <div className="pm-meta-row">
-                    <Mail size={14} />
-                    <span>{profile.kalviumEmail || "student@kalvium.community"}</span>
-                  </div>
-                  <div className="pm-meta-row">
-                    <FileText size={14} />
-                    <span>{profile.squadId || "Squad "}</span>
-                  </div>
-                </div>
-
-                <div className="pm-resume-status-card">
-                  <div className="pm-status-header">
-                    <CheckCircle2
-                      size={15}
-                      className={fileName ? "text-success" : "text-muted"}
-                    />
-                    <span>{fileName ? "Resume Uploaded" : "No Resume"}</span>
-                  </div>
-                  <p className="pm-resume-filename">
-                    {fileName || "No document selected"}
-                  </p>
-                </div>
-              </>
-            )}
-          </section>
-
-          {/* Form */}
-          <form className="pm-form" onSubmit={(e) => e.preventDefault()}>
-            <FormSection title="Personal Information" icon={User}>
-              {isLoading ? (
-                <FormSkeleton count={4} />
-              ) : (
-                <div className="pm-grid-2">
-                  <Field
-                    label="Name"
-                    placeholder="e.g. name"
-                    value={profile.name}
-                    onChange={(e) => handleChange("name", e.target.value)}
-                    disabled
-                  />
-                  <Field
-                    label="Kalvium Email"
-                    placeholder="e.g. example@kalvium.community"
-                    value={profile.kalviumEmail}
-                    onChange={(e) => handleChange("kalviumEmail", e.target.value)}
-                    disabled
-                  />
-                  <Field
-                    label="Personal Email"
-                    placeholder="e.g. example@gmail.com"
-                    value={profile.personalEmail}
-                    onChange={(e) => handleChange("personalEmail", e.target.value)}
-                    leftIcon={<Mail size={14} />}
-                  />
-                  <Field
-                    label="Squad"
-                    placeholder="e.g. Squad 12"
-                    value={profile.squadId}
-                    onChange={(e) => handleChange("squadId", e.target.value)}
-                  />
-                </div>
-              )}
-            </FormSection>
-
-            <FormSection title="Professional Information" icon={FolderKanban}>
-              {isLoading ? (
-                <FormSkeleton count={2} />
-              ) : (
-                <div className="pm-grid-2">
-                  <Field
-                    label="Title / Role"
-                    placeholder="e.g. Full Stack Developer"
-                    value={profile.title}
-                    onChange={(e) => handleChange("title", e.target.value)}
-                  />
-                  <div className="pm-field">
-                    <label>Resume (PDF Only)</label>
-                    <div className="pm-file-input">
+                ) : (
+                  <>
+                    <div className="pm-profile-photo-container">
+                      <div className="pm-profile-photo">
+                        <User size={38} strokeWidth={1.5} />
+                      </div>
                       <button
                         type="button"
-                        onClick={handleButtonClick}
-                        className="pm-choose-btn"
+                        className="pm-photo-edit"
+                        title="Change photo"
+                        aria-label="Change photo"
                       >
-                        Choose File
+                        <Upload size={12} />
                       </button>
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleFileChange}
-                        accept=".pdf"
-                        style={{ display: "none" }}
+                    </div>
+
+                    <h2 className="pm-profile-name">{profile.name || "Student Name"}</h2>
+                    <span className="pm-profile-role">
+                      {profile.title || "Student Role"}
+                    </span>
+
+                    <div className="pm-profile-meta">
+                      <div className="pm-meta-row">
+                        <Mail size={14} />
+                        <span>{profile.kalviumEmail || "student@kalvium.community"}</span>
+                      </div>
+                      <div className="pm-meta-row">
+                        <FileText size={14} />
+                        <span>{profile.squadId || "Squad "}</span>
+                      </div>
+                    </div>
+
+                    <div className="pm-resume-status-card">
+                      <div className="pm-status-header">
+                        <CheckCircle2
+                          size={15}
+                          className={fileName ? "text-success" : "text-muted"}
+                        />
+                        <span>{fileName ? "Resume Uploaded" : "No Resume"}</span>
+                      </div>
+                      <p className="pm-resume-filename">
+                        {fileName || "No document selected"}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </section>
+
+              {/* Form */}
+              <form className="pm-form" onSubmit={(e) => e.preventDefault()}>
+                <FormSection title="Personal Information" icon={User}>
+                  {isLoading ? (
+                    <FormSkeleton count={4} />
+                  ) : (
+                    <div className="pm-grid-2">
+                      <Field
+                        label="Name"
+                        placeholder="e.g. name"
+                        value={profile.name}
+                        onChange={(e) => handleChange("name", e.target.value)}
+                        disabled
                       />
-                      <span className="pm-file-name-text">
-                        {fileName ? fileName : "No file selected"}
+                      <Field
+                        label="Kalvium Email"
+                        placeholder="e.g. example@kalvium.community"
+                        value={profile.kalviumEmail}
+                        onChange={(e) => handleChange("kalviumEmail", e.target.value)}
+                        disabled
+                      />
+                      <Field
+                        label="Personal Email"
+                        placeholder="e.g. example@gmail.com"
+                        value={profile.personalEmail}
+                        onChange={(e) => handleChange("personalEmail", e.target.value)}
+                        leftIcon={<Mail size={14} />}
+                      />
+                      <Field
+                        label="Squad"
+                        placeholder="e.g. Squad 12"
+                        value={profile.squadId}
+                        onChange={(e) => handleChange("squadId", e.target.value)}
+                      />
+                    </div>
+                  )}
+                </FormSection>
+
+                <FormSection title="Professional Information" icon={FolderKanban}>
+                  {isLoading ? (
+                    <FormSkeleton count={2} />
+                  ) : (
+                    <div className="pm-grid-2">
+                      <Field
+                        label="Title / Role"
+                        placeholder="e.g. Full Stack Developer"
+                        value={profile.title}
+                        onChange={(e) => handleChange("title", e.target.value)}
+                      />
+                      <div className="pm-field">
+                        <label>Resume (PDF Only)</label>
+                        <div className="pm-file-input">
+                          <button
+                            type="button"
+                            onClick={handleButtonClick}
+                            className="pm-choose-btn"
+                          >
+                            Choose File
+                          </button>
+                          <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileChange}
+                            accept=".pdf"
+                            style={{ display: "none" }}
+                          />
+                          <span className="pm-file-name-text">
+                            {fileName ? fileName : "No file selected"}
+                          </span>
+                        </div>
+                        <span className="pm-field-hint">
+                          PDF format only, maximum size 5MB
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </FormSection>
+
+                <FormSection title="Social Links" icon={Link2}>
+                  {isLoading ? (
+                    <FormSkeleton count={3} />
+                  ) : (
+                    <div className="pm-grid-3">
+                      <Field
+                        label="GitHub"
+                        placeholder="https://github.com/username"
+                        value={profile.github}
+                        onChange={(e) => handleChange("github", e.target.value)}
+                        leftIcon={<Code2 size={14} />}
+                      />
+                      <Field
+                        label="LinkedIn"
+                        placeholder="https://linkedin.com/in/username"
+                        value={profile.linkedin}
+                        onChange={(e) => handleChange("linkedin", e.target.value)}
+                        leftIcon={<Globe size={14} />}
+                      />
+                      <Field
+                        label="LeetCode"
+                        placeholder="https://leetcode.com/u/username"
+                        value={profile.leetcode}
+                        onChange={(e) => handleChange("leetcode", e.target.value)}
+                        leftIcon={<Link2 size={14} />}
+                      />
+                    </div>
+                  )}
+                </FormSection>
+
+                <FormSection title="Bio" icon={FileText}>
+                  {isLoading ? (
+                    <div className="skeleton skeleton-block height-100"></div>
+                  ) : (
+                    <div className="pm-field">
+                      <textarea
+                        className="pm-textarea"
+                        maxLength={bioLimit}
+                        placeholder="Write a brief bio about yourself..."
+                        value={bio}
+                        onChange={(e) => setBio(e.target.value)}
+                        rows={4}
+                      />
+                      <span className="pm-char-count">
+                        {bio.length} / {bioLimit} characters
                       </span>
                     </div>
-                    <span className="pm-field-hint">
-                      PDF format only, maximum size 5MB
-                    </span>
+                  )}
+                </FormSection>
+
+                {!isLoading && (
+                  <div className="pm-form-actions">
+                    <button type="button" className="pm-cancel-btn">
+                      <X size={15} />
+                      Cancel
+                    </button>
+                    <button type="submit" className="pm-save-btn">
+                      Save Changes
+                    </button>
                   </div>
-                </div>
-              )}
-            </FormSection>
+                )}
+              </form>
+            </>
+          )}
 
-            <FormSection title="Social Links" icon={Link2}>
-              {isLoading ? (
-                <FormSkeleton count={3} />
-              ) : (
-                <div className="pm-grid-3">
-                  <Field
-                    label="GitHub"
-                    placeholder="https://github.com/username"
-                    value={profile.github}
-                    onChange={(e) => handleChange("github", e.target.value)}
-                    leftIcon={<Code2 size={14} />}
-                  />
-                  <Field
-                    label="LinkedIn"
-                    placeholder="https://linkedin.com/in/username"
-                    value={profile.linkedin}
-                    onChange={(e) => handleChange("linkedin", e.target.value)}
-                    leftIcon={<Globe size={14} />}
-                  />
-                  <Field
-                    label="LeetCode"
-                    placeholder="https://leetcode.com/u/username"
-                    value={profile.leetcode}
-                    onChange={(e) => handleChange("leetcode", e.target.value)}
-                    leftIcon={<Link2 size={14} />}
-                  />
-                </div>
-              )}
-            </FormSection>
-
-            <FormSection title="Bio" icon={FileText}>
-              {isLoading ? (
-                <div className="skeleton skeleton-block height-100"></div>
-              ) : (
-                <div className="pm-field">
-                  <textarea
-                    className="pm-textarea"
-                    maxLength={bioLimit}
-                    placeholder="Write a brief bio about yourself..."
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
-                    rows={4}
-                  />
-                  <span className="pm-char-count">
-                    {bio.length} / {bioLimit} characters
-                  </span>
-                </div>
-              )}
-            </FormSection>
-
-            {!isLoading && (
-              <div className="pm-form-actions">
-                <button type="button" className="pm-cancel-btn">
-                  <X size={15} />
-                  Cancel
-                </button>
-                <button type="submit" className="pm-save-btn">
-                  Save Changes
-                </button>
-              </div>
-            )}
-          </form>
+          {activeNav !== "Dashboard" && activeNav !== "Profile" && (
+            <ComingSoon featureName={activeNav} />
+          )}
         </div>
       </main>
+    </div>
+  );
+}
+
+function ComingSoon({ featureName }) {
+  return (
+    <div
+      style={{
+        gridColumn: "1 / -1",
+        padding: "60px 20px",
+        textAlign: "center",
+        background: "#ffffff",
+        borderRadius: "12px",
+        border: "1px dashed #e2e8f0",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <div
+        style={{
+          width: "56px",
+          height: "56px",
+          borderRadius: "50%",
+          backgroundColor: "#f7fafc",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: "16px",
+          color: "#4a5568",
+        }}
+      >
+        <Clock size={28} />
+      </div>
+      <h2 style={{ fontSize: "20px", fontWeight: "600", color: "#2d3748" }}>
+        {featureName} Coming Soon
+      </h2>
+      <p style={{ color: "#718096", marginTop: "8px", maxWidth: "400px", fontSize: "14px" }}>
+        We are actively working on building the {featureName.toLowerCase()} section. Stay tuned for future updates!
+      </p>
     </div>
   );
 }
