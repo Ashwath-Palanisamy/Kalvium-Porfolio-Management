@@ -8,7 +8,6 @@ import {
   Settings,
   LogOut,
   Bell,
-  ChevronDown,
   Mail,
   Link2,
   Globe,
@@ -40,10 +39,10 @@ export default function EditProfile() {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const [profile, setProfile] = useState({
-    name: "Dhinesh Babu",
-    kalviumEmail: "dhinesh@kalvium.community",
+    name: "name",
+    kalviumEmail: "example@kalvium.community",
     personalEmail: "",
-    squadId: "Squad 12",
+    squadId: "",
     title: "",
     github: "",
     linkedin: "",
@@ -149,18 +148,7 @@ export default function EditProfile() {
             <button type="button" className="pm-icon-btn" aria-label="Notifications">
               <Bell size={18} />
             </button>
-            <div className="pm-user-menu">
-              <div className="pm-avatar-chip">
-                {profile.name
-                  ? profile.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase()
-                  : "ST"}
-              </div>
-              <ChevronDown size={14} className="pm-chevron" />
-            </div>
+            
           </div>
         </header>
 
@@ -214,7 +202,7 @@ export default function EditProfile() {
                   </div>
                   <div className="pm-meta-row">
                     <FileText size={14} />
-                    <span>{profile.squadId || "Squad ID"}</span>
+                    <span>{profile.squadId || "Squad "}</span>
                   </div>
                 </div>
 
@@ -242,32 +230,31 @@ export default function EditProfile() {
               ) : (
                 <div className="pm-grid-2">
                   <Field
-                    label="Name (Standard)"
-                    placeholder="e.g. Dhinesh Babu"
+                    label="Name "
+                    placeholder="e.g. name"
                     value={profile.name}
                     onChange={(e) => handleChange("name", e.target.value)}
                     disabled
                   />
                   <Field
-                    label="Kalvium Email (Standard)"
-                    placeholder="e.g. dhinesh@kalvium.community"
+                    label="Kalvium Email "
+                    placeholder="e.g. example@kalvium.community"
                     value={profile.kalviumEmail}
                     onChange={(e) => handleChange("kalviumEmail", e.target.value)}
                     disabled
                   />
                   <Field
                     label="Personal Email"
-                    placeholder="e.g. dhinesh@gmail.com"
+                    placeholder="e.g. exmaple@gmail.com"
                     value={profile.personalEmail}
                     onChange={(e) => handleChange("personalEmail", e.target.value)}
                     leftIcon={<Mail size={14} />}
                   />
                   <Field
-                    label="Squad ID (Standard)"
+                    label="Squad "
                     placeholder="e.g. Squad 12"
                     value={profile.squadId}
                     onChange={(e) => handleChange("squadId", e.target.value)}
-                    disabled
                   />
                 </div>
               )}
