@@ -9,8 +9,17 @@ function AuthGate({ children }) {
     useEffect(() => {
         let isMounted = true;
 
-        async function checkSession() {
-            // Give Supabase a moment to process any incoming URL hash/query tokens from Google
+        async function initAuth() {
+            // Check if Supabase passed tokens via URL hash (e.g., #access_token=...)
+            const hash = window.location.hash;
+            if (hash && hash.includes("access_token")) {
+                // Let Supabase parse and store the session from the hash parameters automatically
+                await supabase.auth.getSession();
+                // Clean the token hash from the URL bar for security and cleanliness
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+
+            // Fetch the active session
             const { data: { session }, error } = await supabase.auth.getSession();
             
             if (error) {
@@ -23,7 +32,7 @@ function AuthGate({ children }) {
             }
         }
 
-        checkSession();
+        initAuth();
 
         // Listen for future auth state changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
