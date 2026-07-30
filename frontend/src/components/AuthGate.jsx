@@ -1,6 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { supabase } from "../../../backend/src/config/supabase";
+import { supabase } from "../lib/supabase"; // Update the path if yours is different
 
 function AuthGate({ children }) {
     const [loading, setLoading] = useState(true);
