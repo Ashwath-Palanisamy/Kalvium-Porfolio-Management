@@ -1,4 +1,5 @@
 .error-container {
+  height: 100vh;
   text-align: center;
   padding: 100px 20px;
   font-family: Arial, sans-serif;
@@ -35,3 +36,4 @@
 .home-link:hover {
   background-color: #b71c1c;
 }
+
