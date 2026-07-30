@@ -8,14 +8,13 @@ import Students from "./pages/Students";
 import About from "./pages/About/About";
 import EditProfile from "./pages/studentdashboard/EditProfile";
 import ErrorPage from "./pages/ErrorPage/404page";
+import AuthGate from "./components/AuthGate";
 
 function App() {
   const location = useLocation();
-
-  const showNavbar = location.pathname !== "/login" && location.pathname !== "/dashboard";
-  const showFooter =
-    location.pathname !== "/login" &&
-    location.pathname !== "/dashboard";
+  
+  const showNavbar = location.pathname !== "/login" && !location.pathname.startsWith("/dashboard");
+  const showFooter = location.pathname !== "/login" && !location.pathname.startsWith("/dashboard");
 
   return (
     <>
@@ -29,7 +28,16 @@ function App() {
         <Route path="/students" element={<Students />} />
         <Route path="/profile/:id" element={<IndividualStudentPortfolio />} />
         <Route path="/about" element={<About />} />
-        <Route path="/dashboard" element={<EditProfile />} />
+        
+        {/* Protected Dashboard Route using AuthGate */}
+        <Route
+          path="/dashboard"
+          element={
+            <AuthGate>
+              <EditProfile />
+            </AuthGate>
+          }
+        />
         
         <Route path="*" element={<ErrorPage />} />
       </Routes>

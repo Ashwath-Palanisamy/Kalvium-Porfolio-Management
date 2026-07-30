@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "./LoginPage.css";
 import GoogleIcon from "../assets/icons8-google.svg";
 import KalviumLogo from "../assets/kalvium-logo.svg";
@@ -8,28 +8,56 @@ import { supabase } from "../lib/supabase.js";
 export default function LoginPage() {
     const [errorMessage, setErrorMessage] = useState("");
     const [isExiting, setIsExiting] = useState(false);
+    const navigate = useNavigate();
 
-    
+    // 1. Intercept OAuth tokens/errors from the URL hash immediately on load
+    useEffect(() => {
+        const handleAuthCallback = async () => {
+            const hash = window.location.hash;
+            
+            if (hash && hash.includes("access_token")) {
+                // Let Supabase process the session from the URL hash
+                const { data, error } = await supabase.auth.getSession();
+                
+                if (error) {
+                    showError(error.message);
+                    await supabase.auth.signOut();
+                } else if (data?.session) {
+                    // Successfully logged in! Clean URL and go to dashboard
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    navigate("/dashboard", { replace: true });
+                    return;
+                }
+            }
+
+            // Check standard error query params if any
+            const queryParams = new URLSearchParams(window.location.search);
+            const errorCode = queryParams.get("error_code");
+            const errorDescription = queryParams.get("error_description");
+
+            if (errorCode || errorDescription) {
+                showError("Access Denied: You must use an official @kalvium.com or @kalvium.community email address.");
+                await supabase.auth.signOut();
+                window.history.replaceState(null, "", window.location.pathname);
+            }
+        };
+
+        handleAuthCallback();
+    }, [navigate]);
+
     useEffect(() => {
         if (!errorMessage) return;
-
         setIsExiting(false);
-
-        const displayTimer = setTimeout(() => {
-            setIsExiting(true);
-        }, 10000);
-
+        const displayTimer = setTimeout(() => setIsExiting(true), 10000);
         return () => clearTimeout(displayTimer);
     }, [errorMessage]);
 
     useEffect(() => {
         if (!isExiting) return;
-
         const exitTimer = setTimeout(() => {
             setErrorMessage("");
             setIsExiting(false);
         }, 400);
-
         return () => clearTimeout(exitTimer);
     }, [isExiting]);
 
@@ -40,17 +68,16 @@ export default function LoginPage() {
 
     const handleGoogleLogin = async () => {
         const { error } = await supabase.auth.signInWithOAuth({
-            provider : "google",
+            provider: "google",
             options: {
-                redirectTo : "http://localhost:5173/dashboard"
+                redirectTo: "http://localhost:5173/login"
             }
-        })
+        });
 
-        if (error){
-            showError(error.message)
+        if (error) {
+            showError(error.message);
         }
-    }
-
+    };
 
     return (
         <div className="login">
