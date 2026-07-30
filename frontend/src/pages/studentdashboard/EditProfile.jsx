@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import {
   LayoutDashboard,
@@ -8,6 +7,7 @@ import {
   FileText,
   Settings,
   LogOut,
+  Bell,
   Mail,
   Link2,
   Globe,
@@ -84,7 +84,7 @@ export default function EditProfile() {
   const handleButtonClick = () => {
     fileInputRef.current?.click();
   };
-  
+
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       setFileName(e.target.files[0].name);
