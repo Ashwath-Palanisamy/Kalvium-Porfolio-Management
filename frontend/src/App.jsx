@@ -7,6 +7,7 @@ import IndividualStudentPortfolio from "./pages/IndividualStudentPortfolio";
 import Students from "./pages/Students";
 import About from "./pages/About/About";
 import EditProfile from "./pages/studentdashboard/EditProfile";
+import ErrorPage from "./pages/ErrorPage/404page";
 
 function App() {
   const location = useLocation();
@@ -29,6 +30,8 @@ function App() {
         <Route path="/profile/:id" element={<IndividualStudentPortfolio />} />
         <Route path="/about" element={<About />} />
         <Route path="/dashboard" element={<EditProfile />} />
+        
+        <Route path="*" element={<ErrorPage />} />
       </Routes>
 
       {showFooter && <Footer />}
