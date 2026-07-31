@@ -1,7 +1,18 @@
-import { Code2, Globe, Link2 } from "lucide-react";
+import {
+  FileText,
+  Eye,
+  Download,
+  Code2,
+  Globe,
+  Link2
+} from "lucide-react";
 import "./DashboardTab.css";
 
+
 export default function DashboardTab({ profile, fileName, isLoading }) {
+
+    console.log("Dashboard resume URL:", profile.resumeUrl);
+    
   if (isLoading) {
     return (
       <div className="dt-container">
@@ -103,6 +114,48 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
             <span className="dt-status-label">ROLE / TITLE</span>
             <p className="dt-status-value">{profile.title || "Not Set"}</p>
           </div>
+          {profile.resumeUrl && (
+            <div className="resume-card">
+            
+              <div className="resume-header">
+                <FileText size={20}/>
+                <h3>Resume</h3>
+              </div>
+
+
+              <p>
+                {fileName || "Uploaded Resume"}
+              </p>
+
+
+              <div className="resume-actions">
+
+                {/* View */}
+                <a
+                  href={profile.resumeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="resume-view-btn"
+                >
+                  <Eye size={16}/>
+                  View Resume
+                </a>
+
+
+                {/* Download */}
+                <a
+                  href={profile.resumeUrl}
+                  download
+                  className="resume-download-btn"
+                >
+                  <Download size={16}/>
+                  Download
+                </a>
+
+              </div>
+
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -83,3 +83,70 @@
 .dt-status-value.is-success {
   color: #38a169;
 }
+
+.resume-card {
+  background: white;
+  border-radius: 14px;
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  margin-top: 20px;
+}
+
+
+.resume-header {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+
+.resume-header h3 {
+  font-size:18px;
+}
+
+
+.resume-card p {
+  color:#64748b;
+  margin-bottom:15px;
+}
+
+
+.resume-actions {
+  display:flex;
+  gap:12px;
+}
+
+
+.resume-view-btn,
+.resume-download-btn {
+
+  display:flex;
+  align-items:center;
+  gap:8px;
+
+  padding:10px 16px;
+
+  border-radius:8px;
+
+  text-decoration:none;
+
+  font-size:14px;
+
+}
+
+
+.resume-view-btn {
+
+  background:#111827;
+  color:white;
+
+}
+
+
+.resume-download-btn {
+
+  background:#ef4444;
+  color:white;
+
+}
