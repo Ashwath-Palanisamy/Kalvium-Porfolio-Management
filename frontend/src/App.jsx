@@ -15,7 +15,6 @@ import MentorDashboard from "./pages/MentorDashboard/mentordashboard.jsx";
 function App() {
   const location = useLocation();
   
-  const isMentorDashboard = location.pathname === "/";
   const showNavbar = !isMentorDashboard && location.pathname !== "/login" && !location.pathname.startsWith("/dashboard");
   const showFooter = !isMentorDashboard && location.pathname !== "/login" && !location.pathname.startsWith("/dashboard");
 
