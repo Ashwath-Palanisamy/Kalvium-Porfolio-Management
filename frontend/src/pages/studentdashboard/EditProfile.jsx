@@ -60,24 +60,60 @@ export default function ProfileTab() {
   const [fileName, setFileName] = useState("");
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        const userEmail = session.user.email || "";
-        const fullName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || userEmail.split("@")[0];
-        
-        setProfile((prev) => ({
-          ...prev,
-          name: fullName,
-          kalviumEmail: userEmail,
-        }));
-      }
-      setIsLoading(false);
-    };
+  const checkUser = async () => {
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
 
-    fetchUserData();
-  }, []);
+  };
+
+  checkUser();
+}, []);
+
+  useEffect(() => {
+  const fetchUserData = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
+
+    setProfile({
+      name:
+        data?.name ||
+        user.user_metadata?.full_name ||
+        user.user_metadata?.name ||
+        "",
+      kalviumEmail: data?.kalvium_email || user.email || "",
+      personalEmail: data?.personal_email || "",
+      squadId: data?.squad_id || "",
+      title: data?.title || "",
+      github: data?.github || "",
+      linkedin: data?.linkedin || "",
+      leetcode: data?.leetcode || "",
+      resumeUrl: data?.resume_url || "",
+    });
+
+    setBio(data?.bio || "");
+    setFileName(
+      data?.resume_url ? data.resume_url.split("/").pop() : ""
+    );
+
+    setIsLoading(false);
+  };
+
+  fetchUserData();
+}, []);
 
   const handleChange = (field, value) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
@@ -97,6 +133,41 @@ export default function ProfileTab() {
     await supabase.auth.signOut();
     navigate("/login");
   };
+
+const handleSave = async () => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+
+const { data, error } = await supabase
+  .from("profiles")
+  .upsert(
+    {
+      user_id: user.id,
+      name: profile.name,
+      kalvium_email: profile.kalviumEmail,
+      personal_email: profile.personalEmail,
+      squad_id: profile.squadId,
+      title: profile.title,
+      github: profile.github,
+      linkedin: profile.linkedin,
+      leetcode: profile.leetcode,
+      bio: bio,
+    },
+    {
+      onConflict: "user_id",
+      ignoreDuplicates: false,
+    }
+  )
+  .select();
+
+  if (error) {
+    alert(error.message);
+  } else {
+    alert("Saved!");
+  }
+};
 
   return (
     <div className="pm-layout">
@@ -399,7 +470,7 @@ export default function ProfileTab() {
                       <X size={15} />
                       Cancel
                     </button>
-                    <button type="submit" className="pm-save-btn">
+                    <button type="button" className="pm-save-btn" onClick={handleSave}>
                       Save Changes
                     </button>
                   </div>
