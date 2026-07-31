@@ -53,11 +53,13 @@ export default function ProfileTab() {
     github: "",
     linkedin: "",
     leetcode: "",
+    resumeUrl: "",
   });
 
   const [bio, setBio] = useState("");
   const bioLimit = 300;
   const fileInputRef = useRef(null);
+  const [resumeFile, setResumeFile] = useState(null);
   const [fileName, setFileName] = useState("");
 
   useEffect(() => {
@@ -125,9 +127,12 @@ export default function ProfileTab() {
   };
 
   const handleFileChange = (e) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setFileName(e.target.files[0].name);
-    }
+    const file = e.target.files[0];
+
+    if (!file) return;
+
+    setResumeFile(file);
+    setFileName(file.name);
   };
 
   const handleLogout = async () => {
@@ -136,38 +141,85 @@ export default function ProfileTab() {
   };
 
 const handleSave = async () => {
+
   const {
-    data: { user },
+    data:{user}
   } = await supabase.auth.getUser();
 
 
-const { data, error } = await supabase
-  .from("profiles")
-  .upsert(
-    {
-      user_id: user.id,
-      name: profile.name,
-      kalvium_email: profile.kalviumEmail,
-      personal_email: profile.personalEmail,
-      squad_id: profile.squadId,
-      title: profile.title,
-      github: profile.github,
-      linkedin: profile.linkedin,
-      leetcode: profile.leetcode,
-      bio: bio,
-    },
-    {
-      onConflict: "user_id",
-      ignoreDuplicates: false,
-    }
-  )
-  .select();
-
-  if (error) {
-    alert(error.message);
-  } else {
-    alert("Saved!");
+  if(!user){
+    alert("No user");
+    return;
   }
+
+
+  let resumeUrl = profile.resumeUrl || null;
+
+
+  // Upload PDF
+  if(resumeFile){
+
+    const filePath =
+      `${user.id}/${Date.now()}-${resumeFile.name}`;
+
+
+    const {error:uploadError}=await supabase.storage
+      .from("resumes")
+      .upload(
+        filePath,
+        resumeFile,
+        {
+          contentType:"application/pdf"
+        }
+      );
+
+
+    if(uploadError){
+      alert(uploadError.message);
+      return;
+    }
+
+
+    const {data:urlData}=supabase.storage
+      .from("resumes")
+      .getPublicUrl(filePath);
+
+
+    resumeUrl=urlData.publicUrl;
+
+  }
+
+
+  const {data,error}=await supabase
+  .from("profiles")
+  .upsert({
+      user_id:user.id,
+      name:profile.name,
+      kalvium_email:profile.kalviumEmail,
+      personal_email:profile.personalEmail,
+      squad_id:profile.squadId,
+      title:profile.title,
+      github:profile.github,
+      linkedin:profile.linkedin,
+      leetcode:profile.leetcode,
+      bio:bio,
+      resume_url:resumeUrl
+  },
+  {
+    onConflict:"user_id"
+  });
+
+
+  console.log(data,error);
+
+
+  if(error){
+    alert(error.message);
+  }
+  else{
+    alert("Profile Saved");
+  }
+
 };
 
   return (
