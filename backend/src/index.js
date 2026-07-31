@@ -3,15 +3,13 @@ import dotenv from "dotenv"
 import cors from "cors"
 import authRoutes from "./routes/auth.routes.js"
 
-
 dotenv.config()
 
 const app = express()
 
 const PORT = process.env.PORT || 8000
 
-
-// Allow React frontend
+// Middleware
 app.use(
     cors({
         origin: "http://localhost:5173",
@@ -19,15 +17,16 @@ app.use(
     })
 )
 
-
 app.use(express.json())
 
+// Mount your auth routes
+app.use("/api/auth", authRoutes)
 
-app.get("/",(req,res)=>{
+// Health check route
+app.get("/", (req, res) => {
     res.send("Backend is working")
 })
 
-
-app.listen(PORT,()=>{
+app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`)
 })
