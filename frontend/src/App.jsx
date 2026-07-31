@@ -26,7 +26,7 @@ function App() {
       {showNavbar && <Navbar />}
 
       <Routes>
-        <Route path="/" element={<MentorDashboard />} />
+        <Route path="/" element={<Home/>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/students" element={<Students />} />
         <Route path="/profile/:id" element={<IndividualStudentPortfolio />} />
