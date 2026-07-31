@@ -11,8 +11,6 @@ import "./DashboardTab.css";
 
 export default function DashboardTab({ profile, fileName, isLoading }) {
 
-    console.log("Dashboard resume URL:", profile.resumeUrl);
-    
   if (isLoading) {
     return (
       <div className="dt-container">

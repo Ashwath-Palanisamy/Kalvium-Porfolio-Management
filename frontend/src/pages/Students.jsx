@@ -1,57 +1,97 @@
 import React, { useState, useEffect } from "react";
 import "./Students.css";
+import { supabase } from "../lib/supabase.js";
+import { useNavigate } from "react-router-dom";
 
-// Just define your actual students here. 
-// No more clones. If there's only 1 item, it will only render 1 card.
-const studentsData = [
-  { id: 1, name: "Dhinesh Babu", role: "AI Developer", skills: ["Python", "ML", "TensorFlow"], avatar: "https://i.pravatar.cc/150?img=11" },
-  // Add more students back into this array as needed to see pagination activate automatically.
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  { id: 2, name: "Ashwin", role: "Web Developer", skills: ["React", "Node.js", "MongoDB"], avatar: "https://i.pravatar.cc/150?img=12" },
-  
-];
 
 export default function Students() {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
+  const [studentsData, setStudentsData] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
-  // Pagination Calculations
-  const totalItems = studentsData.length;
+    const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredStudents = studentsData.filter((student) => {
+  const query = searchQuery.toLowerCase();
+
+  return (
+    student.name.toLowerCase().includes(query) ||
+    student.role.toLowerCase().includes(query) ||
+    (student.skills || []).some(skill =>
+     skill.toLowerCase().includes(query)
+    )
+  );
+
+});
+
+
+  const totalItems = filteredStudents.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage)); 
   
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
-  const currentStudents = studentsData.slice(startIndex, endIndex);
+  const currentStudents = filteredStudents.slice(startIndex, endIndex);
 
-  const itemsToRenderCount = currentStudents.length;
+  const itemsToRenderCount = isLoading ? itemsPerPage : currentStudents.length;
+
 
   useEffect(() => {
+
+  const fetchStudents = async () => {
+
     setIsLoading(true);
-    const timer = setTimeout(() => {
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*");
+
+      console.log("Profiles data:", data);
+      console.log("Profiles error:", error);
+
+    if(error){
+      console.log("Error fetching students:", error);
       setIsLoading(false);
-    }, 1000); 
-    return () => clearTimeout(timer);
-  }, [currentPage]);
+      return;
+    }
+
+
+    const formattedStudents = data.map((student)=>({
+
+      id: student.id,
+
+      name: student.name || "Unknown",
+
+      role: student.title || "Student",
+
+      skills: [
+        student.github ? "GitHub" : null,
+        student.leetcode ? "LeetCode" : null,
+        student.linkedin ? "LinkedIn" : null
+      ].filter(Boolean),
+
+
+      avatar:
+        "https://i.pravatar.cc/150?u=" + student.user_id
+
+    }));
+
+
+    setStudentsData(formattedStudents);
+
+    setIsLoading(false);
+
+  };
+
+
+  fetchStudents();
+
+}, []);
+
+  useEffect(()=>{
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   const handlePageChange = (page) => {
     if (page >= 1 && page <= totalPages) {
@@ -126,7 +166,13 @@ export default function Students() {
         
         <div className="header-controls">
           <div className="search-bar-container">
-            <input type="text" placeholder="Search students by name or skill..." className="search-bar" />
+            <input
+              type="text"
+              placeholder="Search students by name or skill..."
+              className="search-bar"
+              value={searchQuery}
+              onChange={(e)=>setSearchQuery(e.target.value)}
+            />
             <span className="search-icon">🔍</span>
           </div>
           <div className="filters-row">
@@ -185,9 +231,10 @@ export default function Students() {
                   ))}
                 </div>
                 
-                <button className="view-profile-btn">
-                  View Profile
-                </button>
+                <button 
+                  className="view-profile-btn"
+                  onClick={() => navigate(`/student/${student.id}`)}
+                >View Profile</button>
               </div>
             ))
         }
