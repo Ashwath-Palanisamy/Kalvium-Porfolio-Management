@@ -189,14 +189,64 @@
     height: auto;
     position: static;
     overflow-y: visible;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand logout"
+      "nav nav";
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px 14px;
   }
 
   .sidebar-logo {
+    grid-area: brand;
     padding: 16px 18px;
   }
 
-  .sidebar-menu,
-  .sidebar-footer,
+  .sidebar-menu {
+    grid-area: nav;
+    display: flex;
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    gap: 8px;
+    scrollbar-width: none;
+  }
+
+  .sidebar-menu::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sidebar-footer {
+    grid-area: logout;
+    margin-top: 0;
+    width: auto;
+  }
+
+  .menu-item {
+    flex-shrink: 0;
+    padding: 8px 12px;
+  }
+
+  .sidebar-footer {
+    display: flex;
+  }
+
+  .logout-btn {
+    justify-content: center;
+    width: auto;
+    padding: 8px 10px;
+    white-space: nowrap;
+  }
+
+  .sidebar.is-collapsed .logout-btn {
+    justify-content: center;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
   .collapse-btn {
     display: none;
   }
