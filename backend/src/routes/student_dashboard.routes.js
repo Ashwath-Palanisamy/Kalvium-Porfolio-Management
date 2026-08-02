@@ -1,32 +1,31 @@
 import express from "express";
+import rateLimit from "express-rate-limit";
 import { createAuthedSupabaseClient, supabase } from "../config/supabase.js";
 
 const router = express.Router();
 const STATS_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const STATS_RATE_LIMIT_MAX_REQUESTS = 30;
 const AUTH_ROUTE_RATE_LIMIT_MAX_REQUESTS = 120;
-const statsRateLimitStore = new Map();
+const authRouteLimiter = rateLimit({
+    windowMs: STATS_RATE_LIMIT_WINDOW_MS,
+    max: AUTH_ROUTE_RATE_LIMIT_MAX_REQUESTS,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many profile requests. Please try again later." },
+});
 
-const isRateLimited = (key, maxRequests) => {
-    const now = Date.now();
-    const windowStart = now - STATS_RATE_LIMIT_WINDOW_MS;
-    const existingTimestamps = statsRateLimitStore.get(key) || [];
-    const validTimestamps = existingTimestamps.filter((timestamp) => timestamp > windowStart);
-
-    if (validTimestamps.length >= maxRequests) {
-        statsRateLimitStore.set(key, validTimestamps);
-        return true;
-    }
-
-    validTimestamps.push(now);
-    statsRateLimitStore.set(key, validTimestamps);
-    return false;
-};
+const statsRouteLimiter = rateLimit({
+    windowMs: STATS_RATE_LIMIT_WINDOW_MS,
+    max: STATS_RATE_LIMIT_MAX_REQUESTS,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many stats requests. Please try again later." },
+});
 
 const isValidGitHubUsername = (username) => /^[a-zA-Z0-9-]{1,39}$/.test(username);
 const isValidLeetCodeUsername = (username) => /^[a-zA-Z0-9_-]{1,30}$/.test(username);
 
-router.get("/profile", async (req, res) => {
+router.get("/profile", authRouteLimiter, async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -40,10 +39,6 @@ router.get("/profile", async (req, res) => {
 
         if (authError || !user) {
             return res.status(401).json({ error: "Invalid or expired token" });
-        }
-
-        if (isRateLimited(`profile:${user.id}`, AUTH_ROUTE_RATE_LIMIT_MAX_REQUESTS)) {
-            return res.status(429).json({ error: "Too many profile requests. Please try again later." });
         }
 
         req.user = user;
@@ -66,7 +61,7 @@ router.get("/profile", async (req, res) => {
     }
 });
 
-router.put("/updateprofile", async (req, res) => {
+router.put("/updateprofile", authRouteLimiter, async (req, res) => {
     try {
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -79,10 +74,6 @@ router.put("/updateprofile", async (req, res) => {
         const { data: { user }, error: authError } = await supabase.auth.getUser(token);
         if (authError || !user) {
             return res.status(401).json({ error: "Invalid or expired token" });
-        }
-
-        if (isRateLimited(`updateprofile:${user.id}`, AUTH_ROUTE_RATE_LIMIT_MAX_REQUESTS)) {
-            return res.status(429).json({ error: "Too many profile update requests. Please try again later." });
         }
 
         const updatePayload = req.body;
@@ -161,7 +152,7 @@ const extractUsername = (url, platform) => {
 };
 
 // Fetch GitHub Stats
-router.post("/github", async (req, res) => {
+router.post("/github", statsRouteLimiter, async (req, res) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({ error: "Missing or invalid Authorization header" });
@@ -171,10 +162,6 @@ router.post("/github", async (req, res) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) {
         return res.status(401).json({ error: "Invalid or expired token" });
-    }
-
-    if (isRateLimited(`github:${user.id}`, STATS_RATE_LIMIT_MAX_REQUESTS)) {
-        return res.status(429).json({ error: "Too many GitHub requests. Please try again later." });
     }
 
     const { url } = req.body;
@@ -210,7 +197,7 @@ router.post("/github", async (req, res) => {
 });
 
 // Fetch LeetCode Stats (Directly from LeetCode Official GraphQL API)
-router.post("/leetcode", async (req, res) => {
+router.post("/leetcode", statsRouteLimiter, async (req, res) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
         return res.status(401).json({ error: "Missing or invalid Authorization header" });
@@ -220,10 +207,6 @@ router.post("/leetcode", async (req, res) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) {
         return res.status(401).json({ error: "Invalid or expired token" });
-    }
-
-    if (isRateLimited(`leetcode:${user.id}`, STATS_RATE_LIMIT_MAX_REQUESTS)) {
-        return res.status(429).json({ error: "Too many LeetCode requests. Please try again later." });
     }
 
     const { url } = req.body;
