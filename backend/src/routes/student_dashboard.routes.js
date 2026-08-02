@@ -4,15 +4,16 @@ import { createAuthedSupabaseClient, supabase } from "../config/supabase.js";
 const router = express.Router();
 const STATS_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const STATS_RATE_LIMIT_MAX_REQUESTS = 30;
+const AUTH_ROUTE_RATE_LIMIT_MAX_REQUESTS = 120;
 const statsRateLimitStore = new Map();
 
-const isStatsRateLimited = (key) => {
+const isRateLimited = (key, maxRequests) => {
     const now = Date.now();
     const windowStart = now - STATS_RATE_LIMIT_WINDOW_MS;
     const existingTimestamps = statsRateLimitStore.get(key) || [];
     const validTimestamps = existingTimestamps.filter((timestamp) => timestamp > windowStart);
 
-    if (validTimestamps.length >= STATS_RATE_LIMIT_MAX_REQUESTS) {
+    if (validTimestamps.length >= maxRequests) {
         statsRateLimitStore.set(key, validTimestamps);
         return true;
     }
@@ -21,6 +22,9 @@ const isStatsRateLimited = (key) => {
     statsRateLimitStore.set(key, validTimestamps);
     return false;
 };
+
+const isValidGitHubUsername = (username) => /^[a-zA-Z0-9-]{1,39}$/.test(username);
+const isValidLeetCodeUsername = (username) => /^[a-zA-Z0-9_-]{1,30}$/.test(username);
 
 router.get("/profile", async (req, res) => {
     try {
@@ -36,6 +40,10 @@ router.get("/profile", async (req, res) => {
 
         if (authError || !user) {
             return res.status(401).json({ error: "Invalid or expired token" });
+        }
+
+        if (isRateLimited(`profile:${user.id}`, AUTH_ROUTE_RATE_LIMIT_MAX_REQUESTS)) {
+            return res.status(429).json({ error: "Too many profile requests. Please try again later." });
         }
 
         req.user = user;
@@ -71,6 +79,10 @@ router.put("/updateprofile", async (req, res) => {
         const { data: { user }, error: authError } = await supabase.auth.getUser(token);
         if (authError || !user) {
             return res.status(401).json({ error: "Invalid or expired token" });
+        }
+
+        if (isRateLimited(`updateprofile:${user.id}`, AUTH_ROUTE_RATE_LIMIT_MAX_REQUESTS)) {
+            return res.status(429).json({ error: "Too many profile update requests. Please try again later." });
         }
 
         const updatePayload = req.body;
@@ -161,20 +173,22 @@ router.post("/github", async (req, res) => {
         return res.status(401).json({ error: "Invalid or expired token" });
     }
 
-    if (isStatsRateLimited(`github:${user.id}`)) {
+    if (isRateLimited(`github:${user.id}`, STATS_RATE_LIMIT_MAX_REQUESTS)) {
         return res.status(429).json({ error: "Too many GitHub requests. Please try again later." });
     }
 
     const { url } = req.body;
     const username = extractUsername(url, "github");
     
-    if (!username) return res.status(400).json({ error: "Invalid GitHub URL" });
+    if (!username || !isValidGitHubUsername(username)) {
+        return res.status(400).json({ error: "Invalid GitHub URL" });
+    }
 
     try {
         const headers = { "User-Agent": "Student-Dashboard-App" };
         const [userRes, reposRes] = await Promise.all([
-            fetch(`https://api.github.com/users/${username}`, { headers }),
-            fetch(`https://api.github.com/users/${username}/repos?sort=pushed&per_page=1`, { headers })
+            fetch(`https://api.github.com/users/${encodeURIComponent(username)}`, { headers }),
+            fetch(`https://api.github.com/users/${encodeURIComponent(username)}/repos?sort=pushed&per_page=1`, { headers })
         ]);
 
         if (!userRes.ok) {
@@ -208,14 +222,16 @@ router.post("/leetcode", async (req, res) => {
         return res.status(401).json({ error: "Invalid or expired token" });
     }
 
-    if (isStatsRateLimited(`leetcode:${user.id}`)) {
+    if (isRateLimited(`leetcode:${user.id}`, STATS_RATE_LIMIT_MAX_REQUESTS)) {
         return res.status(429).json({ error: "Too many LeetCode requests. Please try again later." });
     }
 
     const { url } = req.body;
     const username = extractUsername(url, "leetcode");
 
-    if (!username) return res.status(400).json({ error: "Invalid LeetCode URL" });
+    if (!username || !isValidLeetCodeUsername(username)) {
+        return res.status(400).json({ error: "Invalid LeetCode URL" });
+    }
 
     try {
         const query = `

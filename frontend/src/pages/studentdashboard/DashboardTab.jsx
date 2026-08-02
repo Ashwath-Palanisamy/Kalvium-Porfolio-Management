@@ -21,7 +21,23 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
   const [githubData, setGithubData] = useState(null);
   const [leetcodeData, setLeetcodeData] = useState(null);
   const [isStatsLoading, setIsStatsLoading] = useState(false);
-  const resumeUrl = profile?.resumeUrl || profile?.resume_url;
+  const getSafeExternalUrl = (url) => {
+    if (!url) return null;
+    try {
+      const parsedUrl = new URL(url);
+      if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
+        return parsedUrl.toString();
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const resumeUrl = getSafeExternalUrl(profile?.resumeUrl || profile?.resume_url);
+  const githubUrl = getSafeExternalUrl(profile?.github);
+  const linkedinUrl = getSafeExternalUrl(profile?.linkedin);
+  const leetcodeUrl = getSafeExternalUrl(profile?.leetcode);
 
   // Parse LinkedIn Handle locally without calling backend
   const getLinkedinUsername = (url) => {
@@ -41,8 +57,8 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
       setIsStatsLoading(true);
       try {
         const [ghStats, lcStats] = await Promise.all([
-          profile.github ? getGitHubStats(profile.github) : null,
-          profile.leetcode ? getLeetCodeStats(profile.leetcode) : null
+          githubUrl ? getGitHubStats(githubUrl) : null,
+          leetcodeUrl ? getLeetCodeStats(leetcodeUrl) : null
         ]);
         
         if (ghStats) setGithubData(ghStats);
@@ -56,7 +72,7 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
     }
 
     loadStats();
-  }, [profile]);
+  }, [githubUrl, leetcodeUrl, profile]);
 
   if (isLoading) {
     return (
@@ -88,7 +104,7 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
             <h3 className="dt-card-title">GitHub</h3>
           </div>
           
-          {profile?.github ? (
+          {githubUrl ? (
             <div className="dt-card-body">
               {isStatsLoading ? (
                 <div className="dt-stats-skeleton">
@@ -116,11 +132,11 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
                 </>
               ) : (
                 <div className="dt-stats-list">
-                  <span className="dt-fallback-text">{profile.github}</span>
+                  <span className="dt-fallback-text">{profile?.github}</span>
                 </div>
               )}
               <a 
-                href={profile.github} 
+                href={githubUrl} 
                 target="_blank" 
                 rel="noopener noreferrer" 
                 className="dt-action-btn github-btn"
@@ -145,16 +161,16 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
             <h3 className="dt-card-title">LinkedIn</h3>
           </div>
 
-          {profile?.linkedin ? (
+          {linkedinUrl ? (
             <div className="dt-card-body">
               <div className="dt-stats-list">
                 <div className="dt-stat-item">
                   <span className="dt-stat-left">Username</span>
-                  <span className="dt-stat-right">@{getLinkedinUsername(profile.linkedin)}</span>
+                  <span className="dt-stat-right">@{getLinkedinUsername(linkedinUrl)}</span>
                 </div>
               </div>
               <a 
-                href={profile.linkedin} 
+              href={linkedinUrl} 
                 target="_blank" 
                 rel="noopener noreferrer" 
                 className="dt-action-btn linkedin-btn"
@@ -180,7 +196,7 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
             <h3 className="dt-card-title">LeetCode</h3>
           </div>
 
-          {profile?.leetcode ? (
+          {leetcodeUrl ? (
             <div className="dt-card-body">
               {isStatsLoading ? (
                 <div className="dt-stats-skeleton">
@@ -208,11 +224,11 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
                 </>
               ) : (
                 <div className="dt-stats-list">
-                  <span className="dt-fallback-text">{profile.leetcode}</span>
+                  <span className="dt-fallback-text">{profile?.leetcode}</span>
                 </div>
               )}
               <a 
-                href={profile.leetcode} 
+                href={leetcodeUrl} 
                 target="_blank" 
                 rel="noopener noreferrer" 
                 className="dt-action-btn leetcode-btn"
