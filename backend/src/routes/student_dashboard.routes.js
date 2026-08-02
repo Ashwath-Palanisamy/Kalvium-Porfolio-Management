@@ -162,6 +162,17 @@ router.post("/github", async (req, res) => {
 
 // Fetch LeetCode Stats (Directly from LeetCode Official GraphQL API)
 router.post("/leetcode", async (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "Missing or invalid Authorization header" });
+    }
+
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+        return res.status(401).json({ error: "Invalid or expired token" });
+    }
+
     const { url } = req.body;
     const username = extractUsername(url, "leetcode");
 
