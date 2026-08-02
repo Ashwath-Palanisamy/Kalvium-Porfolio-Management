@@ -56,7 +56,7 @@ function AuthGate({ children }) {
         return <Navigate to="/login" replace />;
     }
 
-    return children;
+    return typeof children === "function" ? children(user) : children;
 }
 
 export default AuthGate;

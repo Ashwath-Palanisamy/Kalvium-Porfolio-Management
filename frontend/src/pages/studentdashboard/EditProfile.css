@@ -29,6 +29,7 @@
   position: relative;
   display: flex;
   flex-direction: row;
+  align-items: flex-start;
   width: 100%;
   min-height: 100vh;
   background: var(--pm-bg);
@@ -150,6 +151,11 @@
   flex-direction: column;
   gap: 24px;
   transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  height: 100dvh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+  align-self: flex-start;
 }
 
 .pm-sidebar.is-collapsed {

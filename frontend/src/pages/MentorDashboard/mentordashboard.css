@@ -9,6 +9,7 @@
 
 .mentor-dashboard {
     display: flex;
+    align-items: flex-start;
     min-height: 100dvh;
     background: #f8fafc;
     color: #0f172a;
