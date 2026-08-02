@@ -21,6 +21,7 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
   const [githubData, setGithubData] = useState(null);
   const [leetcodeData, setLeetcodeData] = useState(null);
   const [isStatsLoading, setIsStatsLoading] = useState(false);
+  const resumeUrl = profile?.resumeUrl || profile?.resume_url;
 
   // Parse LinkedIn Handle locally without calling backend
   const getLinkedinUsername = (url) => {
@@ -239,8 +240,8 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
           </div>
           <div className="dt-status-item">
             <span className="dt-status-label">RESUME STATUS</span>
-            <p className={`dt-status-value ${fileName ? "is-success" : ""}`}>
-              {fileName ? "Uploaded" : "Missing"}
+            <p className={`dt-status-value ${resumeUrl ? "is-success" : ""}`}>
+              {resumeUrl ? "Uploaded" : "Missing"}
             </p>
           </div>
           <div className="dt-status-item">
@@ -249,7 +250,7 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
           </div>
         </div>
 
-        {profile?.resumeUrl && (
+        {resumeUrl && (
           <div className="resume-card">
             <div className="resume-header">
               <FileText size={20} color="#3b82f6" />
@@ -260,7 +261,7 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
 
             <div className="resume-actions">
               <a
-                href={profile.resumeUrl}
+                href={resumeUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="resume-view-btn"
@@ -270,7 +271,7 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
               </a>
 
               <a
-                href={profile.resumeUrl}
+                href={resumeUrl}
                 download
                 className="resume-download-btn"
               >

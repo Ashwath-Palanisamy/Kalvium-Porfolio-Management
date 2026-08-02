@@ -279,11 +279,21 @@ export default function ProfileTab({
     return `${strId.slice(0, 8)}...${strId.slice(-4)}`;
   };
 
-  const handleCopyId = (rawId) => {
+  const handleCopyId = async (rawId) => {
     if (!rawId || rawId === "N/A") return;
-    navigator.clipboard.writeText(String(rawId));
-    setCopiedId(true);
-    setTimeout(() => setCopiedId(false), 2000);
+    if (!navigator?.clipboard?.writeText) {
+      showToast("Clipboard is not available in this browser.", "error");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(String(rawId));
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 2000);
+    } catch (error) {
+      console.error("Failed to copy ID:", error);
+      showToast("Unable to copy ID. Please copy it manually.", "error");
+    }
   };
 
   const currentUserId = getProp("auth_id", "display_id") || getProp("id", "id", "N/A");

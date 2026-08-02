@@ -2,6 +2,25 @@ import express from "express";
 import { createAuthedSupabaseClient, supabase } from "../config/supabase.js";
 
 const router = express.Router();
+const STATS_RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const STATS_RATE_LIMIT_MAX_REQUESTS = 30;
+const statsRateLimitStore = new Map();
+
+const isStatsRateLimited = (key) => {
+    const now = Date.now();
+    const windowStart = now - STATS_RATE_LIMIT_WINDOW_MS;
+    const existingTimestamps = statsRateLimitStore.get(key) || [];
+    const validTimestamps = existingTimestamps.filter((timestamp) => timestamp > windowStart);
+
+    if (validTimestamps.length >= STATS_RATE_LIMIT_MAX_REQUESTS) {
+        statsRateLimitStore.set(key, validTimestamps);
+        return true;
+    }
+
+    validTimestamps.push(now);
+    statsRateLimitStore.set(key, validTimestamps);
+    return false;
+};
 
 router.get("/profile", async (req, res) => {
     try {
@@ -64,6 +83,7 @@ router.put("/updateprofile", async (req, res) => {
             auth_id, 
             user_id, 
             display_id, 
+            name,
             kalvium_email, 
             kalviumEmail, 
             squadId, 
@@ -130,6 +150,21 @@ const extractUsername = (url, platform) => {
 
 // Fetch GitHub Stats
 router.post("/github", async (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "Missing or invalid Authorization header" });
+    }
+
+    const token = authHeader.split(" ")[1];
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+        return res.status(401).json({ error: "Invalid or expired token" });
+    }
+
+    if (isStatsRateLimited(`github:${user.id}`)) {
+        return res.status(429).json({ error: "Too many GitHub requests. Please try again later." });
+    }
+
     const { url } = req.body;
     const username = extractUsername(url, "github");
     
@@ -171,6 +206,10 @@ router.post("/leetcode", async (req, res) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) {
         return res.status(401).json({ error: "Invalid or expired token" });
+    }
+
+    if (isStatsRateLimited(`leetcode:${user.id}`)) {
+        return res.status(429).json({ error: "Too many LeetCode requests. Please try again later." });
     }
 
     const { url } = req.body;
