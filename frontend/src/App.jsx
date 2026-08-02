@@ -9,6 +9,8 @@ import About from "./pages/About/About";
 import EditProfile from "./pages/studentdashboard/EditProfile";
 import ErrorPage from "./pages/ErrorPage/404page";
 import AuthGate from "./components/AuthGate";
+import MentorDashboard from "./pages/MentorDashboard/mentordashboard.jsx";
+
 
 function App() {
   const location = useLocation();
@@ -23,7 +25,7 @@ function App() {
       {showNavbar && <Navbar />}
 
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Home/>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/students" element={<Students />} />
         <Route path="/profile/:id" element={<IndividualStudentPortfolio />} />

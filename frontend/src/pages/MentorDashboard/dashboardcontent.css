@@ -1,0 +1,168 @@
+/* ===========================
+   MAIN CONTENT
+=========================== */
+
+.dashboard-content {
+  flex: 1;
+  background: #f8fafc;
+  min-width: 0;
+  padding: 28px 40px 0;
+}
+
+/* Top Bar */
+
+.topbar {
+  min-height: 36px;
+  background: transparent;
+  border-bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0;
+  margin-bottom: 24px;
+}
+
+.welcome p {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.welcome h3 {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Notification */
+
+.notification {
+  position: relative;
+  font-size: 18px;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.notification-dot {
+  width: 8px;
+  height: 8px;
+  background: red;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  right: -2px;
+}
+
+/* Profile */
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #ff3b3b;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 600;
+}
+
+.profile-arrow {
+  color: #666;
+  font-size: 12px;
+}
+
+/* Dashboard */
+
+.dashboard-section {
+  padding: 0 0 28px;
+}
+
+.dashboard-section h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.dashboard-section > p {
+  color: #64748b;
+  font-size: 13px;
+  margin: 6px 0 24px;
+}
+
+/* Card */
+
+.stats-card {
+  width: min(100%, 320px);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+  position: relative;
+  overflow: hidden;
+}
+
+.stats-card::after {
+  display: none;
+}
+
+.stats-icon {
+  font-size: 28px;
+}
+
+.stats-card span {
+  display: block;
+  margin-top: 12px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.stats-card h2 {
+  margin: 20px 0;
+  font-size: 56px;
+  color: #0f172a;
+  font-size: 42px;
+}
+
+.stats-card p {
+  color: #64748b;
+  font-size: 12px;
+  margin-bottom: 25px;
+}
+
+.stats-card button {
+  width: 100%;
+  border: none;
+  padding: 12px;
+  border-radius: 10px;
+  background: #ff3b3b;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.stats-card button:hover {
+  background: #e0263d;
+}
+
+@media (max-width: 768px) {
+  .dashboard-content {
+    padding: 20px;
+  }
+}
