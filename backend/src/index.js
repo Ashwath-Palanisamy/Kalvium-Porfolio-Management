@@ -2,6 +2,7 @@ import express from "express"
 import dotenv from "dotenv"
 import cors from "cors"
 import authRoutes from "./routes/auth.routes.js"
+import dashboardRoutes from "./routes/student_dashboard.routes.js"
 
 dotenv.config()
 
@@ -19,8 +20,8 @@ app.use(
 
 app.use(express.json())
 
-// Mount your auth routes
 app.use("/api/auth", authRoutes)
+app.use("/student/dashboard", dashboardRoutes) 
 
 // Health check route
 app.get("/", (req, res) => {

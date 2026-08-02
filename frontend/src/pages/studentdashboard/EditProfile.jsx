@@ -213,7 +213,31 @@ export default function ProfileTab({
     setIsSaving(true);
 
     try {
-      const { id, auth_id, display_id, kalvium_email, kalviumEmail, ...updatePayload } = profile;
+      // 1. Destructure out non-updatable fields & camelCase duplicates
+      const {
+        id,
+        auth_id,
+        display_id,
+        name,            // Read-only field
+        kalvium_email,   // Read-only field
+        kalviumEmail,   // Read-only field
+        squadId,         // Duplicate camelCase key
+        personalEmail,   // Duplicate camelCase key
+        resumeUrl,       // Duplicate camelCase key
+        ...restPayload
+      } = profile;
+
+      // 2. Build explicit snake_case payload for Supabase database
+      const rawSquad = profile?.squad_id ?? profile?.squadId;
+      const parsedSquad = rawSquad !== "" && rawSquad !== null && rawSquad !== undefined ? parseInt(rawSquad, 10) : null;
+
+      const updatePayload = {
+        ...restPayload,
+        squad_id: Number.isNaN(parsedSquad) ? null : parsedSquad,
+        personal_email: profile?.personal_email || profile?.personalEmail || null,
+        resume_url: profile?.resume_url || profile?.resumeUrl || null,
+      };
+
       const response = await updateProfile(updatePayload);
 
       if (response) {

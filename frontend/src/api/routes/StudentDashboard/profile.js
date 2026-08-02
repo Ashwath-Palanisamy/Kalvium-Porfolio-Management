@@ -10,7 +10,7 @@ export async function getProfile() {
     }
 
     try {
-        const response = await apiClient.get("/api/auth/profile", {
+        const response = await apiClient.get("/student/dashboard/profile", {
             headers: {
                 "Authorization": `Bearer ${token}`,
                 "Content-Type": "application/json"
@@ -33,7 +33,7 @@ export async function updateProfile(params) {
     }
 
     try {
-        const response = await apiClient.put("/api/auth/updateprofile", params, {
+        const response = await apiClient.put("/student/dashboard/updateprofile", params, {
             headers: {
                 "Authorization": `Bearer ${token}`,
                 "Content-Type": "application/json"
