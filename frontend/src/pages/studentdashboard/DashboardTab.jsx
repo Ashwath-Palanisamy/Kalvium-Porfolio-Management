@@ -174,7 +174,7 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
                 target="_blank" 
                 rel="noopener noreferrer" 
                 className="dt-action-btn linkedin-btn"
-                style={{ marginTop: "16px" }}
+                // style={{ marginTop: "16px" }}
               >
                 <span>View LinkedIn</span>
                 <ExternalLink size={14} />

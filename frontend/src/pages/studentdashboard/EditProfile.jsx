@@ -374,11 +374,6 @@ export default function ProfileTab({
               </strong>
             </div>
           </div>
-          <div className="pm-topbar-actions">
-            <button type="button" className="pm-icon-btn" onClick={handleLogout} aria-label="Logout">
-              <LogOut size={18} /> Logout
-            </button>
-          </div>
         </header>
 
         <div className="pm-page-head">

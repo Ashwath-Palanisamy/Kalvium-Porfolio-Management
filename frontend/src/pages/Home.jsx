@@ -4,6 +4,7 @@ import { useState } from "react";
 import { FiUsers, FiFolder, FiGithub, FiFileText, FiBriefcase, FiGlobe, FiWifi, FiUser } from "react-icons/fi";
 import { LuBadgeCheck, LuCpu } from "react-icons/lu";
 import { SiFlutter } from "react-icons/si";
+import Heroimage from "./image.png"
 
 function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
@@ -36,7 +37,7 @@ function Home() {
         </div>
         <div className="hero-visual">
           {/* device mockup goes here later */}
-          <img src="/hero-mockup.png" alt="Kalvium portfolio preview" className="hero-image" />
+          <img src={Heroimage} alt="Kalvium portfolio preview" className="hero-image" width="300px" />
         </div>
       </section>
 
@@ -89,12 +90,12 @@ function Home() {
             <p>AI Developer</p>
             {/* Updated to link to individual student ID */}
             <NavLink to="/student/4" className="student-redirect">View Profile →</NavLink>
+          </div>
         </div>
 
         <div className="view-all-container">
           <NavLink to="/students" className="home-all-student">View All Students ▶</NavLink>
         </div>
-        </div> {/* Added missing closing tag for .students */}
       </section>
 
       <section className="why-section">
