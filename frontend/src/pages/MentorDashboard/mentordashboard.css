@@ -1,7 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-/* Main Layout */
+/* Global Reset & Base */
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    overflow-x: hidden;
+}
 
+/* Main Layout */
 .mentor-dashboard,
 .mentor-dashboard * {
     box-sizing: border-box;
@@ -9,34 +16,37 @@
 
 .mentor-dashboard {
     display: flex;
+    align-items: flex-start;
     min-height: 100dvh;
+    width: 100%;
     background: #f8fafc;
     color: #0f172a;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* Right Side */
-
+/* Right Side / Main Content */
 .dashboard-main {
     flex: 1;
-    min-width: 0;
+    min-width: 0; /* Prevents flex items from overflowing horizontally */
+    width: 100%;
     display: flex;
     flex-direction: column;
 }
 
 /* Bottom Section */
-
 .students-layout {
     display: flex;
     gap: 24px;
     padding: 0 40px 48px;
     align-items: flex-start;
+    width: 100%;
     min-width: 0;
 }
 
 .students-left {
     flex: 2;
-    min-width: 0;
+    min-width: 0; /* Enables text truncation and inner table auto-scrolling */
+    width: 100%;
 }
 
 .students-right {
@@ -44,55 +54,54 @@
     flex-shrink: 0;
 }
 
-/* Responsive */
-
+/* Responsive: Tablet / Narrow Desktop */
 @media (max-width: 1100px) {
-
     .students-layout {
         flex-direction: column;
+        gap: 32px;
     }
 
+    .students-left,
     .students-right {
         width: 100%;
     }
-
 }
 
+/* Responsive: Mobile */
 @media (max-width: 768px) {
-
     .mentor-dashboard {
         flex-direction: column;
+        align-items: stretch; /* Stretches sidebar and main content to 100% width */
     }
 
-    .students-layout {
-        padding: 0 18px 24px;
+    /* Target the sidebar if it's the direct first child of .mentor-dashboard */
+    .mentor-dashboard > *:not(.dashboard-main) {
+        width: 100%;
     }
 
     .dashboard-main {
         width: 100%;
-        overflow: hidden;
+        overflow-x: hidden; /* Prevents horizontal page bounce while allowing vertical scrolling */
+        overflow-y: visible;
+    }
+
+    .students-layout {
+        padding: 0 16px 32px;
+        gap: 24px;
     }
 
     .topbar,
     .dashboard-section {
-        padding-left: 18px;
-        padding-right: 18px;
+        padding-left: 16px;
+        padding-right: 16px;
     }
 
     .dashboard-section h1 {
-        font-size: 30px;
+        font-size: 24px; /* Scaled down for mobile viewports */
     }
 
     .stats-card {
         width: 100%;
-        max-width: 380px;
+        max-width: 100%; /* Allows full width on small screens */
     }
-
-    .students-layout,
-    .students-left,
-    .students-right {
-        width: 100%;
-        max-width: 100%;
-    }
-
 }

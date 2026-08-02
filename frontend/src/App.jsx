@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Navigate, Routes, Route, useLocation } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import Navbar from "./components/Navbar.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
@@ -10,6 +10,20 @@ import EditProfile from "./pages/studentdashboard/EditProfile";
 import ErrorPage from "./pages/ErrorPage/404page";
 import AuthGate from "./components/AuthGate";
 import MentorDashboard from "./pages/MentorDashboard/mentordashboard.jsx";
+
+function DashboardDispatcher({ user }) {
+  const role = user?.user_metadata?.role ?? user?.app_metadata?.role;
+
+  if (role === "student") {
+    return <EditProfile />;
+  }
+
+  if (role === "mentor") {
+    return <MentorDashboard />;
+  }
+
+  return <Navigate to="/login" replace />;
+}
 
 
 function App() {
@@ -36,7 +50,7 @@ function App() {
           path="/dashboard"
           element={
             <AuthGate>
-              <EditProfile />
+              {(user) => <DashboardDispatcher user={user} />}
             </AuthGate>
           }
         />

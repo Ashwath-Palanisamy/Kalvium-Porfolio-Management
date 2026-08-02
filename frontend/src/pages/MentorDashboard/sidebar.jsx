@@ -8,10 +8,23 @@ import {
 import "./mentordashboard.css";
 import "./sidebar.css";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "../../lib/supabase";
 import KalviumLogo from "../../assets/kalvium-logo.svg";
 
 const Sidebar = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("Error signing out:", error);
+    } finally {
+      navigate("/login");
+    }
+  };
 
   return (
     <aside className={`sidebar ${isCollapsed ? "is-collapsed" : ""}`}>
@@ -47,7 +60,7 @@ const Sidebar = () => {
 
       {/* Logout */}
       <div className="sidebar-footer">
-        <button className="logout-btn">
+        <button type="button" className="logout-btn" onClick={handleLogout}>
           <FiLogOut />
           <span className="menu-label">Logout</span>
         </button>

@@ -1,9 +1,12 @@
-/* Card Container */
+/* ==========================================================================
+   Card Container (Dynamic Flex Layout for Variable Incoming Data)
+   ========================================================================== */
 .dt-container {
-  display: flex;
-  flex-direction: column;
+  display: flex !important;
+  flex-wrap: wrap !important;
   gap: 24px;
-  width: 100%;
+  width: 100% !important;
+  box-sizing: border-box;
 }
 
 /* Base Card Fixes */
@@ -17,6 +20,14 @@
   background: #ffffff;
   border: 1px solid #e2e8f0;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  
+  /* CRITICAL FIX FOR DYNAMIC DATA: 
+     Cards start around 300px wide, but flex-grow (1) allows them 
+     to dynamically stretch and share the remaining width perfectly. */
+  flex: 1 1 300px !important;
+  min-width: 260px !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 .dt-card:hover {
@@ -48,6 +59,7 @@
   width: 38px;
   height: 38px;
   border-radius: 10px;
+  flex-shrink: 0 !important; /* Prevents icon squishing */
 }
 
 .github-icon { background: #fee2e2; color: #dc2626; }
@@ -60,9 +72,10 @@
   font-weight: 600 !important;
   color: #1e293b !important;
   text-transform: none !important;
+  white-space: nowrap !important;
 }
 
-/* Strict List Layout (Shielded from Global CSS) */
+/* Strict List Layout */
 .dt-stats-list {
   display: flex;
   flex-direction: column;
@@ -77,6 +90,7 @@
   width: 100%;
   padding: 10px 0;
   border-bottom: 1px solid #f1f5f9;
+  gap: 8px;
 }
 
 .dt-stat-item:last-child {
@@ -92,6 +106,7 @@
   font-weight: 500 !important;
   text-transform: capitalize !important; 
   letter-spacing: normal !important;
+  white-space: nowrap !important;
 }
 
 .dt-stat-right {
@@ -99,6 +114,7 @@
   font-weight: 600 !important;
   color: #0f172a !important;
   text-align: right;
+  white-space: nowrap !important;
 }
 
 .dt-fallback-text {
@@ -122,6 +138,7 @@
   margin-top: auto;
   margin-bottom: 16px;
   box-sizing: border-box;
+  white-space: nowrap !important;
 }
 
 .badge-github {
@@ -137,7 +154,7 @@
 }
 
 .badge-leetcode {
-  background: #fffbebfb;
+  background: #fffbeb;
   color: #92400e;
   border: 1px solid #fde68a;
 }
@@ -146,7 +163,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 180px;
+  max-width: 100%;
 }
 
 /* Action Buttons */
@@ -164,6 +181,8 @@
   transition: background-color 0.2s ease;
   margin-top: auto;
   box-sizing: border-box;
+  white-space: nowrap !important;
+  min-height: 42px;
 }
 
 .github-btn { background: #18181b !important; color: #ffffff !important; }
@@ -182,10 +201,13 @@
   border-radius: 12px;
   border: 1px solid #e2e8f0;
   text-align: left;
+  width: 100%; /* Will force itself onto a full new row in flexbox */
+  box-sizing: border-box;
+  margin-top: 8px;
 }
 
 .dt-status-heading {
-  margin-bottom: 20px;
+  margin: 0 0 20px 0;
   font-size: 18px;
   font-weight: 600;
   color: #1e293b;
@@ -193,8 +215,9 @@
 
 .dt-status-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
+  width: 100%;
 }
 
 .dt-status-item {
@@ -210,6 +233,7 @@
   font-weight: 700;
   letter-spacing: 0.6px;
   display: block;
+  text-transform: uppercase;
 }
 
 .dt-status-value {
@@ -230,6 +254,8 @@
   padding: 20px;
   border: 1px solid #e2e8f0;
   margin-top: 20px;
+  width: 100%; /* Forces full width row */
+  box-sizing: border-box;
 }
 
 .resume-header {
@@ -267,6 +293,7 @@
   font-size: 13px;
   font-weight: 500;
   transition: opacity 0.2s;
+  white-space: nowrap !important;
 }
 
 .resume-view-btn { background: #0f172a; color: white; }
@@ -280,4 +307,42 @@
   gap: 12px;
   margin-bottom: 20px;
   width: 100%;
+}
+
+.dt-skeleton-line {
+  height: 16px;
+  width: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: dt-shimmer 1.5s infinite linear;
+}
+
+.dt-skeleton-line.short { width: 40%; }
+.dt-skeleton-line.medium { width: 70%; }
+
+@keyframes dt-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Mobile Overrides */
+@media (max-width: 640px) {
+  .dt-container {
+    flex-direction: column !important; /* Stack vertically on small screens */
+  }
+  
+  .dt-card {
+    min-width: 0 !important;
+  }
+
+  .resume-actions {
+    flex-direction: column;
+  }
+
+  .resume-view-btn,
+  .resume-download-btn {
+    justify-content: center;
+    width: 100%;
+  }
 }
