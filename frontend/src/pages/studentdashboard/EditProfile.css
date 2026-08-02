@@ -150,21 +150,28 @@ html, body {
 
 /* Sidebar & Collapse State */
 .pm-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+
   width: 240px;
-  flex-shrink: 0;
+  height: 100vh;
+
   background: var(--pm-panel);
   border-right: 1px solid var(--pm-border);
+
   padding: 20px 14px;
   display: flex;
   flex-direction: column;
   gap: 24px;
-  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  height: 100dvh;
-  position: sticky;
-  top: 0;
+
   overflow-y: auto;
-  align-self: flex-start;
-  z-index: 50;
+  overflow-x: hidden;
+
+  z-index: 1000;
+
+  transition: width 0.25s ease,
+  padding 0.25s ease;
 }
 
 .pm-sidebar.is-collapsed {
@@ -317,10 +324,14 @@ html, body {
 
 /* Main Workspace */
 .pm-main {
-  flex: 1;
-  min-width: 0; /* Prevents layout widening on small screens */
-  width: 100%;
+  margin-left: 240px;
+  width: calc(100% - 240px);
+  min-height: 100vh;
+
   padding: 28px 40px 48px;
+
+  transition: margin-left 0.25s ease,
+              width 0.25s ease;
 }
 
 /* Topbar Header */
@@ -971,5 +982,19 @@ html, body {
 
   .error-toast.slide-out {
     animation: slideOutToTop 0.4s ease-in forwards;
+  }
+}
+
+@media (max-width: 768px) {
+  .pm-sidebar {
+    position: sticky;
+    width: 100%;
+    height: auto;
+  }
+
+  .pm-main,
+  .pm-main.sidebar-collapsed {
+    margin-left: 0;
+    width: 100%;
   }
 }
