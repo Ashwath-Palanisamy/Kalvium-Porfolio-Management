@@ -378,6 +378,26 @@ html, body {
   flex-shrink: 0;
 }
 
+.pm-home-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--pm-panel);
+  border: 1px solid var(--pm-border);
+  color: var(--pm-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.pm-home-btn:hover {
+  background: var(--pm-panel-muted);
+  border-color: #cbd5e1;
+}
+
 .pm-icon-btn {
   display: flex;
   align-items: center;

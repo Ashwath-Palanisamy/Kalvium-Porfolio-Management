@@ -40,6 +40,26 @@
   gap: 12px;
 }
 
+.topbar-home-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.topbar-home-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
 /* Notification */
 
 .notification {

@@ -1,18 +1,34 @@
 import React from "react";
-import {
-  FiGrid,
-  FiLogOut,
-  FiChevronLeft,
-  FiChevronRight,
-} from "react-icons/fi";
-import "./mentordashboard.css";
-import "./sidebar.css";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
-import KalviumLogo from "../../assets/kalvium-logo.svg";
+import { createClient } from "@supabase/supabase-js";
+import {
+  LayoutDashboard,
+  User,
+  FolderKanban,
+  Trophy,
+  Settings,
+  LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react";
+
+import kalviumLogo from "../../assets/kalvium-logo.svg";
+import "./mentordashboard.css";
+import "./sidebar.css";
+
+const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+
+const NAV_ITEMS = [
+  { label: "Dashboard", icon: LayoutDashboard },
+  { label: "Profile", icon: User },
+  { label: "Projects", icon: FolderKanban },
+  { label: "Achievements", icon: Trophy },
+  { label: "Settings", icon: Settings },
+];
 
 const Sidebar = () => {
+  const [activeNav, setActiveNav] = useState("Dashboard");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const navigate = useNavigate();
 
@@ -27,44 +43,55 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className={`sidebar ${isCollapsed ? "is-collapsed" : ""}`}>
-      {/* Logo */}
-      <div className="sidebar-logo">
-        <div className="logo-box">
-          <img src={KalviumLogo} alt="Kalvium logo" className="sidebar-logo-image" />
-        </div>
-
-        <div className="logo-text">
-          <h2>KALVIUM</h2>
-          <span>MENTOR DASHBOARD</span>
-        </div>
+    <aside className={`pm-sidebar ${isCollapsed ? "is-collapsed" : ""}`}>
+      <div className="pm-brand-header">
+        {!isCollapsed && (
+          <div className="pm-brand">
+            <div className="pm-brand-mark">
+              <img src={kalviumLogo} alt="Kalvium Logo" className="pm-logo-img" />
+            </div>
+            <div className="pm-brand-text">
+              <span className="pm-brand-title">KALVIUM</span>
+              <span className="pm-brand-sub">MENTOR DASHBOARD</span>
+            </div>
+          </div>
+        )}
 
         <button
           type="button"
-          className="collapse-btn"
-          onClick={() => setIsCollapsed((collapsed) => !collapsed)}
-          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="pm-collapse-btn"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          aria-label="Toggle Sidebar"
         >
-          {isCollapsed ? <FiChevronRight /> : <FiChevronLeft />}
+          {isCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
         </button>
       </div>
 
-      {/* Navigation */}
-      <nav className="sidebar-menu">
-        <div className="menu-item active">
-          <FiGrid className="menu-icon" />
-          <span className="menu-label">Dashboard</span>
-        </div>
+      <nav className="pm-nav">
+        {NAV_ITEMS.map(({ label, icon: Icon }) => (
+          <button
+            key={label}
+            type="button"
+            className={`pm-nav-item ${activeNav === label ? "is-active" : ""}`}
+            onClick={() => setActiveNav(label)}
+            title={isCollapsed ? label : ""}
+          >
+            <Icon size={18} strokeWidth={2} />
+            {!isCollapsed && <span>{label}</span>}
+          </button>
+        ))}
       </nav>
 
-      {/* Logout */}
-      <div className="sidebar-footer">
-        <button type="button" className="logout-btn" onClick={handleLogout}>
-          <FiLogOut />
-          <span className="menu-label">Logout</span>
-        </button>
-      </div>
+      <button
+        type="button"
+        className="pm-logout"
+        onClick={handleLogout}
+        title={isCollapsed ? "Logout" : ""}
+      >
+        <LogOut size={18} />
+        {!isCollapsed && <span>Logout</span>}
+      </button>
     </aside>
   );
 };

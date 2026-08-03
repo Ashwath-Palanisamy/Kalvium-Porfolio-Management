@@ -24,6 +24,19 @@ html, body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
+/* If using the pm-sidebar (fixed), offset the main content to avoid overlap */
+.mentor-dashboard > .pm-sidebar + .dashboard-main,
+.mentor-dashboard > aside.pm-sidebar + .dashboard-main {
+    margin-left: 240px;
+    width: calc(100% - 240px);
+}
+
+.mentor-dashboard > .pm-sidebar.is-collapsed + .dashboard-main,
+.mentor-dashboard > aside.pm-sidebar.is-collapsed + .dashboard-main {
+    margin-left: 72px;
+    width: calc(100% - 72px);
+}
+
 /* Right Side / Main Content */
 .dashboard-main {
     flex: 1;

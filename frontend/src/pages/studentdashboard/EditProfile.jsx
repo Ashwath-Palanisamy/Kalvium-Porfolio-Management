@@ -8,6 +8,7 @@ import {
   Trophy,
   Settings,
   LogOut,
+  Home,
   Mail,
   Link2,
   Globe,
@@ -373,6 +374,12 @@ export default function ProfileTab({
                 )}
               </strong>
             </div>
+          </div>
+          <div className="pm-topbar-actions">
+            <a href="/" className="pm-home-btn">
+              <Home size={16} />
+              <span>Back to Home</span>
+            </a>
           </div>
         </header>
 

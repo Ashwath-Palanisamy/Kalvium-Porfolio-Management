@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import "./mentordashboard.css";
 import "./dashboardcontent.css";
 
@@ -10,6 +11,11 @@ const DashboardContent = () => {
         <div className="welcome">
           <p>Welcome back,</p>
           <h3>Arun Kumar</h3>
+        </div>
+        <div className="topbar-right">
+          <Link to="/" className="topbar-home-btn">
+            Back to Home
+          </Link>
         </div>
       </header>
 
