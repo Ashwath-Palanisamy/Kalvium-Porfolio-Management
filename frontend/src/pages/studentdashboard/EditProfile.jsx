@@ -203,7 +203,8 @@ export default function ProfileTab({
       { key: "resume_url", label: "Resume URL" },
       { key: "github", label: "GitHub Profile" },
       { key: "linkedin", label: "LinkedIn Profile" },
-      { key: "leetcode", label: "LeetCode Profile" }
+      { key: "leetcode", label: "LeetCode Profile" },
+      { key: "codechef", label: "CodeChef Profile" }
     ];
 
     for (const field of urlFields) {
@@ -217,26 +218,27 @@ export default function ProfileTab({
     setIsSaving(true);
 
     try {
-      // 1. Destructure out non-updatable fields & camelCase duplicates
+      // 1. Destructure non-updatable UI fields and camelCase duplicates
       const {
         id,
         auth_id,
         display_id,
         name,            // Read-only field
-        kalvium_email,   // Read-only field
-        kalviumEmail,   // Read-only field
+        kalviumEmail,    // Duplicate camelCase key
         squadId,         // Duplicate camelCase key
         personalEmail,   // Duplicate camelCase key
         resumeUrl,       // Duplicate camelCase key
         ...restPayload
       } = profile;
 
-      // 2. Build explicit snake_case payload for Supabase database
+      // 2. Explicitly attach kalvium_email & parse numerical values
       const rawSquad = profile?.squad_id ?? profile?.squadId;
       const parsedSquad = rawSquad !== "" && rawSquad !== null && rawSquad !== undefined ? parseInt(rawSquad, 10) : null;
+      const kalviumEmailValue = profile?.kalvium_email || profile?.kalviumEmail || null;
 
       const updatePayload = {
         ...restPayload,
+        kalvium_email: kalviumEmailValue,
         squad_id: Number.isNaN(parsedSquad) ? null : parsedSquad,
         personal_email: profile?.personal_email || profile?.personalEmail || null,
         resume_url: profile?.resume_url || profile?.resumeUrl || null,
@@ -590,6 +592,16 @@ export default function ProfileTab({
                         placeholder="https://leetcode.com/..."
                         leftIcon={<Link2 size={14} />}
                       />
+
+                      <Field
+                        label="CodeChef Profile"
+                        type="url"
+                        pattern="https?://.*"
+                        value={getProp("codechef", "codechef")}
+                        onChange={(e) => handleProfileChange("codechef", e.target.value)}
+                        placeholder="https://www.codechef.com/users/..."
+                        leftIcon={<Code2 size={14} />}
+                      />
                     </div>
                   )}
                 </FormSection>
@@ -656,7 +668,8 @@ function Field({
   placeholder = "",
   type = "text",
   inputMode,
-  pattern
+  pattern,
+  helperText = ""
 }) {
   return (
     <div className="pm-field">
@@ -678,6 +691,7 @@ function Field({
           className={leftIcon ? "has-icon" : ""}
         />
       </div>
+      {helperText && <span className="pm-field-help">{helperText}</span>}
     </div>
   );
 }
