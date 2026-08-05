@@ -271,12 +271,14 @@ export default function Students() {
           )}
         </div>
 
-        <button
-          className="view-profile-btn"
-          onClick={() => navigate(`/student/${student.id}`)}
-        >
-          View Profile
-        </button>
+    <button
+      className="view-profile-btn"
+      onClick={() => {
+        navigate(`/student/${student.id}`);
+      }}
+    >
+      View Profile
+    </button>
       </div>
     ))
   )}

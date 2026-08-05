@@ -42,7 +42,7 @@ function App() {
         <Route path="/" element={<Home/>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/students" element={<Students />} />
-        <Route path="/profile/:id" element={<IndividualStudentPortfolio />} />
+        <Route path="/student/:id" element={<IndividualStudentPortfolio />}/>
         <Route path="/about" element={<About />} />
         
         {/* Protected Dashboard Route using AuthGate */}
