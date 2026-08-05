@@ -1,18 +1,67 @@
 import "./Home.css";
 import { NavLink } from "react-router-dom";
-import { useState } from "react";
-import { 
-  FiUsers, 
-  FiFolder, 
-  FiGithub, 
-  FiFileText, 
-  FiCode 
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabase";
+
+import {
+  FiUsers,
+  FiFolder,
+  FiGithub,
+  FiFileText,
+  FiCode,
 } from "react-icons/fi";
 import { LuBadgeCheck } from "react-icons/lu";
 import Heroimage from "./image.png";
 
 function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
+  
+  const [featuredStudents, setFeaturedStudents] = useState([]);
+
+  const shuffleArray = (array) => {
+  const shuffled = [...array];
+
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  return shuffled;
+};
+
+
+useEffect(() => {
+  const fetchStudents = async () => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*");
+
+    if (error) {
+      console.log(error);
+      return;
+    }
+
+    const students = data.map((student) => ({
+      id: student.id,
+      name: student.name || "Unknown",
+      title: student.title || "Student",
+
+      avatar:
+        student.avatar_url?.trim()
+          ? student.avatar_url
+          : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+              student.name || "Student"
+            )}&background=0D8ABC&color=fff&size=256`,
+    }));
+
+    setFeaturedStudents(
+      shuffleArray(students).slice(0, 4)
+    );
+  };
+
+  fetchStudents();
+}, []);
 
   return (
     <div>
@@ -79,41 +128,30 @@ function Home() {
       <section className="featured-container">
         <h3>Featured Builders</h3>
         <div className="students">
-          <div className="student-card">
-            <img src="sfad" alt="profile-1" />
-            <h4>Dhinesh</h4>
-            <p>AI Developer</p>
-            <NavLink to="/student/1" className="student-redirect">
-              View Profile →
-            </NavLink>
-          </div>
+          {featuredStudents.map((student) => (
+            <div className="student-card" key={student.id}>
+              <img
+                src={student.avatar}
+                alt={student.name}
+                onError={(e) => {
+                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    student.name
+                  )}&background=0D8ABC&color=fff&size=256`;
+                }}
+              />
 
-          <div className="student-card">
-            <img src="sfad" alt="profile-2" />
-            <h4>Ashwath</h4>
-            <p>Full Stack Engineer</p>
-            <NavLink to="/student/2" className="student-redirect">
-              View Profile →
-            </NavLink>
-          </div>
-
-          <div className="student-card">
-            <img src="sfad" alt="profile-3" />
-            <h4>Ashwin</h4>
-            <p>Systems Developer</p>
-            <NavLink to="/student/3" className="student-redirect">
-              View Profile →
-            </NavLink>
-          </div>
-
-          <div className="student-card">
-            <img src="sfad" alt="profile-4" />
-            <h4>Nithya</h4>
-            <p>UI/UX & Web Dev</p>
-            <NavLink to="/student/4" className="student-redirect">
-              View Profile →
-            </NavLink>
-          </div>
+              <h4>{student.name}</h4>
+              
+              <p>{student.title}</p>
+              
+              <NavLink
+                to={`/student/${student.id}`}
+                className="student-redirect"
+              >
+                View Profile →
+              </NavLink>
+            </div>
+          ))}
         </div>
 
         <div className="view-all-container">
@@ -186,6 +224,7 @@ function Home() {
             Sign In & Build Profile →
           </NavLink>
         )}
+
       </section>
     </div>
   );
