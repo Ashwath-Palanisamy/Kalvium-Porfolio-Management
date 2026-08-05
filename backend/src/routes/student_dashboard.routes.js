@@ -96,18 +96,18 @@ router.put("/updateprofile", authRouteLimiter, requireAuth, async (req, res) => 
             return res.status(400).json({ error: "No profile data provided to update." });
         }
 
-        const { 
-            id, 
-            auth_id, 
-            user_id, 
-            display_id, 
+        const {
+            id,
+            auth_id,
+            user_id,
+            display_id,
             name,
-            kalvium_email, 
-            kalviumEmail, 
-            squadId, 
-            personalEmail, 
-            resumeUrl, 
-            ...restPayload 
+            kalvium_email,
+            kalviumEmail,
+            squadId,
+            personalEmail,
+            resumeUrl,
+            ...restPayload
         } = updatePayload;
 
         const rawSquad = squadId !== undefined ? squadId : restPayload.squad_id;
@@ -115,7 +115,7 @@ router.put("/updateprofile", authRouteLimiter, requireAuth, async (req, res) => 
 
         const cleanPayload = {
             ...restPayload,
-            user_id: req.user.id, 
+            user_id: req.user.id,
             squad_id: Number.isNaN(parsedSquad) ? null : parsedSquad,
             personal_email: personalEmail !== undefined ? personalEmail : restPayload.personal_email || null,
             resume_url: resumeUrl !== undefined ? resumeUrl : restPayload.resume_url || null,
@@ -169,7 +169,7 @@ router.put("/updateprofile", authRouteLimiter, requireAuth, async (req, res) => 
 router.post("/github", statsRouteLimiter, requireAuth, async (req, res) => {
     const { url } = req.body;
     const username = extractUsername(url, "github");
-    
+
     if (!username || !isValidGitHubUsername(username)) {
         return res.status(400).json({ error: "Invalid GitHub URL" });
     }
@@ -226,6 +226,11 @@ router.post("/leetcode", statsRouteLimiter, requireAuth, async (req, res) => {
                         reputation
                     }
                 }
+                recentSubmissionList(username: $username, limit: 3) {
+                    title
+                    timestamp
+                    statusDisplay
+                }
             }
         `;
 
@@ -260,6 +265,29 @@ router.post("/leetcode", statsRouteLimiter, requireAuth, async (req, res) => {
         const mediumSolved = submitStats.find(s => s.difficulty === "Medium")?.count || 0;
         const hardSolved = submitStats.find(s => s.difficulty === "Hard")?.count || 0;
 
+        // Process recent submission list and format timestamp to human-readable date
+        const recentSubmissionsRaw = result.data.recentSubmissionList || [];
+        const recentSubmissions = recentSubmissionsRaw.map((sub) => {
+            let formattedDate = "Recently";
+            if (sub.timestamp) {
+                const dateObj = new Date(parseInt(sub.timestamp) * 1000);
+                formattedDate = dateObj.toLocaleString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit"
+                });
+            }
+
+            return {
+                title: sub.title,
+                statusDisplay: sub.statusDisplay,
+                timestamp: sub.timestamp,
+                timeAgo: formattedDate
+            };
+        });
+
         return res.status(200).json({
             username: user.username,
             totalSolved,
@@ -267,8 +295,8 @@ router.post("/leetcode", statsRouteLimiter, requireAuth, async (req, res) => {
             mediumSolved,
             hardSolved,
             ranking: user.profile?.ranking || "N/A",
-            acceptanceRate: 0,
-            currentlyAttempting: totalSolved > 0 ? "Active in Problem Solving" : "Not started"
+            recentSubmissions, // <--- Sends recent activity list to frontend
+            lastActive: recentSubmissions.length > 0 ? recentSubmissions[0].timeAgo : "No recent activity"
         });
 
     } catch (err) {
