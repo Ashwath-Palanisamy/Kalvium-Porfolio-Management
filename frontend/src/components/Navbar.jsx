@@ -1,24 +1,31 @@
-import { NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { NavLink } from "react-router-dom";
+import { supabase } from "../lib/supabase";
 import "./Navbar.css";
 import logo from "../assets/kalvium-logo.svg";
 
 function Navbar() {
-    const [isLoggedIn, setIsLoggedIn] = useState(
-        !!localStorage.getItem("token")
-    );
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-    useEffect(() => {
-        const updateAuth = () => {
-            setIsLoggedIn(!!localStorage.getItem("token"));
-        };
+useEffect(() => {
+    const getSession = async () => {
+        const {
+            data: { session },
+        } = await supabase.auth.getSession();
 
-        window.addEventListener("authChanged", updateAuth);
+        setIsLoggedIn(!!session);
+    };
 
-        return () => {
-            window.removeEventListener("authChanged", updateAuth);
-        };
-    }, []);
+    getSession();
+
+    const {
+        data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+        setIsLoggedIn(!!session);
+    });
+
+    return () => subscription.unsubscribe();
+}, []);
 
     return (
         <header className="header">
