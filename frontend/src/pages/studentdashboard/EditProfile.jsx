@@ -1,3 +1,5 @@
+import getCroppedImg from "../../utils/cropImage";
+import ImageCropper from "../../components/ImageCropper";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -65,6 +67,16 @@ export default function ProfileTab({
   const [activeNav, setActiveNav] = useState("Profile");
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [profile, setProfile] = useState(profileData || {});
+  const [image, setImage] = useState(null);
+  const [cropImage, setCropImage] = useState("");
+  const [showCropper, setShowCropper] = useState(false);
+
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [preview, setPreview] = useState("");
+
   const [isLoading, setIsLoading] = useState(initialLoading);
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
@@ -191,6 +203,43 @@ export default function ProfileTab({
     }
   };
 
+  const uploadProfileImage = async () => {
+  if (!image) {
+    return profile.avatar_url || "";
+  }
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    throw new Error("User not logged in");
+  }
+
+  const extension = image.name.split(".").pop();
+  const fileName = `${user.id}/avatar.${extension}`;
+
+  const { error: uploadError } = await supabase.storage
+  .from("profile-images")
+  .upload(fileName, image, {
+    upsert: true,
+  });
+
+  if (uploadError) {
+    console.error(uploadError);
+    throw uploadError;
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage
+    .from("profile-images")
+    .getPublicUrl(fileName);
+
+  return publicUrl;
+};
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -235,21 +284,39 @@ export default function ProfileTab({
       const kalviumEmailValue = profile?.kalvium_email || profile?.kalviumEmail || null;
       const nameValue = profile?.name || null;
 
+
+      const avatarUrl = await uploadProfileImage();
       // Construct payload explicitly including name and kalvium_email
       const updatePayload = {
-        ...restPayload,
-        name: nameValue,
-        kalvium_email: kalviumEmailValue,
-        squad_id: Number.isNaN(parsedSquad) ? null : parsedSquad,
-        personal_email: profile?.personal_email || profile?.personalEmail || null,
-        resume_url: profile?.resume_url || profile?.resumeUrl || null,
-      };
+          ...restPayload,
+
+          name: nameValue,
+          kalvium_email: kalviumEmailValue,
+
+          avatar_url: avatarUrl,
+
+          squad_id: Number.isNaN(parsedSquad) ? null : parsedSquad,
+
+          personal_email:
+            profile?.personal_email ||
+            profile?.personalEmail ||
+            null,
+
+          resume_url:
+            profile?.resume_url ||
+            profile?.resumeUrl ||
+            null,
+        };        
 
       const response = await updateProfile(updatePayload);
 
       if (response) {
         const updatedData = response.data || response;
         showToast("Profile saved successfully!", "success");
+        if (avatarUrl) {
+          updatedData.avatar_url = avatarUrl;
+          setPreview(avatarUrl);
+        }
 
         // Merge API response while guaranteeing name/email aren't wiped by response nulls
         const mergedUpdatedProfile = {
@@ -307,6 +374,48 @@ export default function ProfileTab({
   const currentUserId = getProp("auth_id", "display_id") || getProp("id", "id", "N/A");
 
   return (
+        <>
+          {showCropper && (
+            <div className="crop-modal">
+              <ImageCropper
+                image={cropImage}
+                crop={crop}
+                zoom={zoom}
+                setCrop={setCrop}
+                setZoom={setZoom}
+                onCropComplete={(area, areaPixels) =>
+                  setCroppedAreaPixels(areaPixels)
+                }
+              />
+
+              <button
+                onClick={async () => {
+                  const blob = await getCroppedImg(
+                    cropImage,
+                    croppedAreaPixels
+                  );
+                
+                  const file = new File([blob], "avatar.jpg", {
+                    type: "image/jpeg",
+                  });
+                
+                  setImage(file);
+                  setPreview(URL.createObjectURL(file));
+                  setShowCropper(false);
+                }}
+              >
+                Crop
+              </button>
+            </div>
+          )}
+
+          <div className="pm-layout">
+            ...
+          </div>
+        </>
+        );  
+        
+
     <div className="pm-layout">
       {toastMessage && (
         <div className={`error-toast ${toastType === "success" ? "success-toast" : ""} ${isExiting ? "slide-out" : ""}`}>
@@ -428,19 +537,40 @@ export default function ProfileTab({
                   </div>
                 ) : (
                   <>
-                    <div className="pm-profile-photo-container">
-                      <div className="pm-profile-photo">
-                        <User size={38} strokeWidth={1.5} />
-                      </div>
+                  <div className="pm-profile-photo-container">
+
+                    <div className="pm-profile-photo">
+                      <img
+                        src={preview || profile.avatar_url || "/default-avatar.png"}
+                        alt="Profile"
+                        className="pm-profile-img"
+                      />
+
                       <button
                         type="button"
                         className="pm-photo-edit"
-                        title="Change photo"
-                        aria-label="Change photo"
+                        onClick={() => document.getElementById("profile-upload").click()}
                       >
                         <Upload size={12} />
                       </button>
                     </div>
+
+                    <input
+                      id="profile-upload"
+                      type="file"
+                      accept="image/*"
+                      hidden
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+
+                        if (!file) return;
+
+                        setCropImage(URL.createObjectURL(file));
+                        setShowCropper(true);
+                      }}
+                    />
+
+                  </div>
 
                     <h2 className="pm-profile-name">
                       {getProp("name", "name", "Student Name")}
@@ -661,7 +791,6 @@ export default function ProfileTab({
         </div>
       </main>
     </div>
-  );
 }
 
 function Field({
