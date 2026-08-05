@@ -57,26 +57,28 @@ export default function Students() {
     }
 
 
-    const formattedStudents = data.map((student)=>({
+   const formattedStudents = data.map((student) => ({
+  id: student.id,
+  name: student.name || "Unknown",
+  role: student.title || "Student",
 
-      id: student.id,
+  github: student.github,
+  linkedin: student.linkedin,
+  leetcode: student.leetcode,
 
-      name: student.name || "Unknown",
+  avatar:
+  student.avatar_url && student.avatar_url.trim() !== ""
+    ? student.avatar_url
+    : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+        student.name || "Student"
+      )}&background=0D8ABC&color=fff&size=256`,
 
-      role: student.title || "Student",
-
-      skills: [
-        student.github ? "GitHub" : null,
-        student.leetcode ? "LeetCode" : null,
-        student.linkedin ? "LinkedIn" : null
-      ].filter(Boolean),
-
-
-      avatar:
-        "https://i.pravatar.cc/150?u=" + student.user_id
-
-    }));
-
+  skills: [
+    student.github ? "GitHub" : null,
+    student.leetcode ? "LeetCode" : null,
+    student.linkedin ? "LinkedIn" : null,
+  ].filter(Boolean),
+}));
 
     setStudentsData(formattedStudents);
 
@@ -200,45 +202,85 @@ export default function Students() {
         )}
       </div>
 
-      {/* Students Grid */}
-      <div className="students-grid">
-        {isLoading 
-          ? /* Render Exact Number of Skeleton Cards Based on Current Page Data */
-            Array.from({ length: itemsToRenderCount }).map((_, index) => (
-              <div className="student-card skeleton-card" key={`skeleton-${index}`}>
-                <div className="skeleton skeleton-badge"></div>
-                <div className="skeleton skeleton-avatar"></div>
-                <div className="skeleton skeleton-name"></div>
-                <div className="skeleton skeleton-role"></div>
-                <div className="student-skills">
-                  <div className="skeleton skeleton-skill"></div>
-                  <div className="skeleton skeleton-skill"></div>
-                  <div className="skeleton skeleton-skill"></div>
-                </div>
-                <div className="skeleton skeleton-btn"></div>
-              </div>
-            ))
-          : /* Render Actual Student Cards */
-            currentStudents.map((student) => (
-              <div className="student-card" key={student.id}>
-                <img src={student.avatar} alt={student.name} className="student-avatar" />
-                <h3 className="student-name">{student.name}</h3>
-                <p className="student-role">{student.role}</p>
-                
-                <div className="student-skills">
-                  {student.skills.map((skill, index) => (
-                    <span className="skill-tag" key={index}>{skill}</span>
-                  ))}
-                </div>
-                
-                <button 
-                  className="view-profile-btn"
-                  onClick={() => navigate(`/student/${student.id}`)}
-                >View Profile</button>
-              </div>
-            ))
-        }
+     <div className="students-grid">
+  {isLoading ? (
+    Array.from({ length: itemsToRenderCount }).map((_, index) => (
+      <div className="student-card skeleton-card" key={`skeleton-${index}`}>
+        <div className="skeleton skeleton-badge"></div>
+        <div className="skeleton skeleton-avatar"></div>
+        <div className="skeleton skeleton-name"></div>
+        <div className="skeleton skeleton-role"></div>
+
+        <div className="student-skills">
+          <div className="skeleton skeleton-skill"></div>
+          <div className="skeleton skeleton-skill"></div>
+          <div className="skeleton skeleton-skill"></div>
+        </div>
+
+        <div className="skeleton skeleton-btn"></div>
       </div>
+    ))
+  ) : (
+    currentStudents.map((student) => (
+      <div className="student-card" key={student.id}>
+        <img
+          src={student.avatar}
+          alt={student.name}
+          className="student-avatar"
+          onError={(e) => {
+            e.target.src = "/default-avatar.png";
+          }}
+        />
+
+        <h3 className="student-name">{student.name}</h3>
+
+        <p className="student-role">{student.role}</p>
+
+        <div className="student-skills">
+          {student.github && (
+            <a
+              href={student.github}
+              target="_blank"
+              rel="noreferrer"
+              className="skill-tag"
+            >
+              GitHub
+            </a>
+          )}
+
+          {student.leetcode && (
+            <a
+              href={student.leetcode}
+              target="_blank"
+              rel="noreferrer"
+              className="skill-tag"
+            >
+              LeetCode
+            </a>
+          )}
+
+          {student.linkedin && (
+            <a
+              href={student.linkedin}
+              target="_blank"
+              rel="noreferrer"
+              className="skill-tag"
+            >
+              LinkedIn
+            </a>
+          )}
+        </div>
+
+        <button
+          className="view-profile-btn"
+          onClick={() => navigate(`/student/${student.id}`)}
+        >
+          View Profile
+        </button>
+      </div>
+    ))
+  )}
+</div>
 
       {/* Pagination Controls - Hides completely if 0 or 1 page */}
       {totalPages > 1 && (
