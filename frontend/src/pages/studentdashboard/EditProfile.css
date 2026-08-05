@@ -1021,3 +1021,37 @@ html, body {
     width: 100%;
   }
 }
+
+.crop-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  z-index: 99999;
+}
+
+.crop-modal > div:first-child {
+  width: 500px;
+  height: 500px;
+  position: relative;
+}
+
+.crop-modal button {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+
+  padding: 12px 28px;
+  border: none;
+  border-radius: 10px;
+
+  background: #2563eb;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+}

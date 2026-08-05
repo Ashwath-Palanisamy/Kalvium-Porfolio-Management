@@ -409,13 +409,6 @@ export default function ProfileTab({
             </div>
           )}
 
-          <div className="pm-layout">
-            ...
-          </div>
-        </>
-        );  
-        
-
     <div className="pm-layout">
       {toastMessage && (
         <div className={`error-toast ${toastType === "success" ? "success-toast" : ""} ${isExiting ? "slide-out" : ""}`}>
@@ -791,6 +784,8 @@ export default function ProfileTab({
         </div>
       </main>
     </div>
+    </>
+);
 }
 
 function Field({
