@@ -16,8 +16,7 @@ function Navbar() {
     const closeMenu = () => {
         setIsMenuOpen(false);
     };
-
-    // Placed 'async' directly before '(e)'
+    
     const handleLoginClick = async (e) => {
         e.preventDefault();
         closeMenu();
@@ -47,7 +46,7 @@ function Navbar() {
                     </NavLink>
                 </div>
 
-                {/* Mobile Toggle Button */}
+                
                 <button
                     className="mobile-menu-btn"
                     onClick={toggleMenu}
@@ -56,7 +55,7 @@ function Navbar() {
                     {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
                 </button>
 
-                {/* Navigation Menu */}
+                
                 <nav className={`nav-menu ${isMenuOpen ? "active" : ""}`}>
                     <ul>
                         <li className="nav-btn">
