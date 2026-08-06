@@ -20,65 +20,7 @@ section {
   font-family: var(--font-family);
 }
 
-/* ==========================================================================
-   1. Hero Section
-   ========================================================================== */
-.hero.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 60px 24px 40px;
-}
 
-.hero {
-  display: grid;
-  grid-template-columns: 1.2fr 0.8fr;
-  gap: 40px;
-  align-items: center;
-}
-
-.hero-headline {
-  font-size: clamp(2.2rem, 4vw, 3.5rem);
-  font-weight: 800;
-  line-height: 1.15;
-  color: var(--text-main);
-  margin-bottom: 16px;
-  letter-spacing: -0.02em;
-}
-
-.accent {
-  color: var(--primary-red);
-}
-
-.hero-subtext {
-  font-size: 1.1rem;
-  line-height: 1.6;
-  color: var(--text-muted);
-  margin-bottom: 32px;
-}
-
-.hero-buttons {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.hero-visual {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.hero-image {
-  max-width: 100%;
-  height: auto;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-  transition: transform 0.3s ease;
-}
-
-.hero-image:hover {
-  transform: translateY(-4px);
-}
 
 /* Button System */
 .btn {
