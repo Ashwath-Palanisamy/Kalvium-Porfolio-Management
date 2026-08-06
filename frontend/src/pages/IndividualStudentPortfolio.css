@@ -26,14 +26,19 @@
     }
 }
 
+/* Textured Red Left Panel matching screenshot */
 #left-side-color {
-    background-color: #991b1b;
-    box-shadow: inset -4px 0 16px rgba(0, 0, 0, 0.25);
+    background-color: #8c0a0a;
+    background-image: 
+        radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px),
+        radial-gradient(rgba(0, 0, 0, 0.25) 1px, transparent 1px);
+    background-size: 16px 16px;
+    background-position: 0 0, 8px 8px;
+    box-shadow: inset -4px 0 16px rgba(0, 0, 0, 0.35);
     width: 30%;
     animation: slideInFromTop 0.8s ease-out forwards;
     padding-bottom: 20px;
 }
-
 
 #right-side-color {
     background-color: #0b0b0d;
@@ -52,7 +57,7 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    align-items: center;
+    align-items: stretch;
     color: white;
     gap: 15px;
     border-radius: 12px;
@@ -65,6 +70,7 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+/* LeetCode Header & Stats */
 .leetcode-header {
     display: flex;
     align-items: center;
@@ -142,18 +148,11 @@
     font-size: 1.1rem;
 }
 
-.easy {
-    color: #00b8a3;
-}
+.easy { color: #00b8a3; }
+.medium { color: #ffc01e; }
+.hard { color: #ef4743; }
 
-.medium {
-    color: #ffc01e;
-}
-
-.hard {
-    color: #ef4743;
-}
-
+/* GitHub Header & Stats */
 .github-header {
     display: flex;
     align-items: center;
@@ -217,7 +216,7 @@
     text-align: right;
 }
 
-/* Sidebar Contact Card */
+/* Sidebar Contact Card Header */
 .contact-card-header {
     display: flex;
     align-items: center;
@@ -284,6 +283,7 @@
     text-overflow: ellipsis;
 }
 
+/* Main Content Container */
 .main-content-container {
     padding: 60px 80px;
     max-width: 1200px;
@@ -319,21 +319,28 @@
     overflow: hidden;
 }
 
-.profile-avatar svg {
-    width: 55px;
-    height: 55px;
+.profile-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .profile-titles {
     display: flex;
     flex-direction: column;
+    align-items: flex-start; 
+    justify-content: center;
 }
 
-.student-name {
-    font-size: 3.5rem;
+/* SCOPED STUDENT NAME: Scoped under .profile-titles to prevent bleed into cards */
+.profile-titles .student-name {
+    font-size: 4rem;
     font-weight: 800;
     margin: 0;
     letter-spacing: -1px;
+    color: #ffffff; 
+    text-align: left;
+    line-height: 1.1;
 }
 
 .student-title {
@@ -342,6 +349,7 @@
     font-weight: 500;
     margin-top: 6px;
     margin-bottom: 0;
+    text-align: left;
 }
 
 .student-bio {
@@ -367,59 +375,47 @@
     display: inline-block;
 }
 
-.projects-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-    gap: 25px;
-}
-
-.project-card {
+/* Coming Soon Component Styles */
+.coming-soon-card {
     background-color: rgba(17, 17, 17, 0.85);
     backdrop-filter: blur(6px);
-    border: 1px solid #2a2a2a;
+    border: 1px dashed #333333;
     border-radius: 12px;
-    padding: 25px;
+    padding: 60px 30px;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    transition: transform 0.2s ease, border-color 0.2s ease;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    transition: border-color 0.2s ease, transform 0.2s ease;
 }
 
-.project-card:hover {
-    transform: translateY(-5px);
+.coming-soon-card:hover {
     border-color: #ff4d4d;
+    transform: translateY(-2px);
 }
 
-.project-title {
-    font-size: 1.3rem;
-    margin: 0 0 10px 0;
+.coming-soon-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+}
+
+.coming-soon-title {
+    font-size: 1.5rem;
     color: #ffffff;
-}
-
-.project-desc {
-    font-size: 0.95rem;
-    color: #8c8c8c;
-    line-height: 1.5;
-    margin-bottom: 25px;
-}
-
-.project-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-
-.tag {
-    background-color: #2a2a2a;
-    color: #e6e6e6;
-    font-size: 0.75rem;
-    padding: 5px 12px;
-    border-radius: 20px;
+    margin: 0 0 10px 0;
     font-weight: 600;
-    letter-spacing: 0.5px;
 }
 
-/* Get In Touch CTA Section */
+.coming-soon-desc {
+    font-size: 1rem;
+    color: #8c8c8c;
+    max-width: 480px;
+    margin: 0;
+    line-height: 1.6;
+}
+
+/* Contact CTA Section */
 .contact-section {
     margin-top: 60px;
     animation: fadeIn 0.3s ease-out forwards;
@@ -486,15 +482,11 @@
     }
 }
 
-/* Skeleton Loading Shimmer Animation */
-.skeleton {
-    background: linear-gradient(90deg, #2a2a2a 25%, #3a3a3a 50%, #2a2a2a 75%);
-    background-size: 200% 100%;
-    animation: loadingShimmer 1.5s infinite;
-    border-radius: 6px;
-}
+/* ==========================================================================
+   Skeleton Loader Styles
+   ========================================================================== */
 
-@keyframes loadingShimmer {
+@keyframes skeletonPulse {
     0% {
         background-position: 200% 0;
     }
@@ -503,31 +495,82 @@
     }
 }
 
-.skeleton-title {
-    width: 60%;
-    height: 40px;
-    margin-bottom: 15px;
-}
-
-.skeleton-subtitle {
-    width: 40%;
-    height: 20px;
-    margin-bottom: 20px;
-}
-
-.skeleton-text {
-    width: 100%;
-    height: 16px;
-    margin-bottom: 10px;
+.skeleton-box {
+    background: linear-gradient(90deg, #1f1f1f 25%, #333333 50%, #1f1f1f 75%);
+    background-size: 200% 100%;
+    animation: skeletonPulse 1.5s infinite ease-in-out;
+    border-radius: 6px;
 }
 
 .skeleton-card {
+    min-height: 140px;
+}
+
+.skeleton-header {
+    height: 24px;
+    width: 50%;
+    margin-bottom: 8px;
+}
+
+.skeleton-text {
+    height: 16px;
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+.skeleton-text.short {
+    width: 35%;
+}
+
+.skeleton-stats-grid {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.skeleton-stat {
+    flex: 1;
+    height: 48px;
+}
+
+.skeleton-avatar {
+    width: 100px;
+    height: 100px;
+    min-width: 100px;
+    border-radius: 50%;
+}
+
+.skeleton-title {
+    height: 48px;
+    width: 65%;
+    margin-bottom: 12px;
+}
+
+.skeleton-subtitle {
+    height: 20px;
+    width: 40%;
+}
+
+.skeleton-bio {
+    height: 60px;
+    width: 100%;
+    max-width: 800px;
+    margin-top: 20px;
+}
+
+.skeleton-section-title {
+    height: 32px;
+    width: 220px;
+    margin-bottom: 25px;
+}
+
+.skeleton-project-card {
     height: 180px;
-    background-color: #1a1a1a;
+    width: 100%;
     border-radius: 12px;
 }
 
-/* Mobile Responsiveness */
+/* Responsive Styles */
 @media (max-width: 900px) {
     #portfolio-background {
         flex-direction: column;
@@ -562,13 +605,14 @@
         min-width: 80px;
     }
 
-    .profile-avatar svg {
-        width: 45px;
-        height: 45px;
+    .skeleton-avatar {
+        width: 80px;
+        height: 80px;
+        min-width: 80px;
     }
 
-    .student-name {
-        font-size: 2.2rem;
+    .profile-titles .student-name {
+        font-size: 3rem;
     }
 
     .student-title {
@@ -583,10 +627,6 @@
         margin: 15px 20px;
         padding: 20px 16px;
         box-sizing: border-box;
-    }
-
-    .projects-grid {
-        grid-template-columns: 1fr;
     }
 }
 
@@ -626,4 +666,9 @@
         width: 100%;
         box-sizing: border-box;
     }
-}   
+
+    .skeleton-title {
+        width: 90%;
+        height: 36px;
+    }
+}
