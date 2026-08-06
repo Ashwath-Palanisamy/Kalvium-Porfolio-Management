@@ -2,23 +2,15 @@ import { NavLink, useNavigate } from "react-router-dom";
 import "./Navbar.css";
 import { ArrowRight } from "lucide-react";
 import logo from "../assets/kalvium-logo.svg";
-import { supabase } from "../lib/supabase";
+import { useAuthStatus } from "../hooks/useAuthStatus";
 
 function Navbar() {
     const navigate = useNavigate();
+    const { isAuthenticated } = useAuthStatus();
 
-    const handleLoginClick = async (e) => {
+    const handleLoginClick = (e) => {
         e.preventDefault();
-
-        const {
-            data: { session },
-        } = await supabase.auth.getSession();
-
-        if (session) {
-            navigate("/dashboard");
-        } else {
-            navigate("/login");
-        }
+        navigate(isAuthenticated ? "/dashboard" : "/login");
     };
 
     return (
@@ -54,7 +46,7 @@ function Navbar() {
                             onClick={handleLoginClick}
                             className="login-link"
                         >
-                            Login
+                            {isAuthenticated ? "Dashboard" : "Login"}
                             <ArrowRight className="w-3.5 h-3.5" />
                         </a>
                     </li>
