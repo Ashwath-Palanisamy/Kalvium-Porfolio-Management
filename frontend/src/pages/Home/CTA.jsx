@@ -1,8 +1,24 @@
 import "./CTA.css"
-import { NavLink } from "react-router-dom"
+import { NavLink, useNavigate } from "react-router-dom"
 import { FaArrowRightLong } from "react-icons/fa6"
-
+import { supabase } from "../../lib/supabase";
 export default function CTA() {
+
+    const navigate = useNavigate();
+
+    const handleLoginClick = async (e) => {
+        e.preventDefault();
+
+        const {
+            data: { session },
+        } = await supabase.auth.getSession();
+
+        if (session) {
+            navigate("/dashboard");
+        } else {
+            navigate("/login");
+        }
+    };
     return (
         <section className="cta-band" aria-labelledby="cta-title">
             <div className="cta-band__container">
@@ -22,7 +38,9 @@ export default function CTA() {
                         <FaArrowRightLong aria-hidden="true" />
                     </NavLink>
                     <NavLink
-                        to="/login"
+                        
+                        href="#"
+                        onClick={handleLoginClick}
                         className="cta-band__button cta-band__button--ghost"
                     >
                         <span>Login</span>
