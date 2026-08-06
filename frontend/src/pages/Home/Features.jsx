@@ -27,8 +27,8 @@ const featureItems = [
         icon: FaFileCircleCheck,
     },
     {
-        title: "Resume Generator",
-        text: "Generate professional resumes instantly.",
+        title: "Resume Showcase",
+        text: "Present verified student resumes professionally.",
         icon: FaChartSimple,
     },
     {
@@ -52,14 +52,6 @@ const featureItems = [
         icon: FaShieldHalved,
     },
 ]
-
-// const stats = [
-//     { value: "500+", label: "Active Students" },
-//     { value: "1000+", label: "Projects Published" },
-//     { value: "300+", label: "Certificates Earned" },
-//     { value: "150+", label: "Mentor Reviews" },
-//     { value: "80+", label: "Internship Offers Shared" },
-// ]
 
 export default function Features() {
     return (
@@ -95,33 +87,6 @@ export default function Features() {
                     </div>
                 </div>
             </section>
-
-            {/* <section
-                className="highlights"
-                aria-labelledby="community-highlights-title"
-            >
-                <div className="features__container">
-                    <header>
-                        <p className="features__eyebrow">
-                            COMMUNITY HIGHLIGHTS
-                        </p>
-                        <h2 id="community-highlights-title">
-                            Community Highlights
-                        </h2>
-                    </header>
-                    <div className="highlights__grid">
-                        {stats.map((item) => (
-                            <article
-                                key={item.label}
-                                className="highlights__card"
-                            >
-                                <h3>{item.value}</h3>
-                                <p>{item.label}</p>
-                            </article>
-                        ))}
-                    </div>
-                </div>
-            </section> */}
         </>
     )
 }
