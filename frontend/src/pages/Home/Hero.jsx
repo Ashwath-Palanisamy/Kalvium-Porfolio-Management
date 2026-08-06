@@ -1,26 +1,18 @@
 import "./Hero.css"
 import { NavLink, useNavigate } from "react-router-dom";
 import { HiArrowRight } from "react-icons/hi2"
-import { supabase } from "../../lib/supabase";
+import { useAuthStatus } from "../../hooks/useAuthStatus";
 
 const DEFAULT_ILLUSTRATION_SRC =
     "https://framerusercontent.com/images/UcRcemWjmvw9CDCy1JIXixcBqg.svg?width=500&height=500&kb=48"
 
 export default function Hero({ illustrationSrc = DEFAULT_ILLUSTRATION_SRC }) {
     const navigate = useNavigate();
+    const { isAuthenticated } = useAuthStatus();
 
-    const handleLoginClick = async (e) => {
+    const handleLoginClick = (e) => {
         e.preventDefault();
-
-        const {
-            data: { session },
-        } = await supabase.auth.getSession();
-
-        if (session) {
-            navigate("/dashboard");
-        } else {
-            navigate("/login");
-        }
+        navigate(isAuthenticated ? "/dashboard" : "/login");
     };
     return (
         <section className="hero" aria-labelledby="kalvium-hero-title">
@@ -52,12 +44,12 @@ export default function Hero({ illustrationSrc = DEFAULT_ILLUSTRATION_SRC }) {
                             />
                         </NavLink>
                         <NavLink
-                            to="/login"
+                            to={isAuthenticated ? "/dashboard" : "/login"}
                             href="#"
                             onClick={handleLoginClick}
                             className="hero__button hero__button--secondary"
                         >
-                            <span>Login to Dashboard</span>
+                            <span>{isAuthenticated ? "Go to Dashboard" : "Login to Dashboard"}</span>
                         </NavLink>
                     </nav>
                 </header>

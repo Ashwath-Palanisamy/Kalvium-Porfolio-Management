@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import "./Navbar.css";
 import { ArrowRight, Menu, X } from "lucide-react";
 import logo from "../assets/kalvium-logo.svg";
-import { supabase } from "../lib/supabase";
+import { useAuthStatus } from "../hooks/useAuthStatus";
 
 function Navbar() {
     const navigate = useNavigate();
@@ -17,7 +17,7 @@ function Navbar() {
         setIsMenuOpen(false);
     };
 
-    const handleLoginClick = async (e) => {
+    const handleLoginClick = (e) => {
         e.preventDefault();
         closeMenu();
 

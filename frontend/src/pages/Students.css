@@ -1,3 +1,24 @@
+/* Remove underline from skill links */
+.student-skills .skill-tag,
+.student-skills .skill-tag:link,
+.student-skills .skill-tag:visited,
+.student-skills .skill-tag:hover,
+.student-skills .skill-tag:active,
+.student-skills .skill-tag:focus {
+    text-decoration: none !important;
+    -webkit-text-decoration: none !important;
+    color: #555;
+    border: 1px solid #eee;
+    background: #f7f7f7;
+    border-radius: 4px;
+    padding: 4px 8px;
+    display: inline-block;
+}
+
+/* Prevent underline on the text inside */
+.student-skills .skill-tag * {
+    text-decoration: none !important;
+}
 /* =========================================
    Base Layout & Typography
    ========================================= */
@@ -51,8 +72,9 @@
 }
 
 .search-bar-container {
-  position: relative;
-  width: 100%;
+    position: relative;
+    width: 100%;
+    max-width: 380px;
 }
 
 .search-bar {
@@ -71,12 +93,13 @@
 }
 
 .search-icon {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #999;
-  font-size: 1.1rem;
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    font-size: 18px;
+    pointer-events: none;
 }
 
 .filters-row {
@@ -98,9 +121,6 @@
   outline: none;
 }
 
-/* =========================================
-   Results Count
-   ========================================= */
 .results-info {
   font-size: 0.9rem;
   color: #666;
