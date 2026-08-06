@@ -19,14 +19,14 @@
     align-items: center;
 }
 
+/* UPDATED: Removed max-width to let items touch the ends of the viewport */
 .header-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    max-width: 1280px;
-    margin: 0 auto;
-    padding: 0 20px;
+    max-width: 100%; 
+    padding: 0 32px; /* Adjustable spacing from the absolute screen edges */
 }
 
 .logo-container {
@@ -140,6 +140,10 @@ nav ul .btn-log a:hover .login-icon {
    Responsive Breakpoint (Mobile / Tablet Menu Dropdown)
    ------------------------------------------------------------- */
 @media (max-width: 768px) {
+    .header-container {
+        padding: 0 16px;
+    }
+
     .mobile-menu-btn {
         display: flex;
     }
@@ -170,7 +174,7 @@ nav ul .btn-log a:hover .login-icon {
     }
 
     nav ul li.nav-btn a::after {
-        display: none; /* Disable underline effect on mobile */
+        display: none;
     }
 
     nav ul .btn-log a {
