@@ -43,6 +43,7 @@ function Navbar() {
                             className="logo"
                         />
                         <span>Kalvium</span>
+                        <span className="beta-badge">Beta</span>
                     </NavLink>
                 </div>
 

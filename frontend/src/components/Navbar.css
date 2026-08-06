@@ -25,8 +25,9 @@
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    max-width: 100%; 
-    padding: 0 32px; /* Adjustable spacing from the absolute screen edges */
+    max-width: 100%;
+    padding: 0 32px;
+    /* Adjustable spacing from the absolute screen edges */
 }
 
 .logo-container {
@@ -130,6 +131,30 @@ nav ul .btn-log a:focus {
 
 .login-icon {
     transition: transform 0.2s ease;
+}
+.beta-badge {
+  position: relative;
+  top: 1px;
+}
+.beta-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    height: 22px;
+    padding: 0 10px;
+    margin-left: 10px;
+
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 999px;
+
+    color: #d1d5db;
+    background: transparent;
+
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    text-transform: uppercase;
 }
 
 nav ul .btn-log a:hover .login-icon {
