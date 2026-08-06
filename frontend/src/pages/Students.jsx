@@ -220,7 +220,6 @@ export default function Students() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-            <span className="search-icon">🔍</span>
           </div>
           <div className="filters-row">
             <select><option>All Domains</option></select>
