@@ -1,7 +1,7 @@
 import express from "express"
 import dotenv from "dotenv"
 import cors from "cors"
-import authRoutes from "./routes/auth.routes.js"
+import publicRoutes from "./routes/public.routes.js"
 import dashboardRoutes from "./routes/student_dashboard.routes.js"
 import mentorDashboardRoutes from "./routes/mentor_dashboard.routes.js"
 
@@ -21,7 +21,7 @@ app.use(
 
 app.use(express.json())
 
-app.use("/api/auth", authRoutes)
+app.use("/public", publicRoutes)
 app.use("/student/dashboard", dashboardRoutes)
 app.use("/mentor/dashboard", mentorDashboardRoutes) 
 

@@ -1,85 +1,85 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-*{
+* {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-.header{
-    display: flex;
+.header {
     background-color: rgb(10, 10, 10);
-    justify-content: space-between;
-    align-items: center;
     position: sticky;
     top: 0;
     z-index: 1000;
-    text-align: center;
     font-family: 'Inter', sans-serif;
-    color:rgb(82, 82, 82);
+    color: rgb(82, 82, 82);
     width: 100%;
     height: 60px;
-}
-
-.logo-container{
     display: flex;
-    text-align: center;
-    gap: 12px;
-    padding: 1px;
+    align-items: center;
 }
 
-@media (max-width: 768px) {
-    .header {
-        flex-direction: column;
-        gap: 15px;
-        padding: 15px 0;
-    }
-    
-    nav ul {
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 20px;
-        margin: 10px;
-    }
+.header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 20px;
 }
 
-.logo{
-    width: auto;
-    height: auto;
-    max-width: 100%;
+.logo-container {
+    display: flex;
+    align-items: center;
 }
 
-.head-name{
+.head-name {
     display: flex;
     align-items: center;
     gap: 12px;
     color: white;
-    font-size: 28px;
-    margin-left: 10px;
-}
-
-nav ul{
-    display: flex;
-    text-align: center;
-    gap: 40px;
-    margin: 20px;
-    list-style: none;
-    align-items: center;
-}
-
-nav ul a{
+    font-size: 24px;
+    font-weight: 700;
     text-decoration: none;
+}
+
+.logo {
+    width: auto;
+    height: 28px;
+}
+
+/* Mobile Toggle Icon */
+.mobile-menu-btn {
+    display: none;
+    background: transparent;
+    border: none;
     color: white;
+    cursor: pointer;
+    padding: 4px;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Navigation List */
+nav ul {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    list-style: none;
 }
 
 nav ul li a {
     position: relative;
     text-decoration: none;
     color: white;
-    padding-bottom: 6px;
+    font-size: 15px;
+    font-weight: 500;
+    padding-bottom: 4px;
+    transition: color 0.2s ease;
 }
 
-nav ul li a::after {
+nav ul li.nav-btn a::after {
     content: "";
     position: absolute;
     left: 0;
@@ -102,33 +102,79 @@ nav ul .nav-btn a.active {
     color: #ff3b3b;
 }
 
-.btn-log{
+.btn-log {
     list-style: none;
 }
 
-/* make the login link a pill-style CTA similar to the dashboard button */
-nav ul .btn-log a{
+/* CTA Login Button */
+nav ul .btn-log a {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 16px;
+    padding: 8px 18px;
     background-color: #ff3b3b;
     color: #fff;
-    border-radius: 10px;
+    border-radius: 8px;
     font-weight: 600;
     text-decoration: none;
-    box-shadow: 0 6px 18px rgba(17,24,39,0.06);
+    box-shadow: 0 4px 12px rgba(255, 59, 59, 0.2);
     transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
 }
 
 nav ul .btn-log a:hover,
-nav ul .btn-log a:focus{
+nav ul .btn-log a:focus {
     transform: translateY(-1px);
     background-color: #ff1f1f;
-    box-shadow: 0 12px 30px rgba(232,52,42,0.12);
+    box-shadow: 0 6px 20px rgba(255, 59, 59, 0.35);
 }
 
-ArrowRight{
-    width: 1px;
-    height: 1px;
+.login-icon {
+    transition: transform 0.2s ease;
+}
+
+nav ul .btn-log a:hover .login-icon {
+    transform: translateX(3px);
+}
+
+/* -------------------------------------------------------------
+   Responsive Breakpoint (Mobile / Tablet Menu Dropdown)
+   ------------------------------------------------------------- */
+@media (max-width: 768px) {
+    .mobile-menu-btn {
+        display: flex;
+    }
+
+    .nav-menu {
+        position: absolute;
+        top: 60px;
+        left: 0;
+        width: 100%;
+        background-color: rgb(12, 12, 12);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-in-out, padding 0.3s ease;
+    }
+
+    .nav-menu.active {
+        max-height: 300px;
+        padding: 20px 0;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
+
+    nav ul {
+        flex-direction: column;
+        gap: 20px;
+        width: 100%;
+        text-align: center;
+    }
+
+    nav ul li.nav-btn a::after {
+        display: none; /* Disable underline effect on mobile */
+    }
+
+    nav ul .btn-log a {
+        width: 80%;
+        justify-content: center;
+    }
 }
