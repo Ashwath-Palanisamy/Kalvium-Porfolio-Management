@@ -1,23 +1,15 @@
 import "./CTA.css"
 import { NavLink, useNavigate } from "react-router-dom"
 import { FaArrowRightLong } from "react-icons/fa6"
-import { supabase } from "../../lib/supabase";
+import { useAuthStatus } from "../../hooks/useAuthStatus";
 export default function CTA() {
 
     const navigate = useNavigate();
+    const { isAuthenticated } = useAuthStatus();
 
-    const handleLoginClick = async (e) => {
+    const handleLoginClick = (e) => {
         e.preventDefault();
-
-        const {
-            data: { session },
-        } = await supabase.auth.getSession();
-
-        if (session) {
-            navigate("/dashboard");
-        } else {
-            navigate("/login");
-        }
+        navigate(isAuthenticated ? "/dashboard" : "/login");
     };
     return (
         <section className="cta-band" aria-labelledby="cta-title">
@@ -38,12 +30,12 @@ export default function CTA() {
                         <FaArrowRightLong aria-hidden="true" />
                     </NavLink>
                     <NavLink
-                        
+                        to={isAuthenticated ? "/dashboard" : "/login"}
                         href="#"
                         onClick={handleLoginClick}
                         className="cta-band__button cta-band__button--ghost"
                     >
-                        <span>Login</span>
+                        <span>{isAuthenticated ? "Dashboard" : "Login"}</span>
                         <FaArrowRightLong aria-hidden="true" />
                     </NavLink>
                 </nav>
