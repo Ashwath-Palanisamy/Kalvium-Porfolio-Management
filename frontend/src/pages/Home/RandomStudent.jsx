@@ -49,7 +49,7 @@ function Home() {
 
   return (
     <section className="featured-container">
-      <h3>Featured Builders</h3>
+      <h3>Discover Talent</h3>
       <div className="students">
         {featuredStudents.map((student, index) => (
           <div

@@ -80,7 +80,7 @@ export default function IndividualStudentPortfolio() {
   }, [user_id]);
 
   // Extract email preference
-  const displayEmail = student?.kalvium_email || student?.personal_email || student?.email;
+  const displayEmail = student?.personal_email || student?.email;
 
   // Extract display usernames
   const githubUsername = student?.github_username || student?.github?.split("/").filter(Boolean).pop();
