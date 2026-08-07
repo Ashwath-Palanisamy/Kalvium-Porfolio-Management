@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
+  Users,
   Settings,
   LogOut,
   PanelLeftClose,
@@ -13,8 +14,10 @@ import { supabase } from "../../lib/supabase";
 import "./mentordashboard.css";
 import "./sidebar.css";
 
+// Added "Assigned" to the navigation array
 const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard },
+  { label: "Assigned", icon: Users },
   { label: "Settings", icon: Settings },
 ];
 

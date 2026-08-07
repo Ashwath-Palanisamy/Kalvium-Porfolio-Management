@@ -4,6 +4,7 @@ import { Home } from "lucide-react";
 import Sidebar from "./sidebar";
 import DashboardContent from "./dashboardcontent";
 import SettingsContent from "./settingsconetnt";
+import Assigned from "./Assigned";
 import "./mentordashboard.css";
 
 const MentorDashboard = ({ profile, isLoading = false }) => {
@@ -46,6 +47,7 @@ const MentorDashboard = ({ profile, isLoading = false }) => {
         {/* Dynamic Main Views */}
         <div className="dashboard-body">
           {activeNav === "Dashboard" && <DashboardContent />}
+          {activeNav === "Assigned" && <Assigned profile={profile} />}
           {activeNav === "Settings" && <SettingsContent profile={profile} />}
         </div>
       </main>
