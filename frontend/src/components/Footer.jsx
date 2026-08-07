@@ -19,7 +19,7 @@ function Footer() {
                             <FaGithub />
                             <span>GitHub</span>
                         </a>
-                        <a href="https://mail.google.com/mail/u/0/?view=cm&fs=1&tf=1&to=kpm-squad138@googlegroups.com"
+                        <a href="mailto:kpm-squad138@googlegroups.com"
                             target="_blank"
                             rel="noopener noreferrer"
                             aria-label="Email">
