@@ -98,6 +98,35 @@ router.get('/profiles', allprofilesLimiter, async (req, res) => {
 });
 
 // ==========================================
+// GET Featured Students
+// ==========================================
+router.get("/profiles/featured", allprofilesLimiter, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("user_id, name, title, avatar_url");
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    const shuffled = [...data];
+
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    res.json(shuffled.slice(0, 4));
+  } catch (err) {
+    res.status(500).json({
+      error: "Internal Server Error",
+      details: err.message,
+    });
+  }
+});
+
+// ==========================================
 // 2. GET single student profile using REST path parameter /profiles/:user_id
 // ==========================================
 router.get('/profiles/:user_id', singleStudentLimiter, async (req, res) => {
