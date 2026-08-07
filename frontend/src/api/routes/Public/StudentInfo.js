@@ -6,6 +6,11 @@ export const getAllStudents = async () => {
   return response.data;
 };
 
+export const getFeaturedStudents = async () => {
+  const response = await apiClient.get("/public/profiles/featured");
+  return response.data;
+};
+
 // Fetches a single student by their user_id
 export const getStudentByUserId = async (userId) => {
   const response = await apiClient.get(`/public/profiles/${userId}`);
