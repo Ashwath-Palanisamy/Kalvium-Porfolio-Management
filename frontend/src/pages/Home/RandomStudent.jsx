@@ -136,12 +136,6 @@ function Home() {
         </NavLink>
       </div>
     </section>
-      <div className="view-all-container">
-        <NavLink to="/students" className="home-all-student">
-          Explore All Profiles ▶
-        </NavLink>
-      </div>
-    </section>
   );
 }
 
