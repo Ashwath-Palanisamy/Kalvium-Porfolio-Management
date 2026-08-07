@@ -1,57 +1,61 @@
-import express from "express"
-import dotenv from "dotenv"
-import cors from "cors"
-import publicRoutes from "./routes/public.routes.js"
-import dashboardRoutes from "./routes/student_dashboard.routes.js"
-import mentorDashboardRoutes from "./routes/mentor_dashboard.routes.js"
+import express from "express";
+import dotenv from "dotenv";
+import cors from "cors";
 
-dotenv.config()
+import publicRoutes from "./routes/public.routes.js";
+import dashboardRoutes from "./routes/student_dashboard.routes.js";
+import mentorDashboardRoutes from "./routes/mentor_dashboard.routes.js";
 
-const app = express()
-const PORT = process.env.PORT || 8000
+dotenv.config();
 
+const app = express();
+const PORT = process.env.PORT || 8000;
 
+// Trust Render proxy
+app.set("trust proxy", 1);
+
+// Allowed origins
 const envOrigins = (process.env.ORIGIN || "")
-    .split(",")
-    .map(url => url.trim().replace(/\/$/, ""))
-    .filter(Boolean);
+  .split(",")
+  .map((url) => url.trim().replace(/\/$/, ""))
+  .filter(Boolean);
 
 const allowedOrigins = [
-    "http://localhost:5173",
-    "https://kalvium-porfolio.vercel.app",
-    ...envOrigins
+  "http://localhost:5173",
+  "https://kalvium-porfolio.vercel.app", // Replace with your exact Vercel URL
+  ...envOrigins,
 ];
 
 app.use(
-    cors({
-        origin: function (origin, callback) {
-            if (!origin) return callback(null, true);
-            
-            // Allow exact match or Vercel preview deployments
-            if (allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
-                return callback(null, true);
-            }
-            
-            return callback(null, false);
-        },
-        credentials: true,
-        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-        allowedHeaders: ["Content-Type", "Authorization"]
-    })
-)
+  cors({
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
 
-app.options(/.*/, cors());
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.endsWith(".vercel.app")
+      ) {
+        return callback(null, true);
+      }
 
-app.use(express.json())
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 
-app.use("/public", publicRoutes)
-app.use("/student/dashboard", dashboardRoutes)
-app.use("/mentor/dashboard", mentorDashboardRoutes) 
+app.use(express.json());
+
+app.use("/public", publicRoutes);
+app.use("/student/dashboard", dashboardRoutes);
+app.use("/mentor/dashboard", mentorDashboardRoutes);
 
 app.get("/", (req, res) => {
-    res.send("Backend is working")
-})
+  res.send("Backend is working");
+});
 
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`)
-})
+  console.log(`Server running on port ${PORT}`);
+});
