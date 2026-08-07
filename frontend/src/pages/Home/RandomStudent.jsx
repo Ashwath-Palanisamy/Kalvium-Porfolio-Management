@@ -51,8 +51,11 @@ function Home() {
     <section className="featured-container">
       <h3>Featured Builders</h3>
       <div className="students">
-        {featuredStudents.map((student) => (
-          <div className="student-card" key={student.id}>
+        {featuredStudents.map((student, index) => (
+          <div
+            className="student-card"
+            key={student.id ? `student-${student.id}` : `student-${index}`}
+          >
             <img
               src={student.avatar}
               alt={student.name}

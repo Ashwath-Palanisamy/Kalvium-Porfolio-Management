@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createClient } from "@supabase/supabase-js";
 import {
   LayoutDashboard,
   Settings,
@@ -10,13 +9,9 @@ import {
 } from "lucide-react";
 
 import kalviumLogo from "../../assets/kalvium-logo.svg";
+import { supabase } from "../../lib/supabase";
 import "./mentordashboard.css";
 import "./sidebar.css";
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
 
 const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard },
