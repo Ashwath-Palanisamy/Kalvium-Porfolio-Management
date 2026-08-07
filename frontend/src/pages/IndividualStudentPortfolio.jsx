@@ -1,35 +1,35 @@
 import "./IndividualStudentPortfolio.css";
-import { useParams } from "react-router-dom";
+import { useParams, Navigate } from "react-router-dom"; // Added Navigate import
 import { useState, useEffect } from "react";
 import { getStudentByUserId, getGithubStats, getLeetcodeStats } from "../api/routes/Public/StudentInfo.js";
 
 export default function IndividualStudentPortfolio() {
   const { user_id } = useParams();
 
+  // 1. All hooks MUST be declared at the top level
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [statsLoading, setStatsLoading] = useState(false); // Track live stats fetching separately
+  const [statsLoading, setStatsLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    let isMounted = true; // Prevents state updates on unmounted component
+    let isMounted = true;
 
     const fetchStudentData = async () => {
       try {
         setLoading(true);
         setError(null);
         
-        // 1. Fetch DB Profile (Fast)
+        // Fetch DB Profile (Fast)
         const profileData = await getStudentByUserId(user_id);
         
         if (!isMounted) return;
         setStudent(profileData);
-        setLoading(false); // Instantly reveal UI while live stats fetch in background
+        setLoading(false);
 
-        // 2. Fetch Live Stats in Parallel via apiClient
+        // Fetch Live Stats in Parallel
         setStatsLoading(true);
 
-        // Use the new apiClient functions. If they fail, catch returns null so the page doesn't crash.
         const pGitHub = profileData?.github 
           ? getGithubStats(profileData.github).catch(() => null) 
           : Promise.resolve(null);
@@ -38,12 +38,10 @@ export default function IndividualStudentPortfolio() {
           ? getLeetcodeStats(profileData.leetcode).catch(() => null) 
           : Promise.resolve(null);
 
-        // Execute fetches simultaneously 
         const [ghStats, lcStats] = await Promise.all([pGitHub, pLeetCode]);
 
         if (!isMounted) return;
 
-        // Merge live stats back into the student state
         setStudent(prev => ({
           ...prev,
           ...(ghStats && {
@@ -72,12 +70,17 @@ export default function IndividualStudentPortfolio() {
       }
     };
 
-    if (user_id) {
+    if (user_id && user_id !== "undefined") {
       fetchStudentData();
     }
 
     return () => { isMounted = false; };
   }, [user_id]);
+
+  // 2. Early return moved HERE (after all hooks)
+  if (!user_id || user_id === "undefined") {
+    return <Navigate to="/students" replace />;
+  }
 
   // Extract email preference
   const displayEmail = student?.kalvium_email || student?.personal_email || student?.email;
@@ -92,9 +95,7 @@ export default function IndividualStudentPortfolio() {
     return val ?? fallback;
   };
 
-  // -------------------------------------------------------------
   // Skeleton Loading UI Component
-  // -------------------------------------------------------------
   if (loading) {
     return (
       <div id="portfolio-background" className="skeleton-container">

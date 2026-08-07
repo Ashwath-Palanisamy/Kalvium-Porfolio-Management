@@ -1,4 +1,4 @@
-import { Navigate, Routes, Route, useLocation } from "react-router-dom";
+import { Navigate, Routes, Route, useLocation, useParams } from "react-router-dom";
 import Home from "./pages/Home/Home.jsx";
 import Navbar from "./components/Navbar.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
@@ -11,6 +11,16 @@ import ErrorPage from "./pages/ErrorPage/404page";
 import AuthGate from "./components/AuthGate";
 import MentorDashboard from "./pages/MentorDashboard/mentordashboard.jsx";
 
+function LegacyStudentRedirect() {
+  const { user_id } = useParams();
+
+  if (!user_id || user_id === "undefined") {
+    return <Navigate to="/students" replace />;
+  }
+
+  return <Navigate to={`/portfolio/${user_id}`} replace />;
+}
+
 function DashboardDispatcher({ user }) {
   const role = user?.user_metadata?.role ?? user?.app_metadata?.role;
 
@@ -19,32 +29,32 @@ function DashboardDispatcher({ user }) {
   }
 
   if (role === "mentor") {
-    return <MentorDashboard profile={user}/>;
+    return <MentorDashboard profile={user} />;
   }
 
   return <Navigate to="/login" replace />;
 }
 
-
 function App() {
   const location = useLocation();
-  
-  const showNavbar = location.pathname !== "/login" && !location.pathname.startsWith("/dashboard");
-  const showFooter = location.pathname !== "/login" && !location.pathname.startsWith("/dashboard");
+
+  const showNavbar =
+    location.pathname !== "/login" && !location.pathname.startsWith("/dashboard");
+  const showFooter =
+    location.pathname !== "/login" && !location.pathname.startsWith("/dashboard");
 
   return (
     <>
-      <title>Kalvium Portfolio | Home</title>
-
       {showNavbar && <Navbar />}
 
       <Routes>
-        <Route path="/" element={<Home/>} />
+        <Route path="/" element={<Home />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/students" element={<Students />} />
+        <Route path="/student/:user_id" element={<LegacyStudentRedirect />} />
         <Route path="/portfolio/:user_id" element={<IndividualStudentPortfolio />} />
         <Route path="/about" element={<About />} />
-        
+
         {/* Protected Dashboard Route using AuthGate */}
         <Route
           path="/dashboard"
@@ -54,7 +64,7 @@ function App() {
             </AuthGate>
           }
         />
-        
+
         <Route path="*" element={<ErrorPage />} />
       </Routes>
 
