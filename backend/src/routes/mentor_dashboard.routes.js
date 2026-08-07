@@ -37,6 +37,9 @@ const requireAuth = async (req, res, next) => {
     }
 };
 
+// ==========================================
+// SQUAD MANAGEMENT ROUTES (mentor_squads)
+// ==========================================
 
 router.get("/getsquads", requireAuth, async (req, res) => {
     try {
@@ -53,7 +56,6 @@ router.get("/getsquads", requireAuth, async (req, res) => {
             return res.status(400).json({ error: error.message });
         }
 
-        // Transform array of objects [{ squad_id: "squad_1" }, ...] into simple string array ["squad_1", ...]
         const squads = data ? data.map((item) => item.squad_id) : [];
 
         return res.status(200).json({
@@ -66,71 +68,53 @@ router.get("/getsquads", requireAuth, async (req, res) => {
     }
 });
 
-router.post("/savesquad",
-    saveSquadLimiter,
-    requireAuth,
-    async (req, res) => {
-        try {
-            const mentorUserId = req.user.id;
-            const { squads } = req.body;
+router.post("/savesquad", saveSquadLimiter, requireAuth, async (req, res) => {
+    try {
+        const mentorUserId = req.user.id;
+        const { squads } = req.body;
 
-            if (!squads) {
-                return res.status(400).json({ error: "Squads field is required" });
-            }
-
-            // Normalize squads payload into an array
-            const squadList = Array.isArray(squads) ? squads : [squads];
-
-            // Use the authenticated client instance
-            const db = req.authedSupabase;
-
-            // 1. Clear previous squad assignments for this mentor
-            const { error: deleteError } = await db
-                .from("mentor_squads")
-                .delete()
-                .eq("mentor_user_id", mentorUserId);
-
-            if (deleteError) {
-                console.error("Delete Error:", deleteError);
-                return res.status(400).json({ error: deleteError.message });
-            }
-
-            // 2. Insert new squad assignments
-            if (squadList.length > 0) {
-                const recordsToInsert = squadList.map((squadId) => ({
-                    mentor_user_id: mentorUserId,
-                    squad_id: String(squadId),
-                }));
-
-                const { data, error: insertError } = await db
-                    .from("mentor_squads")
-                    .insert(recordsToInsert)
-                    .select();
-
-                if (insertError) {
-                    console.error("Insert Error:", insertError);
-                    return res.status(400).json({ error: insertError.message });
-                }
-
-                return res.status(200).json({
-                    success: true,
-                    message: "Squads saved successfully",
-                    data,
-                });
-            }
-
-            return res.status(200).json({
-                success: true,
-                message: "All squad assignments cleared",
-                data: [],
-            });
-        } catch (error) {
-            console.error("Server Error:", error);
-            return res.status(500).json({ error: "Internal server error" });
+        if (!squads) {
+            return res.status(400).json({ error: "Squads field is required" });
         }
-    }
-);
 
+        const squadList = Array.isArray(squads) ? squads : [squads];
+        const db = req.authedSupabase;
+
+        const { error: deleteError } = await db
+            .from("mentor_squads")
+            .delete()
+            .eq("mentor_user_id", mentorUserId);
+
+        if (deleteError) {
+            console.error("Delete Error:", deleteError);
+            return res.status(400).json({ error: deleteError.message });
+        }
+
+        if (squadList.length > 0) {
+            const recordsToInsert = squadList.map((squadId) => ({
+                mentor_user_id: mentorUserId,
+                squad_id: Number(squadId), // Ensured it matches integer type
+            }));
+
+            const { data, error: insertError } = await db
+                .from("mentor_squads")
+                .insert(recordsToInsert)
+                .select();
+
+            if (insertError) {
+                console.error("Insert Error:", insertError);
+                return res.status(400).json({ error: insertError.message });
+            }
+
+            return res.status(200).json({ success: true, message: "Squads saved successfully", data });
+        }
+
+        return res.status(200).json({ success: true, message: "All squad assignments cleared", data: [] });
+    } catch (error) {
+        console.error("Server Error:", error);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+});
 
 router.get("/students", requireAuth, async (req, res) => {
     try {
@@ -138,7 +122,6 @@ router.get("/students", requireAuth, async (req, res) => {
         const db = req.authedSupabase;
         const requestedSquadId = req.query.squad_id;
 
-        // 1. Get squads assigned to this mentor
         const { data: mentorSquads, error: squadError } = await db
             .from("mentor_squads")
             .select("squad_id")
@@ -151,29 +134,19 @@ router.get("/students", requireAuth, async (req, res) => {
 
         const assignedSquadIds = mentorSquads ? mentorSquads.map((s) => String(s.squad_id)) : [];
 
-        // If the mentor has no assigned squads, return an empty list immediately
         if (assignedSquadIds.length === 0) {
-            return res.status(200).json({
-                success: true,
-                count: 0,
-                students: [],
-            });
+            return res.status(200).json({ success: true, count: 0, students: [] });
         }
 
-        // 2. Build query to fetch students
         let query = db.from("profiles").select("*");
 
         if (requestedSquadId) {
             const requestedStr = String(requestedSquadId);
-            // Verify mentor has permission to view the requested squad
             if (!assignedSquadIds.includes(requestedStr)) {
-                return res.status(403).json({
-                    error: "Forbidden: You are not assigned to this squad",
-                });
+                return res.status(403).json({ error: "Forbidden: You are not assigned to this squad" });
             }
             query = query.eq("squad_id", requestedStr);
         } else {
-            // Fetch students matching any of the mentor's assigned squad IDs
             query = query.in("squad_id", assignedSquadIds);
         }
 
@@ -183,12 +156,144 @@ router.get("/students", requireAuth, async (req, res) => {
             console.error("Fetch Students Error:", studentError);
             return res.status(400).json({ error: studentError.message });
         }
+        
+        // Map kalvium_email to email for the frontend standard
+        const mappedStudents = students ? students.map(s => ({
+            ...s,
+            email: s.kalvium_email || s.personal_email,
+            id: s.user_id || s.id 
+        })) : [];
 
         return res.status(200).json({
             success: true,
-            count: students ? students.length : 0,
-            students: students || [],
+            count: mappedStudents.length,
+            students: mappedStudents,
         });
+    } catch (error) {
+        console.error("Server Error:", error);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+// ==========================================
+// INDIVIDUAL STUDENT ROUTES (squad_students)
+// ==========================================
+
+router.get("/assigned-students", requireAuth, async (req, res) => {
+    try {
+        const mentorUserId = req.user.id;
+        const db = req.authedSupabase;
+
+        // Step 1: Fetch assignments directly without join to avoid PGRST200 error
+        const { data: assignments, error: assignError } = await db
+            .from("squad_students")
+            .select("squad_id, student_user_id, assigned_at")
+            .eq("mentor_user_id", mentorUserId);
+
+        if (assignError) {
+            console.error("Fetch Assigned Students Error:", assignError);
+            return res.status(400).json({ error: assignError.message });
+        }
+
+        // Return early if no assignments
+        if (!assignments || assignments.length === 0) {
+            return res.status(200).json({ success: true, students: [] });
+        }
+
+        // Step 2: Extract User IDs and fetch the matching profiles
+        const studentIds = assignments.map(a => a.student_user_id);
+        
+        const { data: profiles, error: profileError } = await db
+            .from("profiles")
+            .select("*")
+            .in("user_id", studentIds);
+            
+        if (profileError) {
+            console.error("Fetch Profiles Error:", profileError);
+            return res.status(400).json({ error: profileError.message });
+        }
+
+        // Step 3: Combine the data and standardize column names for React
+        const assignedStudents = assignments.map(assignment => {
+            const profile = profiles?.find(p => p.user_id === assignment.student_user_id) || {};
+            
+            return {
+                student_user_id: assignment.student_user_id,
+                squad_id: assignment.squad_id,
+                assigned_at: assignment.assigned_at,
+                // Append profile mapping specifically handling JSON column names
+                id: profile.user_id || assignment.student_user_id, 
+                name: profile.name || "Unknown",
+                email: profile.kalvium_email || profile.personal_email || "No email",
+                avatar_url: profile.avatar_url || null
+            };
+        });
+
+        return res.status(200).json({
+            success: true,
+            students: assignedStudents,
+        });
+    } catch (error) {
+        console.error("Server Error:", error);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+router.post("/assign-student", requireAuth, async (req, res) => {
+    try {
+        const mentorUserId = req.user.id;
+        const { student_user_id, squad_id } = req.body;
+        const db = req.authedSupabase;
+
+        if (!student_user_id) {
+            return res.status(400).json({ error: "student_user_id is required" });
+        }
+
+        const { data, error } = await db
+            .from("squad_students")
+            .insert([{
+                mentor_user_id: mentorUserId,
+                student_user_id: student_user_id,
+                squad_id: squad_id ? Number(squad_id) : null
+            }])
+            .select();
+
+        if (error) {
+            console.error("Assign Student Error:", error);
+            return res.status(400).json({ error: error.message });
+        }
+
+        return res.status(200).json({ success: true, message: "Student assigned successfully", data });
+    } catch (error) {
+        console.error("Server Error:", error);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+router.post("/unassign-student", requireAuth, async (req, res) => {
+    try {
+        const mentorUserId = req.user.id;
+        const { student_user_id } = req.body;
+        const db = req.authedSupabase;
+
+        if (!student_user_id) {
+            return res.status(400).json({ error: "student_user_id is required" });
+        }
+
+        const { error } = await db
+            .from("squad_students")
+            .delete()
+            .match({ 
+                mentor_user_id: mentorUserId, 
+                student_user_id: student_user_id 
+            });
+
+        if (error) {
+            console.error("Unassign Student Error:", error);
+            return res.status(400).json({ error: error.message });
+        }
+
+        return res.status(200).json({ success: true, message: "Student unassigned successfully" });
     } catch (error) {
         console.error("Server Error:", error);
         return res.status(500).json({ error: "Internal server error" });
