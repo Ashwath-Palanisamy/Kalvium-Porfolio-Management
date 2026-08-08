@@ -30,6 +30,8 @@ function About() {
 
   return (
     <div className="about-page">
+      <title>Kalvium Portfolio | About</title>
+
       {/* ================= HERO SECTION ================= */}
 
       <section className="about-hero">

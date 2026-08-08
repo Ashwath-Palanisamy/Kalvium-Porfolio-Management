@@ -99,6 +99,8 @@ export default function IndividualStudentPortfolio() {
   if (loading) {
     return (
       <div id="portfolio-background" className="skeleton-container">
+         <title>Kalvium Portfolio | Loading</title>
+
         <div id="left-side-color">
           {[1, 2, 3].map((key) => (
             <div key={key} className="coding-profile-card skeleton-card">
@@ -147,6 +149,8 @@ export default function IndividualStudentPortfolio() {
 
   return (
     <div id="portfolio-background">
+       <title>Kalvium Portfolio | {student.name}</title>
+
       {/* Left Sidebar */}
       <div id="left-side-color">
         

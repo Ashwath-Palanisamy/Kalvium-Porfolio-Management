@@ -8,6 +8,7 @@ import RandomStudent from "./RandomStudent.jsx"
 export default function Home() {
     return (
         <main>
+             <title>Kalvium Portfolio | Home</title>
             <Hero />
             <AboutPlatform />
             <RandomStudent />
