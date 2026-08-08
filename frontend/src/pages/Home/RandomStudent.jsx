@@ -24,21 +24,10 @@ function Home() {
         setLoading(true);
         const responseData = await getAllStudents();
 
-        // 🔍 DEBUG LOG 1: Check what your API actually returns
-        console.log("1. Raw API Response from getAllStudents():", responseData);
-
         // Normalize response whether backend returns an array or an object like { data: [...] } or { profiles: [...] }
         const profilesList = Array.isArray(responseData)
           ? responseData
           : responseData?.data || responseData?.profiles || [];
-
-        // 🔍 DEBUG LOG 2: Inspect the first item structure
-        if (profilesList.length > 0) {
-          console.log("2. First Student Profile Object Keys:", Object.keys(profilesList[0]));
-          console.log("3. First Student Profile Full Data:", profilesList[0]);
-        } else {
-          console.warn("⚠️ API returned an empty list of profiles!");
-        }
 
         const students = profilesList
           .map((student) => {
