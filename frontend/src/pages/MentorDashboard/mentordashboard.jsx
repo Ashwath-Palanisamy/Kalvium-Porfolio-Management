@@ -18,6 +18,7 @@ const MentorDashboard = ({ profile, isLoading = false }) => {
 
   return (
     <div className="mentor-dashboard">
+       <title>Kalvium Portfolio | Mentor Dashboard</title>
       <Sidebar activeNav={activeNav} setActiveNav={setActiveNav} />
 
       <main className="dashboard-main">

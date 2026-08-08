@@ -204,41 +204,41 @@ export default function ProfileTab({
   };
 
   const uploadProfileImage = async () => {
-  if (!image) {
-    return profile.avatar_url || "";
-  }
+    if (!image) {
+      return profile.avatar_url || "";
+    }
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-  if (userError || !user) {
-    throw new Error("User not logged in");
-  }
+    if (userError || !user) {
+      throw new Error("User not logged in");
+    }
 
-  const extension = image.name.split(".").pop();
-  const fileName = `${user.id}/avatar.${extension}`;
+    const extension = image.name.split(".").pop();
+    const fileName = `${user.id}/avatar.${extension}`;
 
-  const { error: uploadError } = await supabase.storage
-  .from("profile-images")
-  .upload(fileName, image, {
-    upsert: true,
-  });
+    const { error: uploadError } = await supabase.storage
+      .from("profile-images")
+      .upload(fileName, image, {
+        upsert: true,
+      });
 
-  if (uploadError) {
-    console.error(uploadError);
-    throw uploadError;
-  }
+    if (uploadError) {
+      console.error(uploadError);
+      throw uploadError;
+    }
 
-  const {
-    data: { publicUrl },
-  } = supabase.storage
-    .from("profile-images")
-    .getPublicUrl(fileName);
+    const {
+      data: { publicUrl },
+    } = supabase.storage
+      .from("profile-images")
+      .getPublicUrl(fileName);
 
-  return publicUrl;
-};
+    return publicUrl;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -288,25 +288,25 @@ export default function ProfileTab({
       const avatarUrl = await uploadProfileImage();
       // Construct payload explicitly including name and kalvium_email
       const updatePayload = {
-          ...restPayload,
+        ...restPayload,
 
-          name: nameValue,
-          kalvium_email: kalviumEmailValue,
+        name: nameValue,
+        kalvium_email: kalviumEmailValue,
 
-          avatar_url: avatarUrl,
+        avatar_url: avatarUrl,
 
-          squad_id: Number.isNaN(parsedSquad) ? null : parsedSquad,
+        squad_id: Number.isNaN(parsedSquad) ? null : parsedSquad,
 
-          personal_email:
-            profile?.personal_email ||
-            profile?.personalEmail ||
-            null,
+        personal_email:
+          profile?.personal_email ||
+          profile?.personalEmail ||
+          null,
 
-          resume_url:
-            profile?.resume_url ||
-            profile?.resumeUrl ||
-            null,
-        };        
+        resume_url:
+          profile?.resume_url ||
+          profile?.resumeUrl ||
+          null,
+      };
 
       const response = await updateProfile(updatePayload);
 
@@ -374,418 +374,420 @@ export default function ProfileTab({
   const currentUserId = getProp("auth_id", "display_id") || getProp("id", "id", "N/A");
 
   return (
-        <>
-          {showCropper && (
-            <div className="crop-modal">
-              <ImageCropper
-                image={cropImage}
-                crop={crop}
-                zoom={zoom}
-                setCrop={setCrop}
-                setZoom={setZoom}
-                onCropComplete={(area, areaPixels) =>
-                  setCroppedAreaPixels(areaPixels)
-                }
-              />
+    <>
+      <title>Kalvium Portfolio | Student Dashboard</title>
 
-              <button
-                onClick={async () => {
-                  const blob = await getCroppedImg(
-                    cropImage,
-                    croppedAreaPixels
-                  );
-                
-                  const file = new File([blob], "avatar.jpg", {
-                    type: "image/jpeg",
-                  });
-                
-                  setImage(file);
-                  setPreview(URL.createObjectURL(file));
-                  setShowCropper(false);
-                }}
-              >
-                Crop
-              </button>
-            </div>
-          )}
+      {showCropper && (
+        <div className="crop-modal">
+          <ImageCropper
+            image={cropImage}
+            crop={crop}
+            zoom={zoom}
+            setCrop={setCrop}
+            setZoom={setZoom}
+            onCropComplete={(area, areaPixels) =>
+              setCroppedAreaPixels(areaPixels)
+            }
+          />
 
-    <div className="pm-layout">
-      {toastMessage && (
-        <div className={`error-toast ${toastType === "success" ? "success-toast" : ""} ${isExiting ? "slide-out" : ""}`}>
-          <div className="error-icon-box">
-            {toastType === "success" ? "✓" : "!"}
-          </div>
-          <span>{toastMessage}</span>
+          <button
+            onClick={async () => {
+              const blob = await getCroppedImg(
+                cropImage,
+                croppedAreaPixels
+              );
+
+              const file = new File([blob], "avatar.jpg", {
+                type: "image/jpeg",
+              });
+
+              setImage(file);
+              setPreview(URL.createObjectURL(file));
+              setShowCropper(false);
+            }}
+          >
+            Crop
+          </button>
         </div>
       )}
 
-      <aside className={`pm-sidebar ${isCollapsed ? "is-collapsed" : ""}`}>
-        <div className="pm-brand-header">
-          {!isCollapsed && (
-            <div className="pm-brand">
-              <div className="pm-brand-mark">
-                <img src={kalviumLogo} alt="Kalvium Logo" className="pm-logo-img" />
-              </div>
-              <div className="pm-brand-text">
-                <span className="pm-brand-title">KALVIUM</span>
-                <span className="pm-brand-sub">PROFILE MANAGER</span>
-              </div>
+      <div className="pm-layout">
+        {toastMessage && (
+          <div className={`error-toast ${toastType === "success" ? "success-toast" : ""} ${isExiting ? "slide-out" : ""}`}>
+            <div className="error-icon-box">
+              {toastType === "success" ? "✓" : "!"}
             </div>
-          )}
+            <span>{toastMessage}</span>
+          </div>
+        )}
+
+        <aside className={`pm-sidebar ${isCollapsed ? "is-collapsed" : ""}`}>
+          <div className="pm-brand-header">
+            {!isCollapsed && (
+              <div className="pm-brand">
+                <div className="pm-brand-mark">
+                  <img src={kalviumLogo} alt="Kalvium Logo" className="pm-logo-img" />
+                </div>
+                <div className="pm-brand-text">
+                  <span className="pm-brand-title">KALVIUM</span>
+                  <span className="pm-brand-sub">PROFILE MANAGER</span>
+                </div>
+              </div>
+            )}
+            <button
+              type="button"
+              className="pm-collapse-btn"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+              aria-label="Toggle Sidebar"
+            >
+              {isCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+            </button>
+          </div>
+
+          <nav className="pm-nav">
+            {NAV_ITEMS.map(({ label, icon: Icon }) => (
+              <button
+                key={label}
+                type="button"
+                className={`pm-nav-item ${activeNav === label ? "is-active" : ""}`}
+                onClick={() => setActiveNav(label)}
+                title={isCollapsed ? label : ""}
+              >
+                <Icon size={18} strokeWidth={2} />
+                {!isCollapsed && <span>{label}</span>}
+              </button>
+            ))}
+          </nav>
+
           <button
             type="button"
-            className="pm-collapse-btn"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-            aria-label="Toggle Sidebar"
+            className="pm-logout"
+            onClick={handleLogout}
+            title={isCollapsed ? "Logout" : ""}
           >
-            {isCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+            <LogOut size={18} />
+            {!isCollapsed && <span>Logout</span>}
           </button>
-        </div>
+        </aside>
 
-        <nav className="pm-nav">
-          {NAV_ITEMS.map(({ label, icon: Icon }) => (
-            <button
-              key={label}
-              type="button"
-              className={`pm-nav-item ${activeNav === label ? "is-active" : ""}`}
-              onClick={() => setActiveNav(label)}
-              title={isCollapsed ? label : ""}
-            >
-              <Icon size={18} strokeWidth={2} />
-              {!isCollapsed && <span>{label}</span>}
-            </button>
-          ))}
-        </nav>
+        <main className="pm-main">
+          <header className="pm-topbar">
+            <div className="pm-welcome">
+              <span className="pm-wave">👋</span>
+              <div>
+                <span className="pm-welcome-sub">Welcome back,</span>
+                <strong className="pm-welcome-name">
+                  {isLoading ? (
+                    <span className="skeleton skeleton-text width-100"></span>
+                  ) : (
+                    getProp("name", "name", "Student")
+                  )}
+                </strong>
+              </div>
+            </div>
+            <div className="pm-topbar-actions">
+              <a href="/" className="pm-home-btn">
+                <Home size={16} />
+                <span>Back to Home</span>
+              </a>
+            </div>
+          </header>
 
-        <button
-          type="button"
-          className="pm-logout"
-          onClick={handleLogout}
-          title={isCollapsed ? "Logout" : ""}
-        >
-          <LogOut size={18} />
-          {!isCollapsed && <span>Logout</span>}
-        </button>
-      </aside>
-
-      <main className="pm-main">
-        <header className="pm-topbar">
-          <div className="pm-welcome">
-            <span className="pm-wave">👋</span>
+          <div className="pm-page-head">
             <div>
-              <span className="pm-welcome-sub">Welcome back,</span>
-              <strong className="pm-welcome-name">
-                {isLoading ? (
-                  <span className="skeleton skeleton-text width-100"></span>
-                ) : (
-                  getProp("name", "name", "Student")
-                )}
-              </strong>
+              <h1>
+                {activeNav === "Dashboard"
+                  ? "Dashboard Overview"
+                  : activeNav === "Profile"
+                    ? "Student Profile"
+                    : activeNav === "Projects"
+                      ? "Projects & Portfolio"
+                      : activeNav === "Achievements"
+                        ? "Achievements & Badges"
+                        : "Account Settings"}
+              </h1>
             </div>
           </div>
-          <div className="pm-topbar-actions">
-            <a href="/" className="pm-home-btn">
-              <Home size={16} />
-              <span>Back to Home</span>
-            </a>
-          </div>
-        </header>
 
-        <div className="pm-page-head">
-          <div>
-            <h1>
-              {activeNav === "Dashboard"
-                ? "Dashboard Overview"
-                : activeNav === "Profile"
-                  ? "Student Profile"
-                  : activeNav === "Projects"
-                    ? "Projects & Portfolio"
-                    : activeNav === "Achievements"
-                      ? "Achievements & Badges"
-                      : "Account Settings"}
-            </h1>
-          </div>
-        </div>
+          <div className="pm-content-grid">
+            {activeNav === "Dashboard" && (
+              <div className="pm-tab-full">
+                <DashboardTab
+                  profile={profile}
+                  bio={getProp("bio", "bio")}
+                  isLoading={isLoading}
+                />
+              </div>
+            )}
 
-        <div className="pm-content-grid">
-          {activeNav === "Dashboard" && (
-            <div className="pm-tab-full">
-              <DashboardTab
-                profile={profile}
-                bio={getProp("bio", "bio")}
-                isLoading={isLoading}
-              />
-            </div>
-          )}
-
-          {activeNav === "Profile" && (
-            <>
-              <section className="pm-profile-card">
-                {isLoading ? (
-                  <div className="pm-card-skeleton-wrap">
-                    <div className="skeleton skeleton-avatar"></div>
-                    <div className="skeleton skeleton-text width-60 mt-12"></div>
-                    <div className="skeleton skeleton-text width-40 mt-8"></div>
-                  </div>
-                ) : (
-                  <>
-                  <div className="pm-profile-photo-container">
-
-                    <div className="pm-profile-photo">
-                      <img
-                        src={preview || profile.avatar_url || "/default-avatar.png"}
-                        alt="Profile"
-                        className="pm-profile-img"
-                      />
-
-                      <button
-                        type="button"
-                        className="pm-photo-edit"
-                        onClick={() => document.getElementById("profile-upload").click()}
-                      >
-                        <Upload size={12} />
-                      </button>
+            {activeNav === "Profile" && (
+              <>
+                <section className="pm-profile-card">
+                  {isLoading ? (
+                    <div className="pm-card-skeleton-wrap">
+                      <div className="skeleton skeleton-avatar"></div>
+                      <div className="skeleton skeleton-text width-60 mt-12"></div>
+                      <div className="skeleton skeleton-text width-40 mt-8"></div>
                     </div>
+                  ) : (
+                    <>
+                      <div className="pm-profile-photo-container">
 
-                    <input
-                      id="profile-upload"
-                      type="file"
-                      accept="image/*"
-                      hidden
-                      onChange={(e) => {
-                        const file = e.target.files[0];
+                        <div className="pm-profile-photo">
+                          <img
+                            src={preview || profile.avatar_url || "/default-avatar.png"}
+                            alt="Profile"
+                            className="pm-profile-img"
+                          />
 
-                        if (!file) return;
-
-                        setCropImage(URL.createObjectURL(file));
-                        setShowCropper(true);
-                      }}
-                    />
-
-                  </div>
-
-                    <h2 className="pm-profile-name">
-                      {getProp("name", "name", "Student Name")}
-                    </h2>
-                    <span className="pm-profile-role">
-                      {getProp("title", "title", "Student")}
-                    </span>
-
-                    <div className="pm-profile-meta">
-                      <div className="pm-meta-row">
-                        <Mail size={14} />
-                        <span>
-                          {getProp("kalvium_email", "kalviumEmail") || "No Kalvium Email"}
-                        </span>
-                      </div>
-                      <div className="pm-meta-row">
-                        <User size={14} />
-                        <span>
-                          Squad {getProp("squad_id", "squadId") || "No Squad Assigned"}
-                        </span>
-                      </div>
-
-                      <div className="pm-meta-row">
-                        <ShieldCheck size={14} />
-                        <span className="pm-id-badge">
-                          ID: <code className="pm-code-tag">
-                            {formatUUID(currentUserId)}
-                          </code>
                           <button
                             type="button"
-                            onClick={() => handleCopyId(currentUserId)}
-                            title={copiedId ? "Copied!" : "Copy Full ID"}
-                            className={`pm-copy-btn ${copiedId ? "is-copied" : ""}`}
+                            className="pm-photo-edit"
+                            onClick={() => document.getElementById("profile-upload").click()}
                           >
-                            {copiedId ? <Check size={13} /> : <Copy size={13} />}
+                            <Upload size={12} />
                           </button>
-                        </span>
+                        </div>
+
+                        <input
+                          id="profile-upload"
+                          type="file"
+                          accept="image/*"
+                          hidden
+                          onChange={(e) => {
+                            const file = e.target.files[0];
+
+                            if (!file) return;
+
+                            setCropImage(URL.createObjectURL(file));
+                            setShowCropper(true);
+                          }}
+                        />
+
                       </div>
-                    </div>
-                  </>
-                )}
-              </section>
 
-              <form className="pm-form" onSubmit={handleSubmit}>
-                <FormSection title="Personal Information" icon={User}>
-                  {isLoading ? (
-                    <FormSkeleton count={4} />
-                  ) : (
-                    <div className="pm-grid-2">
-                      <Field
-                        label="Full Name"
-                        value={getProp("name", "name")}
-                        disabled
-                      />
-                      <Field
-                        label="Kalvium Email"
-                        value={getProp("kalvium_email", "kalviumEmail")}
-                        placeholder="e.g. student@kalvium.community"
-                        disabled
-                      />
-                      <Field
-                        label="Personal Email"
-                        type="email"
-                        value={getProp("personal_email", "personalEmail")}
-                        onChange={(e) => handleProfileChange("personal_email", e.target.value)}
-                        placeholder="e.g. student@gmail.com"
-                        leftIcon={<Mail size={14} />}
-                      />
-                      <Field
-                        label="Squad ID"
-                        value={getProp("squad_id", "squadId")}
-                        onChange={(e) => handleProfileChange("squad_id", e.target.value.replace(/\D/g, ""))}
-                        placeholder="e.g. 42"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                      />
-                    </div>
-                  )}
-                </FormSection>
+                      <h2 className="pm-profile-name">
+                        {getProp("name", "name", "Student Name")}
+                      </h2>
+                      <span className="pm-profile-role">
+                        {getProp("title", "title", "Student")}
+                      </span>
 
-                <FormSection title="Professional Details" icon={FolderKanban}>
-                  {isLoading ? (
-                    <FormSkeleton count={2} />
-                  ) : (
-                    <div className="pm-grid-2">
-                      <Field
-                        label="Title / Role"
-                        value={getProp("title", "title")}
-                        onChange={(e) => handleProfileChange("title", e.target.value)}
-                        placeholder="e.g. Full Stack Developer / Student"
-                      />
+                      <div className="pm-profile-meta">
+                        <div className="pm-meta-row">
+                          <Mail size={14} />
+                          <span>
+                            {getProp("kalvium_email", "kalviumEmail") || "No Kalvium Email"}
+                          </span>
+                        </div>
+                        <div className="pm-meta-row">
+                          <User size={14} />
+                          <span>
+                            Squad {getProp("squad_id", "squadId") || "No Squad Assigned"}
+                          </span>
+                        </div>
 
-                      <div className="pm-field">
-                        <div className="pm-field-label-wrap">
-                          <label>Resume URL</label>
-                          {getProp("resume_url", "resumeUrl") && isValidUrl(getProp("resume_url", "resumeUrl")) && (
-                            <a
-                              href={getProp("resume_url", "resumeUrl")}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="pm-link-preview"
+                        <div className="pm-meta-row">
+                          <ShieldCheck size={14} />
+                          <span className="pm-id-badge">
+                            ID: <code className="pm-code-tag">
+                              {formatUUID(currentUserId)}
+                            </code>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyId(currentUserId)}
+                              title={copiedId ? "Copied!" : "Copy Full ID"}
+                              className={`pm-copy-btn ${copiedId ? "is-copied" : ""}`}
                             >
-                              View <ExternalLink size={11} />
-                            </a>
-                          )}
-                        </div>
-                        <div className="pm-input-wrap">
-                          <span className="pm-input-icon"><FileText size={14} /></span>
-                          <input
-                            type="url"
-                            value={getProp("resume_url", "resumeUrl")}
-                            onChange={(e) => handleProfileChange("resume_url", e.target.value)}
-                            placeholder="https://drive.google.com/..."
-                            pattern="https?://.*"
-                            className="has-icon"
-                          />
+                              {copiedId ? <Check size={13} /> : <Copy size={13} />}
+                            </button>
+                          </span>
                         </div>
                       </div>
-                    </div>
+                    </>
                   )}
-                </FormSection>
+                </section>
 
-                <FormSection title="Social & Portfolio Links" icon={Link2}>
-                  {isLoading ? (
-                    <FormSkeleton count={3} />
-                  ) : (
-                    <div className="pm-grid-3">
-                      <Field
-                        label="GitHub Profile"
-                        type="url"
-                        pattern="https?://.*"
-                        value={getProp("github", "github")}
-                        onChange={(e) => handleProfileChange("github", e.target.value)}
-                        placeholder="https://github.com/..."
-                        leftIcon={<Code2 size={14} />}
-                      />
+                <form className="pm-form" onSubmit={handleSubmit}>
+                  <FormSection title="Personal Information" icon={User}>
+                    {isLoading ? (
+                      <FormSkeleton count={4} />
+                    ) : (
+                      <div className="pm-grid-2">
+                        <Field
+                          label="Full Name"
+                          value={getProp("name", "name")}
+                          disabled
+                        />
+                        <Field
+                          label="Kalvium Email"
+                          value={getProp("kalvium_email", "kalviumEmail")}
+                          placeholder="e.g. student@kalvium.community"
+                          disabled
+                        />
+                        <Field
+                          label="Personal Email"
+                          type="email"
+                          value={getProp("personal_email", "personalEmail")}
+                          onChange={(e) => handleProfileChange("personal_email", e.target.value)}
+                          placeholder="e.g. student@gmail.com"
+                          leftIcon={<Mail size={14} />}
+                        />
+                        <Field
+                          label="Squad ID"
+                          value={getProp("squad_id", "squadId")}
+                          onChange={(e) => handleProfileChange("squad_id", e.target.value.replace(/\D/g, ""))}
+                          placeholder="e.g. 42"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                        />
+                      </div>
+                    )}
+                  </FormSection>
 
-                      <Field
-                        label="LinkedIn Profile"
-                        type="url"
-                        pattern="https?://.*"
-                        value={getProp("linkedin", "linkedin")}
-                        onChange={(e) => handleProfileChange("linkedin", e.target.value)}
-                        placeholder="https://linkedin.com/in/..."
-                        leftIcon={<Globe size={14} />}
-                      />
+                  <FormSection title="Professional Details" icon={FolderKanban}>
+                    {isLoading ? (
+                      <FormSkeleton count={2} />
+                    ) : (
+                      <div className="pm-grid-2">
+                        <Field
+                          label="Title / Role"
+                          value={getProp("title", "title")}
+                          onChange={(e) => handleProfileChange("title", e.target.value)}
+                          placeholder="e.g. Full Stack Developer / Student"
+                        />
 
-                      <Field
-                        label="LeetCode Profile"
-                        type="url"
-                        pattern="https?://.*"
-                        value={getProp("leetcode", "leetcode")}
-                        onChange={(e) => handleProfileChange("leetcode", e.target.value)}
-                        placeholder="https://leetcode.com/..."
-                        leftIcon={<Link2 size={14} />}
-                      />
+                        <div className="pm-field">
+                          <div className="pm-field-label-wrap">
+                            <label>Resume URL</label>
+                            {getProp("resume_url", "resumeUrl") && isValidUrl(getProp("resume_url", "resumeUrl")) && (
+                              <a
+                                href={getProp("resume_url", "resumeUrl")}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="pm-link-preview"
+                              >
+                                View <ExternalLink size={11} />
+                              </a>
+                            )}
+                          </div>
+                          <div className="pm-input-wrap">
+                            <span className="pm-input-icon"><FileText size={14} /></span>
+                            <input
+                              type="url"
+                              value={getProp("resume_url", "resumeUrl")}
+                              onChange={(e) => handleProfileChange("resume_url", e.target.value)}
+                              placeholder="https://drive.google.com/..."
+                              pattern="https?://.*"
+                              className="has-icon"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </FormSection>
 
-                      <Field
-                        label="CodeChef Profile"
-                        type="url"
-                        pattern="https?://.*"
-                        value={getProp("codechef", "codechef")}
-                        onChange={(e) => handleProfileChange("codechef", e.target.value)}
-                        placeholder="https://www.codechef.com/users/..."
-                        leftIcon={<Code2 size={14} />}
-                      />
-                    </div>
-                  )}
-                </FormSection>
+                  <FormSection title="Social & Portfolio Links" icon={Link2}>
+                    {isLoading ? (
+                      <FormSkeleton count={3} />
+                    ) : (
+                      <div className="pm-grid-3">
+                        <Field
+                          label="GitHub Profile"
+                          type="url"
+                          pattern="https?://.*"
+                          value={getProp("github", "github")}
+                          onChange={(e) => handleProfileChange("github", e.target.value)}
+                          placeholder="https://github.com/..."
+                          leftIcon={<Code2 size={14} />}
+                        />
 
-                <FormSection title="About / Bio" icon={FileText}>
-                  {isLoading ? (
-                    <div className="skeleton skeleton-block height-100"></div>
-                  ) : (
-                    <div className="pm-field">
-                      <textarea
-                        className="pm-textarea"
-                        value={getProp("bio", "bio")}
-                        onChange={(e) => handleProfileChange("bio", e.target.value)}
-                        rows={4}
-                        placeholder="Write a short bio about yourself..."
-                      />
-                    </div>
-                  )}
-                </FormSection>
+                        <Field
+                          label="LinkedIn Profile"
+                          type="url"
+                          pattern="https?://.*"
+                          value={getProp("linkedin", "linkedin")}
+                          onChange={(e) => handleProfileChange("linkedin", e.target.value)}
+                          placeholder="https://linkedin.com/in/..."
+                          leftIcon={<Globe size={14} />}
+                        />
 
-                <div className="pm-form-actions">
-                  <button
-                    type="submit"
-                    className="pm-btn-primary"
-                    disabled={isSaving || isLoading}
-                  >
-                    <Save size={16} />
-                    {isSaving ? "Saving Changes..." : "Save Profile"}
-                  </button>
-                </div>
-              </form>
-            </>
-          )}
+                        <Field
+                          label="LeetCode Profile"
+                          type="url"
+                          pattern="https?://.*"
+                          value={getProp("leetcode", "leetcode")}
+                          onChange={(e) => handleProfileChange("leetcode", e.target.value)}
+                          placeholder="https://leetcode.com/..."
+                          leftIcon={<Link2 size={14} />}
+                        />
 
-          {activeNav === "Projects" && (
-            <div className="pm-tab-full">
-              <ProjectsTab />
-            </div>
-          )}
+                        <Field
+                          label="CodeChef Profile"
+                          type="url"
+                          pattern="https?://.*"
+                          value={getProp("codechef", "codechef")}
+                          onChange={(e) => handleProfileChange("codechef", e.target.value)}
+                          placeholder="https://www.codechef.com/users/..."
+                          leftIcon={<Code2 size={14} />}
+                        />
+                      </div>
+                    )}
+                  </FormSection>
 
-          {activeNav === "Achievements" && (
-            <div className="pm-tab-full">
-              <AchievementsTab />
-            </div>
-          )}
+                  <FormSection title="About / Bio" icon={FileText}>
+                    {isLoading ? (
+                      <div className="skeleton skeleton-block height-100"></div>
+                    ) : (
+                      <div className="pm-field">
+                        <textarea
+                          className="pm-textarea"
+                          value={getProp("bio", "bio")}
+                          onChange={(e) => handleProfileChange("bio", e.target.value)}
+                          rows={4}
+                          placeholder="Write a short bio about yourself..."
+                        />
+                      </div>
+                    )}
+                  </FormSection>
 
-          {activeNav === "Settings" && (
-            <div className="pm-tab-full">
-              <SettingsTab email={getProp("kalvium_email", "kalviumEmail")} />
-            </div>
-          )}
-        </div>
-      </main>
-    </div>
+                  <div className="pm-form-actions">
+                    <button
+                      type="submit"
+                      className="pm-btn-primary"
+                      disabled={isSaving || isLoading}
+                    >
+                      <Save size={16} />
+                      {isSaving ? "Saving Changes..." : "Save Profile"}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+
+            {activeNav === "Projects" && (
+              <div className="pm-tab-full">
+                <ProjectsTab />
+              </div>
+            )}
+
+            {activeNav === "Achievements" && (
+              <div className="pm-tab-full">
+                <AchievementsTab />
+              </div>
+            )}
+
+            {activeNav === "Settings" && (
+              <div className="pm-tab-full">
+                <SettingsTab email={getProp("kalvium_email", "kalviumEmail")} />
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
     </>
-);
+  );
 }
 
 function Field({
