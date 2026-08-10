@@ -1,28 +1,35 @@
 import "./Footer.css";
-import { FaGithub, FaEnvelope, } from "react-icons/fa";
+import { FaGithub, FaEnvelope } from "react-icons/fa";
 
 function Footer() {
     return (
         <footer className="footer">
             <div className="footer-container">
 
-                {/* Logo Section */}
-                <div className="footer-logo">
+                {/* Brand */}
+                <div className="footer-brand">
                     <h1>KALVIUM</h1>
+
                     <p>
-                        Empowering Kalvium students to showcase their talent and build a
-                        brighter future.
+                        Empowering Kalvium students to showcase their talent
+                        and build a brighter future.
                     </p>
 
                     <div className="social-icons">
-                        <a href="https://github.com/dhinesh-babu-7/Kalvium-Porfolio-Management" target="_blank" rel="noopener noreferrer">
+                        <a
+                            href="https://github.com/dhinesh-babu-7/Kalvium-Porfolio-Management"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label="GitHub"
+                        >
                             <FaGithub />
                             <span>GitHub</span>
                         </a>
-                        <a href="mailto:kpm-squad@googlegroups.com"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label="Email">
+
+                        <a
+                            href="mailto:kpm-squad@googlegroups.com"
+                            aria-label="Email"
+                        >
                             <FaEnvelope />
                             <span>Email</span>
                         </a>
@@ -31,49 +38,82 @@ function Footer() {
 
                 {/* About */}
                 <div className="footer-section">
-                    <h2>About</h2>
-                    <ul>
-                        <li>About Us</li>
-                        <li>How It Works</li>
-                        <li>Features</li>
-                    </ul>
+                    <h3>About</h3>
+
+                    <a href="#about">
+                        About Project
+                    </a>
+
+                    <a href="#features">
+                        Features
+                    </a>
                 </div>
 
                 {/* Students */}
                 <div className="footer-section">
-                    <h2>Students</h2>
-                    <ul>
-                        <li>All Students</li>
-                        <li>Top Developers</li>
-                        <li>Leaderboard</li>
-                    </ul>
+                    <h3>Students</h3>
+
+                    <a href="#students">
+                        Student Profiles
+                    </a>
+
+                    <a href="#projects">
+                        Projects
+                    </a>
                 </div>
 
                 {/* Contact */}
                 <div className="footer-section">
-                    <h2>Contact</h2>
-                    <ul>
-                        <li>Reach Us</li>
-                        <li>Support</li>
-                        <li>FAQ</li>
-                    </ul>
+                    <h3>Contact</h3>
+
+                    <a href="mailto:kpm-squad@googlegroups.com">
+                        Email Us
+                    </a>
+
+                    <a
+                        href="https://github.com/dhinesh-babu-7/Kalvium-Porfolio-Management"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        GitHub
+                    </a>
                 </div>
 
                 {/* Legal */}
                 <div className="footer-section">
-                    <h2>Legal</h2>
-                    <ul>
-                        <li>Privacy Policy</li>
-                        <li>Terms of Service</li>
-                        <li>Cookie Policy</li>
-                    </ul>
+                    <h3>Legal</h3>
+
+                    <a href="#privacy">
+                        Privacy
+                    </a>
+
+                    <a href="#terms">
+                        Terms
+                    </a>
                 </div>
 
             </div>
 
-            <p className="copyright">
-                © 2026 Kalvium Portfolio. All rights reserved.
-            </p>
+            {/* Bottom Section */}
+            <div className="footer-bottom">
+
+                <div className="footer-divider"></div>
+
+                <p className="footer-disclaimer">
+                    Disclaimer: Kalvium Portfolio Management is an independent
+                    student project created by students for educational and
+                    portfolio purposes. The use of the name and logo "Kalvium"
+                    is solely for identification and project context. This
+                    project is not affiliated, associated, authorized, endorsed
+                    by, or in any way officially connected with Kalvium or any
+                    of its subsidiaries.
+                </p>
+
+                <p className="copyright">
+                    © 2026 Kalvium Portfolio. All rights reserved.
+                </p>
+
+            </div>
         </footer>
     );
 }
