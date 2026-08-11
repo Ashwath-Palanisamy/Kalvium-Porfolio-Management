@@ -1,151 +1,141 @@
 /* =========================================
-   PAGE
+   1. PAGE CONTAINER & BASE STYLES
 ========================================= */
 
 .leaderboard-page {
   min-height: 100vh;
-  background: #f8f8f8;
-  padding: 45px 40px 70px;
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    Helvetica,
-    Arial,
-    sans-serif;
-  color: #111;
+  background: #f8fafc;
+  padding: 40px 24px 80px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #0f172a;
 }
 
 /* =========================================
-   HEADER
+   2. HEADER & LEGEND
 ========================================= */
 
 .leaderboard-title {
-  max-width: 1180px;
-  margin: 0 auto 35px;
+  max-width: 1140px;
+  margin: 0 auto 40px;
+}
+
+.title-header-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
 }
 
 .leaderboard-title h1 {
   margin: 0;
-  font-size: 38px;
+  font-size: 36px;
   font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
 }
 
-.leaderboard-title p {
-  margin: 8px 0 0;
-  color: #777;
-  font-size: 16px;
-}
-
-/* Container to keep Title and Tag side-by-side */
-.title-header-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap; /* Wraps cleanly on smaller screens */
-}
-
-/* Tag Badge Styling */
 .testing-tag {
-  background-color: #fff0f0;
-  color: #d71920; /* Matches avatar theme accent */
-  border: 1px solid #ffcccc;
-  font-size: 0.8rem;
+  background-color: #fef2f2;
+  color: #d71920;
+  border: 1px solid #fee2e2;
+  font-size: 13px;
   font-weight: 600;
-  padding: 4px 12px;
-  border-radius: 50px;
+  padding: 5px 14px;
+  border-radius: 9999px;
   display: inline-flex;
   align-items: center;
   white-space: nowrap;
 }
 
-/* Points Legend Badges Container */
+.leaderboard-title p {
+  margin: 8px 0 16px;
+  color: #64748b;
+  font-size: 15px;
+}
+
+/* Points Legend Badges */
 .points-legend {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 12px;
   flex-wrap: wrap;
 }
 
-/* Base Pill Style for Point Badges */
 .point-badge {
-  padding: 5px 14px;
-  border-radius: 50px; /* Fully rounded pill corners */
-  font-size: 0.825rem;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
   font-weight: 600;
   display: inline-flex;
   align-items: center;
 }
 
-/* Difficulty Colors Matched to App Theme */
 .point-badge.easy {
-  background-color: #eef9f2;
-  color: #10a957;
-  border: 1px solid #c6ebd4;
+  background-color: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
 }
 
 .point-badge.medium {
-  background-color: #fff8ec;
-  color: #ed8b00;
-  border: 1px solid #ffe3b8;
+  background-color: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fef3c7;
 }
 
 .point-badge.hard {
-  background-color: #fdeaea;
-  color: #e32929;
-  border: 1px solid #f9c5c5;
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
 }
 
 /* =========================================
-   ERROR / LOADING / EMPTY
+   3. LOADING / ERROR / EMPTY STATES
 ========================================= */
 
 .leaderboard-error {
-  max-width: 1180px;
+  max-width: 1140px;
   margin: 0 auto 25px;
-  padding: 14px 18px;
-  border-radius: 10px;
-  background: #ffeaea;
-  color: #d71920;
+  padding: 14px 20px;
+  border-radius: 12px;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  font-weight: 600;
 }
 
 .leaderboard-loading,
 .leaderboard-empty {
-  max-width: 1180px;
-  margin: 60px auto;
+  max-width: 1140px;
+  margin: 80px auto;
   text-align: center;
-  color: #777;
+  color: #64748b;
   font-size: 16px;
+  font-weight: 500;
 }
 
 /* =========================================
-   PODIUM
+   4. PODIUM CONTAINER & CARDS
 ========================================= */
 
 .podium {
-  max-width: 1180px;
+  max-width: 1140px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 1fr 1.12fr 1fr;
+  grid-template-columns: 1fr 1.08fr 1fr;
   align-items: end;
-  gap: 28px;
+  gap: 24px;
 }
-
-/* =========================================
-   PODIUM CARD
-========================================= */
 
 .podium-card {
   position: relative;
   background: #ffffff;
-  border-radius: 26px 26px 8px 8px;
+  border-radius: 24px;
+  border: 1px solid #f1f5f9;
   text-align: center;
   
-  /* FIXED: Added 110px padding-bottom so content is not covered by podium-rank */
-  padding: 32px 20px 110px;
-  min-height: 430px;
+  /* Space reserved at bottom so stats aren't covered by rank banner */
+  padding: 28px 20px 115px;
+  min-height: 440px;
   
   display: flex;
   flex-direction: column;
@@ -153,93 +143,90 @@
   overflow: hidden;
   cursor: pointer;
 
-  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
-
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.08);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .podium-card:hover {
-  transform: translateY(-7px);
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.12);
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12);
 }
 
-/* First place is taller and has a larger bottom banner (120px) */
+/* First place styling (taller card) */
 .first-place {
-  min-height: 485px;
-  padding-top: 28px;
-  padding-bottom: 135px; /* Reserves space for 120px rank banner */
+  min-height: 490px;
+  padding-top: 32px;
+  padding-bottom: 135px;
+  border-color: #fee2e2;
 }
 
 .second-place,
 .third-place {
-  min-height: 430px;
+  min-height: 440px;
 }
 
 /* =========================================
-   MEDALS
+   5. MEDALS & AVATARS
 ========================================= */
 
 .medal {
-  width: 54px;
-  height: 54px;
-  margin: 0 auto 14px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 800;
-  flex-shrink: 0;
-}
-
-.gold-medal {
-  background: #ffd52b;
-  color: #8b6500;
-  box-shadow: 0 5px 15px rgba(255, 193, 7, 0.35);
-}
-
-.silver-medal {
-  background: #d7d9dc;
-  color: #555;
-  box-shadow: 0 5px 15px rgba(150, 150, 150, 0.25);
-}
-
-.bronze-medal {
-  background: #e98a4c;
-  color: #71320c;
-  box-shadow: 0 5px 15px rgba(200, 100, 40, 0.25);
-}
-
-/* =========================================
-   AVATAR
-========================================= */
-
-.podium-avatar {
-  width: 88px;
-  height: 88px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 5px solid #ffe0e0;
-  background: #fff1f1;
   margin-bottom: 12px;
   flex-shrink: 0;
 }
 
+.gold-medal {
+  background: linear-gradient(135deg, #fef08a, #eab308);
+  color: #713f12;
+  box-shadow: 0 4px 14px rgba(234, 179, 8, 0.35);
+}
+
+.silver-medal {
+  background: linear-gradient(135deg, #f1f5f9, #94a3b8);
+  color: #334155;
+  box-shadow: 0 4px 14px rgba(148, 163, 184, 0.3);
+}
+
+.bronze-medal {
+  background: linear-gradient(135deg, #ffedd5, #ea580c);
+  color: #7c2d12;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.3);
+}
+
+.podium-avatar {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid #fef2f2;
+  background: #fff1f1;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
 .first-place .podium-avatar {
-  width: 98px;
-  height: 98px;
+  width: 96px;
+  height: 96px;
+  border-color: #fee2e2;
 }
 
 /* =========================================
-   STUDENT NAME
+   6. USER NAMES & POINTS BADGE
 ========================================= */
 
 .podium-card h2 {
   margin: 0;
-  font-size: 22px;
+  font-size: 21px;
   font-weight: 800;
+  color: #0f172a;
   width: 100%;
   white-space: nowrap;
   overflow: hidden;
@@ -247,69 +234,89 @@
 }
 
 .first-place h2 {
-  font-size: 26px;
+  font-size: 25px;
 }
 
-/* FIXED: Truncate full URLs cleanly */
 .podium-username {
-  margin: 4px 0 16px;
-  color: #777;
+  margin: 3px 0 12px;
+  color: #64748b;
   font-size: 13px;
+  font-weight: 500;
   width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.podium-points-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #f1f5f9;
+  color: #334155;
+  border: 1px solid #e2e8f0;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.podium-points-badge strong {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.podium-points-badge.highlight {
+  background: linear-gradient(135deg, #ef4444, #d71920);
+  color: #ffffff;
+  border-color: #d71920;
+  box-shadow: 0 4px 14px rgba(215, 25, 32, 0.3);
+}
+
 /* =========================================
-   PROBLEM STATS
+   7. PROBLEM STATS GRID
 ========================================= */
 
 .problem-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  margin-top: auto; /* FIXED: Pushes stat boxes directly above rank banner space */
-  margin-bottom: 0;
+  margin-top: auto; /* Keeps stats pushed down above rank banner */
   width: 100%;
   max-width: 320px;
 }
 
 .problem-stats > div {
-  border: 1px solid #eeeeee;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 8px 4px;
-  background: #fff;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04);
 }
 
 .problem-stats strong {
   display: block;
-  font-size: 20px;
+  font-size: 18px;
+  font-weight: 800;
   line-height: 1.1;
 }
 
 .problem-stats span {
   display: block;
-  margin-top: 4px;
-  font-size: 12px;
-  color: #444;
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
-.easy-text {
-  color: #10a957;
-}
-
-.medium-text {
-  color: #ed8b00;
-}
-
-.hard-text {
-  color: #e32929;
-}
+.easy-text { color: #16a34a; }
+.medium-text { color: #d97706; }
+.hard-text { color: #dc2626; }
 
 /* =========================================
-   PODIUM BASE
+   8. PODIUM BOTTOM RANK BANNERS
 ========================================= */
 
 .podium-rank {
@@ -321,179 +328,151 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #aeb2b7;
-  color: white;
-  font-size: 48px;
-  font-weight: 800;
+  background: #64748b;
+  color: #ffffff;
+  font-size: 44px;
+  font-weight: 900;
 }
 
-.first-rank {
-  height: 120px;
-  background: #ed1717;
-  font-size: 58px;
+.second-place .podium-rank {
+  background: linear-gradient(180deg, #94a3b8, #64748b);
 }
 
 .third-place .podium-rank {
-  background: #d9672d;
+  background: linear-gradient(180deg, #f97316, #ea580c);
+}
+
+.first-rank {
+  height: 115px;
+  background: linear-gradient(180deg, #ef4444, #d71920);
+  font-size: 54px;
 }
 
 /* =========================================
-   TABLE
+   9. LEADERBOARD TABLE
 ========================================= */
 
 .leaderboard-table {
-  max-width: 1180px;
-  margin: 55px auto 0;
+  max-width: 1140px;
+  margin: 60px auto 0;
 }
-
-/* Header */
 
 .table-header {
   display: grid;
-  grid-template-columns:
-    100px
-    minmax(260px, 1fr)
-    110px
-    120px
-    110px
-    110px;
+  grid-template-columns: 80px minmax(220px, 1fr) 90px 100px 90px 90px 100px;
   align-items: center;
-  padding: 0 35px 15px;
-  color: #686868;
-  font-size: 14px;
+  padding: 0 28px 14px;
+  color: #64748b;
+  font-size: 12px;
   font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
-
-/* Rows */
 
 .table-row {
   display: grid;
-  grid-template-columns:
-    100px
-    minmax(260px, 1fr)
-    110px
-    120px
-    110px
-    110px;
+  grid-template-columns: 80px minmax(220px, 1fr) 90px 100px 90px 90px 100px;
   align-items: center;
-  min-height: 82px;
-  padding: 0 35px;
-  margin-bottom: 8px;
+  min-height: 76px;
+  padding: 0 28px;
+  margin-bottom: 10px;
   background: #ffffff;
-  border-radius: 14px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+  border-radius: 16px;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
   cursor: pointer;
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
 .table-row:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  border-color: #cbd5e1;
 }
-
-/* =========================================
-   TABLE RANK
-========================================= */
 
 .table-rank {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 800;
+  color: #64748b;
 }
-
-/* =========================================
-   TABLE STUDENT
-========================================= */
 
 .table-student {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 14px;
 }
 
 .table-student img {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid #ffe1e1;
+  border: 2px solid #fee2e2;
 }
 
 .table-student strong {
   display: block;
-  font-size: 16px;
+  font-size: 15px;
+  color: #0f172a;
+  font-weight: 700;
 }
 
 .table-student span {
   display: block;
-  margin-top: 3px;
-  color: #777;
+  margin-top: 2px;
+  color: #64748b;
   font-size: 13px;
 }
 
-/* =========================================
-   NUMBERS
-========================================= */
-
 .easy-number {
-  color: #10a957;
-  font-size: 20px;
+  color: #16a34a;
+  font-size: 18px;
   font-weight: 700;
 }
 
 .medium-number {
-  color: #ed8b00;
-  font-size: 20px;
+  color: #d97706;
+  font-size: 18px;
   font-weight: 700;
 }
 
 .hard-number {
-  color: #e32929;
-  font-size: 20px;
+  color: #dc2626;
+  font-size: 18px;
   font-weight: 700;
 }
 
 .total-number {
-  color: #111;
-  font-size: 19px;
+  color: #334155;
+  font-size: 18px;
   font-weight: 700;
 }
 
+.points-number {
+  color: #d71920;
+  font-size: 19px;
+  font-weight: 800;
+}
+
 /* =========================================
-   RESPONSIVE
+   10. RESPONSIVE DESIGN
 ========================================= */
 
 @media (max-width: 900px) {
   .leaderboard-page {
-    padding: 30px 20px 50px;
+    padding: 30px 16px 60px;
   }
 
   .podium {
     grid-template-columns: 1fr;
-    max-width: 500px;
+    max-width: 460px;
     gap: 20px;
-    align-items: stretch;
   }
 
-  .first-place,
-  .second-place,
-  .third-place {
-    min-height: 420px;
-  }
-
-  /* Put first place first on mobile */
-  .first-place {
-    order: 1;
-  }
-
-  .second-place {
-    order: 2;
-  }
-
-  .third-place {
-    order: 3;
-  }
+  /* Order first place to top on mobile */
+  .first-place { order: 1; }
+  .second-place { order: 2; }
+  .third-place { order: 3; }
 
   .leaderboard-table {
     overflow-x: auto;
@@ -501,62 +480,20 @@
 
   .table-header,
   .table-row {
-    min-width: 850px;
+    min-width: 880px;
   }
 }
 
-/* =========================================
-   SMALL MOBILE
-========================================= */
-
 @media (max-width: 550px) {
-  .leaderboard-page {
-    padding: 25px 12px 40px;
-  }
-
   .leaderboard-title h1 {
-    font-size: 30px;
-  }
-
-  .leaderboard-title p {
-    font-size: 14px;
-  }
-
-  .podium {
-    gap: 16px;
+    font-size: 28px;
   }
 
   .podium-card {
-    min-height: 380px;
-    padding-left: 15px;
-    padding-right: 15px;
-    padding-bottom: 95px;
+    min-height: 400px;
   }
 
   .first-place {
-    min-height: 410px;
-    padding-bottom: 110px;
-  }
-
-  .podium-card h2 {
-    font-size: 21px;
-  }
-
-  .first-place h2 {
-    font-size: 24px;
-  }
-
-  .problem-stats strong {
-    font-size: 18px;
-  }
-
-  .podium-rank {
-    height: 80px;
-    font-size: 40px;
-  }
-
-  .first-rank {
-    height: 95px;
-    font-size: 48px;
+    min-height: 430px;
   }
 }

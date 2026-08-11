@@ -9,12 +9,23 @@ const POINTS = {
   hard: 2,
 };
 
+// Fallback score calculation if student.score is missing/null in DB
 function calculateScore(easySolved, mediumSolved, hardSolved) {
   return (
     easySolved * POINTS.easy +
     mediumSolved * POINTS.medium +
     hardSolved * POINTS.hard
   );
+}
+
+// Helper to extract clean username if full URL is stored in database
+function cleanUsername(username) {
+  if (!username) return "";
+  if (username.includes("leetcode.com")) {
+    const parts = username.replace(/\/$/, "").split("/");
+    return parts[parts.length - 1];
+  }
+  return username;
 }
 
 function Leaderboard() {
@@ -44,6 +55,12 @@ function Leaderboard() {
               const mediumSolved = stats?.mediumSolved || 0;
               const hardSolved = stats?.hardSolved || 0;
 
+              // Use database score directly, fallback to calculated score if undefined
+              const score =
+                student.score !== undefined && student.score !== null
+                  ? student.score
+                  : calculateScore(easySolved, mediumSolved, hardSolved);
+
               return {
                 user_id: student.user_id,
                 name: student.name || "Unknown Student",
@@ -60,12 +77,7 @@ function Leaderboard() {
                 hardSolved,
 
                 total: easySolved + mediumSolved + hardSolved,
-
-                score: calculateScore(
-                  easySolved,
-                  mediumSolved,
-                  hardSolved
-                ),
+                score: score, // DIRECT FROM DATABASE
 
                 failed: false,
               };
@@ -81,7 +93,7 @@ function Leaderboard() {
                 mediumSolved: 0,
                 hardSolved: 0,
                 total: 0,
-                score: 0,
+                score: student.score || 0, // Fallback to DB score if API fails
                 failed: true,
               };
             }
@@ -90,6 +102,7 @@ function Leaderboard() {
 
         if (!isMounted) return;
 
+        // Sort descending by database score
         const sorted = results.sort((a, b) => b.score - a.score);
         setRankings(sorted);
       } catch (err) {
@@ -141,7 +154,7 @@ function Leaderboard() {
             Currently, Leaderboard is in Public testing
           </span>
         </div>
-        <p>Ranked by LeetCode problems solved.</p>
+        <p>Ranked by LeetCode problems solved & total points scored.</p>
 
         {/* POINTS BADGES */}
         <div className="points-legend">
@@ -162,10 +175,10 @@ function Leaderboard() {
         </div>
       ) : (
         <>
-          {/* TOP 3 */}
+          {/* TOP 3 PODIUM */}
           {topThree.length > 0 && (
             <div className="podium">
-              {/* SECOND */}
+              {/* SECOND PLACE */}
               {topThree[1] && (
                 <div
                   className="podium-card second-place"
@@ -182,8 +195,12 @@ function Leaderboard() {
                   <h2>{topThree[1].name}</h2>
 
                   <p className="podium-username">
-                    @{topThree[1].username}
+                    @{cleanUsername(topThree[1].username)}
                   </p>
+
+                  <div className="podium-points-badge">
+                    ⚡ <strong>{topThree[1].score}</strong> pts
+                  </div>
 
                   <div className="problem-stats">
                     <div>
@@ -212,7 +229,7 @@ function Leaderboard() {
                 </div>
               )}
 
-              {/* FIRST */}
+              {/* FIRST PLACE */}
               {topThree[0] && (
                 <div
                   className="podium-card first-place"
@@ -229,8 +246,12 @@ function Leaderboard() {
                   <h2>{topThree[0].name}</h2>
 
                   <p className="podium-username">
-                    @{topThree[0].username}
+                    @{cleanUsername(topThree[0].username)}
                   </p>
+
+                  <div className="podium-points-badge highlight">
+                    ⚡ <strong>{topThree[0].score}</strong> pts
+                  </div>
 
                   <div className="problem-stats">
                     <div>
@@ -259,7 +280,7 @@ function Leaderboard() {
                 </div>
               )}
 
-              {/* THIRD */}
+              {/* THIRD PLACE */}
               {topThree[2] && (
                 <div
                   className="podium-card third-place"
@@ -276,8 +297,12 @@ function Leaderboard() {
                   <h2>{topThree[2].name}</h2>
 
                   <p className="podium-username">
-                    @{topThree[2].username}
+                    @{cleanUsername(topThree[2].username)}
                   </p>
+
+                  <div className="podium-points-badge">
+                    ⚡ <strong>{topThree[2].score}</strong> pts
+                  </div>
 
                   <div className="problem-stats">
                     <div>
@@ -318,6 +343,7 @@ function Leaderboard() {
                 <span>MEDIUM</span>
                 <span>HARD</span>
                 <span>TOTAL</span>
+                <span>POINTS</span>
               </div>
 
               {remainingStudents.map((student, index) => {
@@ -339,7 +365,7 @@ function Leaderboard() {
 
                       <div>
                         <strong>{student.name}</strong>
-                        <span>@{student.username}</span>
+                        <span>@{cleanUsername(student.username)}</span>
                       </div>
                     </div>
 
@@ -356,6 +382,8 @@ function Leaderboard() {
                     </div>
 
                     <div className="total-number">{student.total}</div>
+
+                    <div className="points-number">{student.score}</div>
                   </div>
                 );
               })}
