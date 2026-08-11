@@ -5,7 +5,6 @@ import cors from "cors";
 import publicRoutes from "./routes/public.routes.js";
 import dashboardRoutes from "./routes/student_dashboard.routes.js";
 import mentorDashboardRoutes from "./routes/mentor_dashboard.routes.js";
-import cronJobs from "./routes/cron.routes.js";
 
 dotenv.config();
 
@@ -23,7 +22,7 @@ const envOrigins = (process.env.ORIGIN || "")
 
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://kalvium-porfolio.vercel.app", 
+  "https://kalvium-porfolio.vercel.app", // Replace with your exact Vercel URL
   ...envOrigins,
 ];
 
@@ -52,7 +51,6 @@ app.use(express.json());
 app.use("/public", publicRoutes);
 app.use("/student/dashboard", dashboardRoutes);
 app.use("/mentor/dashboard", mentorDashboardRoutes);
-app.use("/cron/update-leetcode", cronJobs);
 
 app.get("/", (req, res) => {
   res.send("Backend is working");
