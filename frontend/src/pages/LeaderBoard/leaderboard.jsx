@@ -33,7 +33,6 @@ function Leaderboard() {
 
       try {
         const students = await getAllStudents();
-
         const withLeetcode = students.filter((student) => student.leetcode);
 
         const results = await Promise.all(
@@ -60,10 +59,7 @@ function Leaderboard() {
                 mediumSolved,
                 hardSolved,
 
-                total:
-                  easySolved +
-                  mediumSolved +
-                  hardSolved,
+                total: easySolved + mediumSolved + hardSolved,
 
                 score: calculateScore(
                   easySolved,
@@ -95,15 +91,12 @@ function Leaderboard() {
         if (!isMounted) return;
 
         const sorted = results.sort((a, b) => b.score - a.score);
-
         setRankings(sorted);
       } catch (err) {
         console.error("Error fetching leaderboard:", err);
 
         if (isMounted) {
-          setError(
-            "Couldn't load the leaderboard. Please try again."
-          );
+          setError("Couldn't load the leaderboard. Please try again.");
         }
       } finally {
         if (isMounted) {
@@ -140,7 +133,6 @@ function Leaderboard() {
 
   return (
     <div className="leaderboard-page">
-
       {/* PAGE HEADER */}
       <div className="leaderboard-title">
         <div className="title-header-row">
@@ -150,18 +142,20 @@ function Leaderboard() {
           </span>
         </div>
         <p>Ranked by LeetCode problems solved.</p>
-      </div>
-      {error && (
-        <div className="leaderboard-error">
-          {error}
+
+        {/* POINTS BADGES */}
+        <div className="points-legend">
+          <span className="point-badge easy">Easy: {POINTS.easy} pt</span>
+          <span className="point-badge medium">Medium: {POINTS.medium} pts</span>
+          <span className="point-badge hard">Hard: {POINTS.hard} pts</span>
         </div>
-      )}
+      </div>
+
+      {error && <div className="leaderboard-error">{error}</div>}
 
       {/* LOADING */}
       {isLoading ? (
-        <div className="leaderboard-loading">
-          Loading leaderboard...
-        </div>
+        <div className="leaderboard-loading">Loading leaderboard...</div>
       ) : rankings.length === 0 ? (
         <div className="leaderboard-empty">
           No students with a LeetCode profile yet.
@@ -171,16 +165,13 @@ function Leaderboard() {
           {/* TOP 3 */}
           {topThree.length > 0 && (
             <div className="podium">
-
               {/* SECOND */}
               {topThree[1] && (
                 <div
                   className="podium-card second-place"
                   onClick={() => handleStudentClick(topThree[1])}
                 >
-                  <div className="medal silver-medal">
-                    2
-                  </div>
+                  <div className="medal silver-medal">2</div>
 
                   <img
                     src={getAvatar(topThree[1])}
@@ -217,9 +208,7 @@ function Leaderboard() {
                     </div>
                   </div>
 
-                  <div className="podium-rank">
-                    2
-                  </div>
+                  <div className="podium-rank">2</div>
                 </div>
               )}
 
@@ -229,9 +218,7 @@ function Leaderboard() {
                   className="podium-card first-place"
                   onClick={() => handleStudentClick(topThree[0])}
                 >
-                  <div className="medal gold-medal">
-                    1
-                  </div>
+                  <div className="medal gold-medal">1</div>
 
                   <img
                     src={getAvatar(topThree[0])}
@@ -268,9 +255,7 @@ function Leaderboard() {
                     </div>
                   </div>
 
-                  <div className="podium-rank first-rank">
-                    1
-                  </div>
+                  <div className="podium-rank first-rank">1</div>
                 </div>
               )}
 
@@ -280,9 +265,7 @@ function Leaderboard() {
                   className="podium-card third-place"
                   onClick={() => handleStudentClick(topThree[2])}
                 >
-                  <div className="medal bronze-medal">
-                    3
-                  </div>
+                  <div className="medal bronze-medal">3</div>
 
                   <img
                     src={getAvatar(topThree[2])}
@@ -319,19 +302,15 @@ function Leaderboard() {
                     </div>
                   </div>
 
-                  <div className="podium-rank">
-                    3
-                  </div>
+                  <div className="podium-rank">3</div>
                 </div>
               )}
-
             </div>
           )}
 
           {/* TABLE */}
           {remainingStudents.length > 0 && (
             <div className="leaderboard-table">
-
               <div className="table-header">
                 <span>RANK</span>
                 <span>STUDENT</span>
@@ -350,9 +329,7 @@ function Leaderboard() {
                     key={student.user_id}
                     onClick={() => handleStudentClick(student)}
                   >
-                    <div className="table-rank">
-                      #{rank}
-                    </div>
+                    <div className="table-rank">#{rank}</div>
 
                     <div className="table-student">
                       <img
@@ -362,9 +339,7 @@ function Leaderboard() {
 
                       <div>
                         <strong>{student.name}</strong>
-                        <span>
-                          @{student.username}
-                        </span>
+                        <span>@{student.username}</span>
                       </div>
                     </div>
 
@@ -380,13 +355,10 @@ function Leaderboard() {
                       {student.hardSolved}
                     </div>
 
-                    <div className="total-number">
-                      {student.total}
-                    </div>
+                    <div className="total-number">{student.total}</div>
                   </div>
                 );
               })}
-
             </div>
           )}
         </>

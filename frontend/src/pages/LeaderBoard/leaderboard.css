@@ -49,15 +49,53 @@
 /* Tag Badge Styling */
 .testing-tag {
   background-color: #fff0f0;
-  color: #d71920; /* Matches your avatar theme accent */
+  color: #d71920; /* Matches avatar theme accent */
   border: 1px solid #ffcccc;
   font-size: 0.8rem;
   font-weight: 600;
   padding: 4px 12px;
-  border-radius: 20px;
+  border-radius: 50px;
   display: inline-flex;
   align-items: center;
   white-space: nowrap;
+}
+
+/* Points Legend Badges Container */
+.points-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+/* Base Pill Style for Point Badges */
+.point-badge {
+  padding: 5px 14px;
+  border-radius: 50px; /* Fully rounded pill corners */
+  font-size: 0.825rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Difficulty Colors Matched to App Theme */
+.point-badge.easy {
+  background-color: #eef9f2;
+  color: #10a957;
+  border: 1px solid #c6ebd4;
+}
+
+.point-badge.medium {
+  background-color: #fff8ec;
+  color: #ed8b00;
+  border: 1px solid #ffe3b8;
+}
+
+.point-badge.hard {
+  background-color: #fdeaea;
+  color: #e32929;
+  border: 1px solid #f9c5c5;
 }
 
 /* =========================================
@@ -110,8 +148,7 @@
   overflow: hidden;
   cursor: pointer;
 
-  box-shadow:
-    0 10px 35px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
 
   transition:
     transform 0.2s ease,
@@ -121,8 +158,7 @@
 .podium-card:hover {
   transform: translateY(-7px);
 
-  box-shadow:
-    0 18px 45px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.12);
 }
 
 /* First place is taller */
@@ -165,24 +201,21 @@
   background: #ffd52b;
   color: #8b6500;
 
-  box-shadow:
-    0 5px 15px rgba(255, 193, 7, 0.35);
+  box-shadow: 0 5px 15px rgba(255, 193, 7, 0.35);
 }
 
 .silver-medal {
   background: #d7d9dc;
   color: #555;
 
-  box-shadow:
-    0 5px 15px rgba(150, 150, 150, 0.25);
+  box-shadow: 0 5px 15px rgba(150, 150, 150, 0.25);
 }
 
 .bronze-medal {
   background: #e98a4c;
   color: #71320c;
 
-  box-shadow:
-    0 5px 15px rgba(200, 100, 40, 0.25);
+  box-shadow: 0 5px 15px rgba(200, 100, 40, 0.25);
 }
 
 /* =========================================
@@ -255,8 +288,7 @@
 
   background: #fff;
 
-  box-shadow:
-    0 3px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04);
 }
 
 .problem-stats strong {
@@ -384,8 +416,7 @@
 
   border-radius: 14px;
 
-  box-shadow:
-    0 4px 14px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
 
   cursor: pointer;
 
@@ -397,8 +428,7 @@
 .table-row:hover {
   transform: translateY(-2px);
 
-  box-shadow:
-    0 8px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
 }
 
 /* =========================================
