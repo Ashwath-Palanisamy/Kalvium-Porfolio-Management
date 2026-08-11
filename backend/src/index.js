@@ -52,7 +52,7 @@ app.use(express.json());
 app.use("/public", publicRoutes);
 app.use("/student/dashboard", dashboardRoutes);
 app.use("/mentor/dashboard", mentorDashboardRoutes);
-app.use("/cron/update-leetcode", cronJobs);
+app.use("/cron/", cronJobs);
 
 app.get("/", (req, res) => {
   res.send("Backend is working");
