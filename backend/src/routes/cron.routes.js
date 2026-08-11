@@ -14,9 +14,11 @@ const isValidLeetCodeUsername = (username) => /^[a-zA-Z0-9_-]{1,30}$/.test(usern
 
 const extractUsername = (input) => {
     if (!input) return null;
-    const cleanInput = input.trim();
+    let cleanInput = input.trim();
     try {
-        if (!cleanInput.includes("leetcode.com")) return cleanInput;
+        // Strip query parameters or anchor hashes (e.g., ?ref=1 or #overview)
+        cleanInput = cleanInput.split('?')[0].split('#')[0];
+        if (!cleanInput.includes("leetcode.com")) return cleanInput.replace(/\/$/, "");
         return cleanInput.match(/leetcode\.com\/(?:u\/)?([^/]+)/)?.[1]?.replace(/\/$/, "") || null;
     } catch (e) {
         return null;
@@ -26,7 +28,12 @@ const extractUsername = (input) => {
 // --- Helper: Fetch LeetCode Stats with Full API & DB Retry Logic ---
 async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxRetries = 3) {
     const username = extractUsername(rawLeetCodeUrl);
-    if (!username || !isValidLeetCodeUsername(username)) return;
+
+    // 1. Explicit Logging for Invalid Username Skipping
+    if (!username || !isValidLeetCodeUsername(username)) {
+        console.warn(`[Skip Invalid Username] Profile ID: ${profileId} | Raw: "${rawLeetCodeUrl}" | Extracted: "${username}"`);
+        return { status: 'INVALID_URL', username: username || rawLeetCodeUrl };
+    }
 
     const query = `
         query getUserStats($username: String!) {
@@ -57,19 +64,23 @@ async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxR
                 body: JSON.stringify({ query, variables: { username } })
             });
 
-            // 1. Retry HTTP 429 (Rate Limit) or 5xx (Server Error) with Exponential Backoff
+            // 2. Retry HTTP 429 (Rate Limit) or 5xx (Server Error) with Exponential Backoff
             if (response.status === 429 || response.status >= 500) {
-                const backoffTime = attempt * 5000; // 5s, 10s, 15s
+                const backoffTime = attempt * 5000;
                 console.warn(`[HTTP ${response.status}] Retrying ${username} in ${backoffTime / 1000}s (Attempt ${attempt}/${maxRetries})...`);
                 await delay(backoffTime);
                 continue;
             }
 
-            if (!response.ok) return;
+            // 3. Explicit Logging for Non-200 HTTP Errors (e.g. 403 Cloudflare, 400 Bad Request)
+            if (!response.ok) {
+                console.error(`[HTTP Error ${response.status}] Failed fetching ${username}: ${response.statusText}`);
+                return { status: 'HTTP_ERROR', username, status: response.status };
+            }
 
             const result = await response.json();
 
-            // 2. Retry GraphQL-level rate limit errors
+            // 4. Retry GraphQL-level rate limit errors
             if (result.errors) {
                 const isRateLimited = result.errors.some(err => 
                     err.message?.toLowerCase().includes("rate") || 
@@ -84,14 +95,14 @@ async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxR
                 }
 
                 console.error(`[GraphQL Error] ${username}:`, result.errors[0]?.message);
-                return;
+                return { status: 'GRAPHQL_ERROR', username, error: result.errors[0]?.message };
             }
 
             const matchedUser = result?.data?.matchedUser;
 
             if (!matchedUser) {
-                console.warn(`[LeetCode Profile Not Found] ${username}`);
-                return;
+                console.warn(`[LeetCode Profile Not Found] Username: "${username}" (Profile ID: ${profileId})`);
+                return { status: 'NOT_FOUND', username };
             }
 
             const submitStats = matchedUser.submitStatsGlobal?.acSubmissionNum || [];
@@ -103,7 +114,7 @@ async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxR
 
             const score = (easySolved * 1) + (mediumSolved * 1.5) + (hardSolved * 2);
 
-            // 3. Database Upsert with error checking & retry capability
+            // 5. Database Upsert with Error Logging
             const { error: dbError } = await supabaseAdmin
                 .from("leetcode_leaderboard")
                 .upsert({
@@ -120,24 +131,25 @@ async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxR
                 }, { onConflict: "profile_id" });
 
             if (dbError) {
-                console.error(`[DB Error] Upsert failed for ${username}:`, dbError.message);
+                console.error(`[DB Upsert Error] Failed for ${username} (Profile ID: ${profileId}):`, dbError.message);
                 if (attempt < maxRetries) {
                     await delay(2000);
                     continue; 
                 }
-                return;
+                return { status: 'DB_ERROR', username, error: dbError.message };
             }
 
             console.log(`[Cron Success] Updated ${matchedUser.username}`);
-            return; 
+            return { status: 'SUCCESS', username: matchedUser.username };
+
         } catch (err) {
-            // 4. Catch Network Exceptions
             if (attempt < maxRetries) {
                 const backoffTime = attempt * 3000;
                 console.warn(`[Network Error] Retrying ${username} in ${backoffTime / 1000}s (Attempt ${attempt}/${maxRetries}):`, err.message);
                 await delay(backoffTime);
             } else {
                 console.error(`[Cron Fatal] Failed updating ${username} after ${maxRetries} attempts:`, err.message);
+                return { status: 'NETWORK_ERROR', username, error: err.message };
             }
         }
     }
@@ -182,14 +194,51 @@ router.post("/update-leetcode", async (req, res) => {
             return;
         }
 
-        console.log(`[Cron] Syncing stats for ${users.length} profiles...`);
+        console.log(`[Cron Start] Fetched ${users.length} profiles with LeetCode links from DB.`);
 
+        const stats = {
+            totalFetched: users.length,
+            success: 0,
+            invalidUrl: 0,
+            notFound: 0,
+            httpError: 0,
+            graphqlError: 0,
+            dbError: 0,
+            networkError: 0
+        };
+
+        let count = 0;
         for (const user of users) {
-            await syncSingleLeetCodeProfile(user.id, user.user_id, user.leetcode);
+            count++;
+            console.log(`\n[ Cron Progress ${count}/${users.length} ] Processing Profile ID: ${user.id} | Raw Input: "${user.leetcode}"`);
+
+            const result = await syncSingleLeetCodeProfile(user.id, user.user_id, user.leetcode);
+
+            switch (result?.status) {
+                case 'SUCCESS': stats.success++; break;
+                case 'INVALID_URL': stats.invalidUrl++; break;
+                case 'NOT_FOUND': stats.notFound++; break;
+                case 'HTTP_ERROR': stats.httpError++; break;
+                case 'GRAPHQL_ERROR': stats.graphqlError++; break;
+                case 'DB_ERROR': stats.dbError++; break;
+                default: stats.networkError++; break;
+            }
+
             await delay(getRandomDelay(1500, 3000));
         }
 
-        console.log("[Cron Complete] Leaderboard updated successfully.");
+        // Print final summary stats
+        console.log("\n================ [Cron Execution Summary] ================");
+        console.log(`Total Profiles Fetched from DB : ${stats.totalFetched}`);
+        console.log(`Successfully Saved to DB      : ${stats.success}`);
+        console.log(`Skipped (Invalid URL/Username): ${stats.invalidUrl}`);
+        console.log(`LeetCode User Not Found (404) : ${stats.notFound}`);
+        console.log(`HTTP Request Errors (Non-200) : ${stats.httpError}`);
+        console.log(`GraphQL API Errors            : ${stats.graphqlError}`);
+        console.log(`Database Upsert Errors        : ${stats.dbError}`);
+        console.log(`Network Exceptions            : ${stats.networkError}`);
+        console.log("==========================================================\n");
+
     } catch (err) {
         console.error("[Cron Fatal Error]:", err.message);
     }
