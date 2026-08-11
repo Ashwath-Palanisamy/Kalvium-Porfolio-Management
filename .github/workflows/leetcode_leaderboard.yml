@@ -16,6 +16,6 @@ jobs:
 
       - name: Trigger Cron Endpoint
         run: |
-          curl -s -f -X POST "${{ secrets.BACKEND_URL }}/cron/update-leetcode" \
+          curl -v -X POST "${{ secrets.BACKEND_URL }}/cron/update-leetcode" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             -H "Content-Type: application/json"
