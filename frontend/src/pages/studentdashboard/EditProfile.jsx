@@ -406,7 +406,7 @@ export default function ProfileTab({
               setShowCropper(false);
             }}
           >
-            Crop
+            Adjust & Save
           </button>
         </div>
       )}
