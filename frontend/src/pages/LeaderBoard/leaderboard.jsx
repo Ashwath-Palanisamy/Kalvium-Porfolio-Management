@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getAllStudents, getLeetcodeStats } from "../../api/routes/Public/StudentInfo";
 import { useNavigate } from "react-router-dom";
-import "./Leaderboard.css";
+import "./leaderboard.css";
 
 const POINTS = {
   easy: 1,
@@ -168,7 +168,7 @@ function Leaderboard() {
           {topThree.length > 0 && (
             <div className="podium">
 
-              {/* SECOND RANK */}
+              {/* SECOND */}
               {topThree[1] && (
                 <div
                   className="podium-card second-place"
@@ -219,7 +219,7 @@ function Leaderboard() {
                 </div>
               )}
 
-              {/* FIRST RANK */}
+              {/* FIRST */}
               {topThree[0] && (
                 <div
                   className="podium-card first-place"
@@ -270,7 +270,7 @@ function Leaderboard() {
                 </div>
               )}
 
-              {/* THIRD RANK */}
+              {/* THIRD */}
               {topThree[2] && (
                 <div
                   className="podium-card third-place"
