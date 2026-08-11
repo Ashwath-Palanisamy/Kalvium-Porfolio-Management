@@ -143,9 +143,9 @@ async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxR
     }
 }
 
-// ==========================================
+// ===========================================
 // 1. POST /update-leetcode (Cron Job Endpoint)
-// ==========================================
+// ===========================================
 router.post("/update-leetcode", async (req, res) => {
     const authHeader = req.headers.authorization;
 
