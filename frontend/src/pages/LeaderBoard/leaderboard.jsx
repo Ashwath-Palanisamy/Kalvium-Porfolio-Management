@@ -168,7 +168,7 @@ function Leaderboard() {
           {topThree.length > 0 && (
             <div className="podium">
 
-              {/* SECOND */}
+              {/* SECOND RANK */}
               {topThree[1] && (
                 <div
                   className="podium-card second-place"
@@ -219,7 +219,7 @@ function Leaderboard() {
                 </div>
               )}
 
-              {/* FIRST */}
+              {/* FIRST RANK */}
               {topThree[0] && (
                 <div
                   className="podium-card first-place"
@@ -270,7 +270,7 @@ function Leaderboard() {
                 </div>
               )}
 
-              {/* THIRD */}
+              {/* THIRD RANK */}
               {topThree[2] && (
                 <div
                   className="podium-card third-place"
