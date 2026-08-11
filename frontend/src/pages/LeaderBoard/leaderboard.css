@@ -38,6 +38,28 @@
   font-size: 16px;
 }
 
+/* Container to keep Title and Tag side-by-side */
+.title-header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap; /* Wraps cleanly on smaller screens */
+}
+
+/* Tag Badge Styling */
+.testing-tag {
+  background-color: #fff0f0;
+  color: #d71920; /* Matches your avatar theme accent */
+  border: 1px solid #ffcccc;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
 /* =========================================
    ERROR / LOADING / EMPTY
 ========================================= */

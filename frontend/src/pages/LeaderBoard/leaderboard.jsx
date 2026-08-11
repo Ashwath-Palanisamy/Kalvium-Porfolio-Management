@@ -143,10 +143,14 @@ function Leaderboard() {
 
       {/* PAGE HEADER */}
       <div className="leaderboard-title">
-        <h1>Leaderboard</h1>
+        <div className="title-header-row">
+          <h1>Leaderboard</h1>
+          <span className="testing-tag">
+            Currently, Leaderboard is in Public testing
+          </span>
+        </div>
         <p>Ranked by LeetCode problems solved.</p>
       </div>
-
       {error && (
         <div className="leaderboard-error">
           {error}
