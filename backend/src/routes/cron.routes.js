@@ -101,7 +101,7 @@ async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxR
             const hardSolved = submitStats.find(s => s.difficulty === "Hard")?.count || 0;
             const ranking = matchedUser.profile?.ranking || 0;
 
-            const score = (easySolved * 1) + (mediumSolved * 3) + (hardSolved * 5);
+            const score = (easySolved * 1) + (mediumSolved * 1.5) + (hardSolved * 2);
 
             // 3. Database Upsert with error checking & retry capability
             const { error: dbError } = await supabaseAdmin
