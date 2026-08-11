@@ -19,6 +19,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "google-auth-library": "^10.9.1",
+    "install": "^0.13.0",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.28.0",
     "mongoose": "^9.8.0",
