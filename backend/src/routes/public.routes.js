@@ -342,4 +342,42 @@ router.post("/leetcode", statsRouteLimiter, async (req, res) => {
     }
 });
 
+// ==========================================
+// 6. GET /leetcode-leaderboard (Fetch Leaderboard Data)
+// ==========================================
+router.get("/leetcode-leaderboard", async (req, res) => {
+    try {
+        const { data, error } = await supabaseAdmin
+            .from("leetcode_leaderboard")
+            .select(`
+                id,
+                profile_id,
+                user_id,
+                leetcode_username,
+                easy_solved,
+                medium_solved,
+                hard_solved,
+                total_solved,
+                ranking,
+                score,
+                updated_at,
+                profiles!inner (
+                    name,
+                    squad_id,
+                    avatar_url
+                )
+            `)
+            .order("score", { ascending: false })
+            .order("total_solved", { ascending: false });
+
+        if (error) {
+            return res.status(400).json({ error: error.message });
+        }
+
+        return res.status(200).json(data);
+    } catch (err) {
+        return res.status(500).json({ error: "Internal Server Error", details: err.message });
+    }
+});
+
 export default router;
