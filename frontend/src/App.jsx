@@ -5,7 +5,7 @@ import LoginPage from "./pages/LoginPage.jsx";
 import Footer from "./components/Footer";
 import IndividualStudentPortfolio from "./pages/IndividualStudentPortfolio";
 import Students from "./pages/Students";
-import About from "./pages/About/About";
+import Leaderboard from "./pages/LeaderBoard/leaderboard.jsx";
 import EditProfile from "./pages/studentdashboard/EditProfile";
 import ErrorPage from "./pages/ErrorPage/404page";
 import AuthGate from "./components/AuthGate";
@@ -53,7 +53,7 @@ function App() {
         <Route path="/students" element={<Students />} />
         <Route path="/student/:user_id" element={<LegacyStudentRedirect />} />
         <Route path="/portfolio/:user_id" element={<IndividualStudentPortfolio />} />
-        <Route path="/about" element={<About />} />
+        <Route path="/leaderboard" element={<Leaderboard />} />
 
         {/* Protected Dashboard Route using AuthGate */}
         <Route
