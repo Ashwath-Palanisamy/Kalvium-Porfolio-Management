@@ -145,6 +145,7 @@ function Leaderboard() {
       <div className="leaderboard-title">
         <h1>Leaderboard</h1>
         <p>Ranked by LeetCode problems solved.</p>
+        <p>Easy: 1 point | Medium: 1.5 points | Hard: 2 points</p>
       </div>
 
       {error && (
