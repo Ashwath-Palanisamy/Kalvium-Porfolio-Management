@@ -131,7 +131,6 @@
   grid-template-columns: 1fr 1.12fr 1fr;
   align-items: end;
   gap: 28px;
-  min-height: 500px;
 }
 
 /* =========================================
@@ -143,8 +142,14 @@
   background: #ffffff;
   border-radius: 26px 26px 8px 8px;
   text-align: center;
-  padding: 35px 25px 0;
-  min-height: 420px;
+  
+  /* FIXED: Added 110px padding-bottom so content is not covered by podium-rank */
+  padding: 32px 20px 110px;
+  min-height: 430px;
+  
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   overflow: hidden;
   cursor: pointer;
 
@@ -157,22 +162,19 @@
 
 .podium-card:hover {
   transform: translateY(-7px);
-
   box-shadow: 0 18px 45px rgba(0, 0, 0, 0.12);
 }
 
-/* First place is taller */
-
+/* First place is taller and has a larger bottom banner (120px) */
 .first-place {
-  min-height: 475px;
+  min-height: 485px;
   padding-top: 28px;
+  padding-bottom: 135px; /* Reserves space for 120px rank banner */
 }
-
-/* Second and third */
 
 .second-place,
 .third-place {
-  min-height: 410px;
+  min-height: 430px;
 }
 
 /* =========================================
@@ -180,41 +182,33 @@
 ========================================= */
 
 .medal {
-  width: 58px;
-  height: 58px;
-
-  margin: 0 auto 18px;
-
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 14px;
   border-radius: 50%;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 800;
-
-  position: relative;
+  flex-shrink: 0;
 }
 
 .gold-medal {
   background: #ffd52b;
   color: #8b6500;
-
   box-shadow: 0 5px 15px rgba(255, 193, 7, 0.35);
 }
 
 .silver-medal {
   background: #d7d9dc;
   color: #555;
-
   box-shadow: 0 5px 15px rgba(150, 150, 150, 0.25);
 }
 
 .bronze-medal {
   background: #e98a4c;
   color: #71320c;
-
   box-shadow: 0 5px 15px rgba(200, 100, 40, 0.25);
 }
 
@@ -223,23 +217,19 @@
 ========================================= */
 
 .podium-avatar {
-  width: 92px;
-  height: 92px;
-
+  width: 88px;
+  height: 88px;
   border-radius: 50%;
-
   object-fit: cover;
-
   border: 5px solid #ffe0e0;
-
   background: #fff1f1;
-
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
 }
 
 .first-place .podium-avatar {
-  width: 102px;
-  height: 102px;
+  width: 98px;
+  height: 98px;
 }
 
 /* =========================================
@@ -248,21 +238,27 @@
 
 .podium-card h2 {
   margin: 0;
-
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 800;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .first-place h2 {
-  font-size: 28px;
+  font-size: 26px;
 }
 
+/* FIXED: Truncate full URLs cleanly */
 .podium-username {
-  margin: 6px 0 24px;
-
+  margin: 4px 0 16px;
   color: #777;
-
-  font-size: 15px;
+  font-size: 13px;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* =========================================
@@ -272,39 +268,31 @@
 .problem-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-
-  margin: 0 auto 25px;
-
-  max-width: 330px;
+  gap: 8px;
+  margin-top: auto; /* FIXED: Pushes stat boxes directly above rank banner space */
+  margin-bottom: 0;
+  width: 100%;
+  max-width: 320px;
 }
 
 .problem-stats > div {
   border: 1px solid #eeeeee;
-
   border-radius: 12px;
-
-  padding: 11px 5px;
-
+  padding: 8px 4px;
   background: #fff;
-
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04);
 }
 
 .problem-stats strong {
   display: block;
-
-  font-size: 24px;
+  font-size: 20px;
   line-height: 1.1;
 }
 
 .problem-stats span {
   display: block;
-
-  margin-top: 5px;
-
-  font-size: 13px;
-
+  margin-top: 4px;
+  font-size: 12px;
   color: #444;
 }
 
@@ -326,30 +314,22 @@
 
 .podium-rank {
   position: absolute;
-
   left: 0;
   right: 0;
   bottom: 0;
-
   height: 95px;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   background: #aeb2b7;
-
   color: white;
-
   font-size: 48px;
   font-weight: 800;
 }
 
 .first-rank {
   height: 120px;
-
   background: #ed1717;
-
   font-size: 58px;
 }
 
@@ -363,7 +343,6 @@
 
 .leaderboard-table {
   max-width: 1180px;
-
   margin: 55px auto 0;
 }
 
@@ -371,7 +350,6 @@
 
 .table-header {
   display: grid;
-
   grid-template-columns:
     100px
     minmax(260px, 1fr)
@@ -379,15 +357,10 @@
     120px
     110px
     110px;
-
   align-items: center;
-
   padding: 0 35px 15px;
-
   color: #686868;
-
   font-size: 14px;
-
   font-weight: 700;
 }
 
@@ -395,7 +368,6 @@
 
 .table-row {
   display: grid;
-
   grid-template-columns:
     100px
     minmax(260px, 1fr)
@@ -403,23 +375,14 @@
     120px
     110px
     110px;
-
   align-items: center;
-
   min-height: 82px;
-
   padding: 0 35px;
-
   margin-bottom: 8px;
-
   background: #ffffff;
-
   border-radius: 14px;
-
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
-
   cursor: pointer;
-
   transition:
     transform 0.15s ease,
     box-shadow 0.15s ease;
@@ -427,7 +390,6 @@
 
 .table-row:hover {
   transform: translateY(-2px);
-
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
 }
 
@@ -446,36 +408,27 @@
 
 .table-student {
   display: flex;
-
   align-items: center;
-
   gap: 15px;
 }
 
 .table-student img {
   width: 48px;
   height: 48px;
-
   border-radius: 50%;
-
   object-fit: cover;
-
   border: 3px solid #ffe1e1;
 }
 
 .table-student strong {
   display: block;
-
   font-size: 16px;
 }
 
 .table-student span {
   display: block;
-
   margin-top: 3px;
-
   color: #777;
-
   font-size: 13px;
 }
 
@@ -485,28 +438,24 @@
 
 .easy-number {
   color: #10a957;
-
   font-size: 20px;
   font-weight: 700;
 }
 
 .medium-number {
   color: #ed8b00;
-
   font-size: 20px;
   font-weight: 700;
 }
 
 .hard-number {
   color: #e32929;
-
   font-size: 20px;
   font-weight: 700;
 }
 
 .total-number {
   color: #111;
-
   font-size: 19px;
   font-weight: 700;
 }
@@ -522,22 +471,18 @@
 
   .podium {
     grid-template-columns: 1fr;
-
     max-width: 500px;
-
     gap: 20px;
-
     align-items: stretch;
   }
 
   .first-place,
   .second-place,
   .third-place {
-    min-height: 430px;
+    min-height: 420px;
   }
 
   /* Put first place first on mobile */
-
   .first-place {
     order: 1;
   }
@@ -582,13 +527,15 @@
   }
 
   .podium-card {
-    min-height: 400px;
+    min-height: 380px;
     padding-left: 15px;
     padding-right: 15px;
+    padding-bottom: 95px;
   }
 
   .first-place {
-    min-height: 430px;
+    min-height: 410px;
+    padding-bottom: 110px;
   }
 
   .podium-card h2 {
@@ -600,7 +547,7 @@
   }
 
   .problem-stats strong {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .podium-rank {
