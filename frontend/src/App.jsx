@@ -5,7 +5,7 @@ import LoginPage from "./pages/LoginPage.jsx";
 import Footer from "./components/Footer";
 import IndividualStudentPortfolio from "./pages/IndividualStudentPortfolio";
 import Students from "./pages/Students";
-import Leaderboard from "./pages/LeaderBoard/leaderboard";
+import About from "./pages/About/About";
 import EditProfile from "./pages/studentdashboard/EditProfile";
 import ErrorPage from "./pages/ErrorPage/404page";
 import AuthGate from "./components/AuthGate";
@@ -13,6 +13,7 @@ import MentorDashboard from "./pages/MentorDashboard/mentordashboard.jsx";
 
 function LegacyStudentRedirect() {
   const { user_id } = useParams();
+
   if (!user_id || user_id === "undefined") {
     return <Navigate to="/students" replace />;
   }
@@ -52,7 +53,7 @@ function App() {
         <Route path="/students" element={<Students />} />
         <Route path="/student/:user_id" element={<LegacyStudentRedirect />} />
         <Route path="/portfolio/:user_id" element={<IndividualStudentPortfolio />} />
-        <Route path="/leaderboard" element={<Leaderboard />} />
+        <Route path="/about" element={<About />} />
 
         {/* Protected Dashboard Route using AuthGate */}
         <Route

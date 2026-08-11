@@ -72,8 +72,8 @@ function Navbar() {
                         </li>
 
                         <li className="nav-btn">
-                            <NavLink to="/leaderboard" onClick={closeMenu}>
-                                Leaderboard
+                            <NavLink to="/about" onClick={closeMenu}>
+                                About
                             </NavLink>
                         </li>
 
