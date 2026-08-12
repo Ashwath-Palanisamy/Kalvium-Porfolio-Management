@@ -1,5 +1,5 @@
 import "./Footer.css";
-import { FaGithub, FaEnvelope } from "react-icons/fa";
+import { FaGithub, FaEnvelope , FaLifeRing } from "react-icons/fa";
 import { NavLink } from "react-router-dom";
 
 function Footer() {
@@ -33,6 +33,13 @@ function Footer() {
                         >
                             <FaEnvelope />
                             <span>Email</span>
+                        </a>
+                        <a 
+                            href="https://kpm-support.freedev.app/" 
+                            target="_blank" 
+                            rel="noopener noreferrer">
+                            <FaLifeRing />
+                            <span>Support</span>
                         </a>
                     </div>
                 </div>
