@@ -7,6 +7,7 @@ on:
 
 jobs:
   trigger-leetcode-cron:
+    if: github.repository == 'dhinesh-babu-7/Kalvium-Porfolio-Management'
     runs-on: ubuntu-latest
     container:
       image: alpine:latest
