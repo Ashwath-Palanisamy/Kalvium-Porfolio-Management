@@ -1,5 +1,6 @@
 import "./Footer.css";
 import { FaGithub, FaEnvelope } from "react-icons/fa";
+import { NavLink } from "react-router-dom";
 
 function Footer() {
     return (
@@ -53,9 +54,9 @@ function Footer() {
                 <div className="footer-section">
                     <h3>Students</h3>
 
-                    <a href="#students">
-                        Student Profiles
-                    </a>
+                    <NavLink to="/students">
+                        Students
+                    </NavLink>
 
                     <a href="#projects">
                         Projects
@@ -71,11 +72,11 @@ function Footer() {
                     </a>
 
                     <a
-                        href="https://github.com/dhinesh-babu-7/Kalvium-Porfolio-Management"
+                        href="https://kpm-support.freedev.app/"
                         target="_blank"
                         rel="noopener noreferrer"
                     >
-                        GitHub
+                        Team support
                     </a>
                 </div>
 
