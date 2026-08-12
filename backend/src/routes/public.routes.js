@@ -347,7 +347,7 @@ router.post("/leetcode", statsRouteLimiter, async (req, res) => {
 // ==========================================
 router.get("/leetcode-leaderboard", async (req, res) => {
     try {
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabase
             .from("leetcode_leaderboard")
             .select(`
                 id,
