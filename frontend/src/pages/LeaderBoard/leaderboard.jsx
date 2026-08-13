@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { getAllStudents, getLeetcodeStats } from "../../api/routes/Public/StudentInfo";
 import { useNavigate } from "react-router-dom";
+import { getLeaderboardData } from "../../api/routes/Public/leaderboard";
 import "./leaderboard.css";
 
 const POINTS = {
@@ -8,15 +8,6 @@ const POINTS = {
   medium: 1.5,
   hard: 2,
 };
-
-// Fallback score calculation if student.score is missing/null in DB
-function calculateScore(easySolved, mediumSolved, hardSolved) {
-  return (
-    easySolved * POINTS.easy +
-    mediumSolved * POINTS.medium +
-    hardSolved * POINTS.hard
-  );
-}
 
 // Helper to extract clean username if full URL is stored in database
 function cleanUsername(username) {
@@ -43,66 +34,37 @@ function Leaderboard() {
       setError(null);
 
       try {
-        const students = await getAllStudents();
-        const withLeetcode = students.filter((student) => student.leetcode);
+        const leaderboardData = await getLeaderboardData();
+        const rows = Array.isArray(leaderboardData) ? leaderboardData : [];
 
-        const results = await Promise.all(
-          withLeetcode.map(async (student) => {
-            try {
-              const stats = await getLeetcodeStats(student.leetcode);
+        const results = rows.map((entry) => {
+          const profile = entry?.profiles || {};
+          const easySolved = entry?.easy_solved ?? 0;
+          const mediumSolved = entry?.medium_solved ?? 0;
+          const hardSolved = entry?.hard_solved ?? 0;
 
-              const easySolved = stats?.easySolved || 0;
-              const mediumSolved = stats?.mediumSolved || 0;
-              const hardSolved = stats?.hardSolved || 0;
-
-              // Use database score directly, fallback to calculated score if undefined
-              const score =
-                student.score !== undefined && student.score !== null
-                  ? student.score
-                  : calculateScore(easySolved, mediumSolved, hardSolved);
-
-              return {
-                user_id: student.user_id,
-                name: student.name || "Unknown Student",
-                username: student.leetcode,
-                avatar:
-                  student.avatar_url && student.avatar_url.trim() !== ""
-                    ? student.avatar_url
-                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                        student.name || "Student"
-                      )}&background=ffdddd&color=d71920&size=256`,
-
-                easySolved,
-                mediumSolved,
-                hardSolved,
-
-                total: easySolved + mediumSolved + hardSolved,
-                score: score, // DIRECT FROM DATABASE
-
-                failed: false,
-              };
-            } catch (err) {
-              return {
-                user_id: student.user_id,
-                name: student.name || "Unknown Student",
-                username: student.leetcode,
-                avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                  student.name || "Student"
-                )}&background=ffdddd&color=d71920&size=256`,
-                easySolved: 0,
-                mediumSolved: 0,
-                hardSolved: 0,
-                total: 0,
-                score: student.score || 0, // Fallback to DB score if API fails
-                failed: true,
-              };
-            }
-          })
-        );
+          return {
+            user_id: entry?.user_id || entry?.profile_id || entry?.id,
+            name: profile?.name || entry?.leetcode_username || "Unknown Student",
+            username: entry?.leetcode_username || "",
+            avatar:
+              profile?.avatar_url && profile.avatar_url.trim() !== ""
+                ? profile.avatar_url
+                : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    profile?.name || entry?.leetcode_username || "Student"
+                  )}&background=ffdddd&color=d71920&size=256`,
+            easySolved,
+            mediumSolved,
+            hardSolved,
+            total: entry?.total_solved ?? easySolved + mediumSolved + hardSolved,
+            score: entry?.score ?? 0,
+            ranking: entry?.ranking ?? null,
+            failed: false,
+          };
+        });
 
         if (!isMounted) return;
 
-        // Sort descending by database score
         const sorted = results.sort((a, b) => b.score - a.score);
         setRankings(sorted);
       } catch (err) {
@@ -151,11 +113,9 @@ function Leaderboard() {
       <div className="leaderboard-title">
         <div className="title-header-row">
           <h1>Leaderboard</h1>
-          <span className="testing-tag">
-            Currently, Leaderboard is in Public testing
-          </span>
+          
         </div>
-        <p>Ranked by LeetCode problems solved & total points scored.</p>
+        <p>Ranked by LeetCode problems solved & total points scored. Leaderboard will be updated every 24 hours.</p>
 
         {/* POINTS BADGES */}
         <div className="points-legend">
@@ -185,8 +145,6 @@ function Leaderboard() {
                   className="podium-card second-place"
                   onClick={() => handleStudentClick(topThree[1])}
                 >
-                  <div className="medal silver-medal">2</div>
-
                   <img
                     src={getAvatar(topThree[1])}
                     alt={topThree[1].name}
@@ -200,7 +158,7 @@ function Leaderboard() {
                   </p>
 
                   <div className="podium-points-badge">
-                    ⚡ <strong>{topThree[1].score}</strong> pts
+                     <strong>{topThree[1].score}</strong> pts
                   </div>
 
                   <div className="problem-stats">
@@ -236,8 +194,6 @@ function Leaderboard() {
                   className="podium-card first-place"
                   onClick={() => handleStudentClick(topThree[0])}
                 >
-                  <div className="medal gold-medal">1</div>
-
                   <img
                     src={getAvatar(topThree[0])}
                     alt={topThree[0].name}
@@ -251,7 +207,7 @@ function Leaderboard() {
                   </p>
 
                   <div className="podium-points-badge highlight">
-                    ⚡ <strong>{topThree[0].score}</strong> pts
+                     <strong>{topThree[0].score}</strong> pts
                   </div>
 
                   <div className="problem-stats">
@@ -287,8 +243,6 @@ function Leaderboard() {
                   className="podium-card third-place"
                   onClick={() => handleStudentClick(topThree[2])}
                 >
-                  <div className="medal bronze-medal">3</div>
-
                   <img
                     src={getAvatar(topThree[2])}
                     alt={topThree[2].name}
@@ -302,7 +256,7 @@ function Leaderboard() {
                   </p>
 
                   <div className="podium-points-badge">
-                    ⚡ <strong>{topThree[2].score}</strong> pts
+                     <strong>{topThree[2].score}</strong> pts
                   </div>
 
                   <div className="problem-stats">
