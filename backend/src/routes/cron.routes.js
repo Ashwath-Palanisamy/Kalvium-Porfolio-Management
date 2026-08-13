@@ -6,7 +6,6 @@ const router = express.Router();
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Generate a random delay with jitter 
 const getRandomDelay = (min = 1500, max = 3000) => 
     Math.floor(Math.random() * (max - min + 1)) + min;
 
@@ -16,7 +15,6 @@ const extractUsername = (input) => {
     if (!input) return null;
     let cleanInput = input.trim();
     try {
-        // Strip query parameters or anchor hashes (e.g., ?ref=1 or #overview)
         cleanInput = cleanInput.split('?')[0].split('#')[0];
         if (!cleanInput.includes("leetcode.com")) return cleanInput.replace(/\/$/, "");
         return cleanInput.match(/leetcode\.com\/(?:u\/)?([^/]+)/)?.[1]?.replace(/\/$/, "") || null;
@@ -25,11 +23,10 @@ const extractUsername = (input) => {
     }
 };
 
-// --- Helper: Fetch LeetCode Stats with Full API & DB Retry Logic ---
 async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxRetries = 3) {
     const username = extractUsername(rawLeetCodeUrl);
 
-    // 1. Explicit Logging for Invalid Username Skipping
+    // Skip invalid usernames and log
     if (!username || !isValidLeetCodeUsername(username)) {
         console.warn(`[Skip Invalid Username] Profile ID: ${profileId} | Raw: "${rawLeetCodeUrl}" | Extracted: "${username}"`);
         return { status: 'INVALID_URL', username: username || rawLeetCodeUrl };
@@ -64,7 +61,7 @@ async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxR
                 body: JSON.stringify({ query, variables: { username } })
             });
 
-            // 2. Retry HTTP 429 (Rate Limit) or 5xx (Server Error) with Exponential Backoff
+            // Handle HTTP rate limits and server errors with exponential backoff
             if (response.status === 429 || response.status >= 500) {
                 const backoffTime = attempt * 5000;
                 console.warn(`[HTTP ${response.status}] Retrying ${username} in ${backoffTime / 1000}s (Attempt ${attempt}/${maxRetries})...`);
@@ -72,7 +69,7 @@ async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxR
                 continue;
             }
 
-            // 3. Explicit Logging for Non-200 HTTP Errors (e.g. 403 Cloudflare, 400 Bad Request)
+            // Log and handle non-200 HTTP errors
             if (!response.ok) {
                 console.error(`[HTTP Error ${response.status}] Failed fetching ${username}: ${response.statusText}`);
                 return { status: 'HTTP_ERROR', username, status: response.status };
@@ -80,7 +77,7 @@ async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxR
 
             const result = await response.json();
 
-            // 4. Retry GraphQL-level rate limit errors
+            // Handle GraphQL-specific rate limit errors
             if (result.errors) {
                 const isRateLimited = result.errors.some(err => 
                     err.message?.toLowerCase().includes("rate") || 
@@ -114,21 +111,43 @@ async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxR
 
             const score = (easySolved * 1) + (mediumSolved * 1.5) + (hardSolved * 2);
 
-            // 5. Database Upsert with Error Logging
+            // Fetch existing record to track activity changes
+            const { data: existingData } = await supabaseAdmin
+                .from("leetcode_leaderboard")
+                .select("total_solved, last_solved_at")
+                .eq("profile_id", profileId)
+                .single();
+
+            const currentTotalInDb = existingData?.total_solved || 0;
+            let lastSolvedAt = existingData?.last_solved_at || null; 
+
+            // Update last_solved_at if total_solved increased
+            if (totalSolved > currentTotalInDb) {
+                lastSolvedAt = new Date().toISOString();
+            }
+
+            // Upsert leaderboard stats with conditional activity timestamp
+            const upsertPayload = {
+                profile_id: profileId,
+                user_id: userId,
+                leetcode_username: matchedUser.username,
+                easy_solved: easySolved,
+                medium_solved: mediumSolved,
+                hard_solved: hardSolved,
+                total_solved: totalSolved,
+                ranking: ranking,
+                score: score,
+                updated_at: new Date().toISOString() 
+            };
+
+            // Append last_solved_at safely
+            if (lastSolvedAt) {
+                upsertPayload.last_solved_at = lastSolvedAt;
+            }
+
             const { error: dbError } = await supabaseAdmin
                 .from("leetcode_leaderboard")
-                .upsert({
-                    profile_id: profileId,
-                    user_id: userId,
-                    leetcode_username: matchedUser.username,
-                    easy_solved: easySolved,
-                    medium_solved: mediumSolved,
-                    hard_solved: hardSolved,
-                    total_solved: totalSolved,
-                    ranking: ranking,
-                    score: score,
-                    updated_at: new Date().toISOString()
-                }, { onConflict: "profile_id" });
+                .upsert(upsertPayload, { onConflict: "profile_id" });
 
             if (dbError) {
                 console.error(`[DB Upsert Error] Failed for ${username} (Profile ID: ${profileId}):`, dbError.message);
@@ -155,9 +174,6 @@ async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxR
     }
 }
 
-// ==========================================
-// 1. POST /update-leetcode (Cron Job Endpoint)
-// ==========================================
 router.post("/update-leetcode", async (req, res) => {
     const authHeader = req.headers.authorization;
 
@@ -227,7 +243,6 @@ router.post("/update-leetcode", async (req, res) => {
             await delay(getRandomDelay(1500, 3000));
         }
 
-        // Print final summary stats
         console.log("\n================ [Cron Execution Summary] ================");
         console.log(`Total Profiles Fetched from DB : ${stats.totalFetched}`);
         console.log(`Successfully Saved to DB      : ${stats.success}`);

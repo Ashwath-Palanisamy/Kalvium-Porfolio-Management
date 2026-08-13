@@ -1,13 +1,22 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { 
   Search, Mail, Users, UserX, UserPlus, X, Check, Filter, 
-  Loader2, Activity, ExternalLink, Code2, FileText, Clock, GitCommit, CheckCircle2, FolderGit2
+  Loader2, Activity, ExternalLink, Code2, FileText, Clock, GitCommit, CheckCircle2, FolderGit2, AlertCircle, Briefcase
 } from "lucide-react";
 import { useCodingStats } from "../../hooks/useCodingStats";
-import { getAssignedStudents, getStudents, assignStudent, unassignStudent } from "../../api/routes/MentorDashboard/main.js";
+import { 
+  getAssignedStudents, 
+  getStudents, 
+  assignStudent, 
+  unassignStudent,
+} from "../../api/routes/MentorDashboard/main.js";
+import { getLeaderboardData } from "../../api/routes/Public/leaderboard.js";
 import "./assigned.css";
 
-// Brand SVG Icons matching DashboardContent
+const isLeetCodeActiveThisWeek = (student) => {
+  return !!student?.is_leetcode_active;
+};
+
 const LinkedinIcon = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
@@ -23,30 +32,51 @@ const GithubIcon = ({ size = 16 }) => (
   </svg>
 );
 
-const SparklesIcon = ({ size = 24 }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
-  </svg>
-);
+const StudentAvatar = ({ student, name }) => {
+  const [imgError, setImgError] = useState(false);
 
-// Helper for Student Initials Avatar
-const StudentAvatar = ({ name }) => {
-  const initials = (name || "U")
+  const avatarUrl =
+    student?.avatar_url ||
+    student?.profile_pic ||
+    student?.photo ||
+    student?.avatar ||
+    student?.image_url ||
+    student?.profile_image;
+
+  const displayName = student?.name || student?.full_name || name || "Student";
+
+  const initials = displayName
     .split(" ")
+    .filter(Boolean)
     .map((n) => n[0])
     .join("")
     .substring(0, 2)
     .toUpperCase();
-  return <div className="student-avatar">{initials}</div>;
+
+  if (avatarUrl && !imgError) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={displayName}
+        className="student-avatar-img"
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  return (
+    <div className="student-avatar generic-avatar" title={displayName}>
+      <span>{initials || "S"}</span>
+    </div>
+  );
 };
 
-// Inline platform badges for table cells
 const PlatformBadges = ({ student }) => {
   const platforms = [
-    { key: "github", url: student.github, label: "GitHub", icon: <GithubIcon size={12} /> },
-    { key: "leetcode", url: student.leetcode, label: "LeetCode", icon: <Code2 size={12} /> },
-    { key: "linkedin", url: student.linkedin, label: "LinkedIn", icon: <LinkedinIcon size={12} /> }
-  ].filter(p => p.url);
+    { key: "github", url: student.github, label: "GitHub", icon: <GithubIcon size={14} /> },
+    { key: "leetcode", url: student.leetcode, label: "LeetCode", icon: <Code2 size={14} /> },
+    { key: "linkedin", url: student.linkedin, label: "LinkedIn", icon: <LinkedinIcon size={14} /> }
+  ].filter((p) => p.url);
 
   if (!platforms.length) return <span className="no-platforms-label">No linked profiles</span>;
 
@@ -56,21 +86,30 @@ const PlatformBadges = ({ student }) => {
         <a key={key} href={url} target="_blank" rel="noopener noreferrer" className={`platform-chip ${key}`}>
           {icon}
           <span className="chip-text">{label}</span>
-          <ExternalLink size={10} className="chip-ext" />
         </a>
       ))}
     </div>
   );
 };
 
-// Rich Coding Stats & Profiles Modal matching DashboardContent
-const StudentStatsModal = ({ student, onClose }) => {
-  const { 
-    github: githubStats, 
-    leetcode: leetcodeStats, 
-    loading: isFetchingStats 
-  } = useCodingStats(student?.github, student?.leetcode);
+const LeetCodeStatusBadge = ({ student }) => {
+  if (!student.leetcode && !student.is_leetcode_active) {
+    return <span className="status-badge no-profile">No LeetCode</span>;
+  }
+  const isActive = isLeetCodeActiveThisWeek(student);
+  return isActive ? (
+    <span className="status-badge active">
+      <CheckCircle2 size={14} /> Active
+    </span>
+  ) : (
+    <span className="status-badge inactive">
+      <AlertCircle size={14} /> Inactive (&gt;1wk)
+    </span>
+  );
+};
 
+const StudentStatsModal = ({ student, onClose }) => {
+  const { github: githubStats, leetcode: leetcodeStats, loading: isFetchingStats } = useCodingStats(student?.github, student?.leetcode);
   const hasGitHubActivity = githubStats?.recentRepo || (githubStats?.recentEvents?.length > 0);
   const hasLeetCodeActivity = leetcodeStats?.recentSubmissions?.length > 0;
   const hasAnyActivity = hasGitHubActivity || hasLeetCodeActivity;
@@ -79,209 +118,174 @@ const StudentStatsModal = ({ student, onClose }) => {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-card profile-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <div>
-            <div className="modal-title-row">
-              <h3>{student.name || student.full_name}</h3>
-              {student.squad_id && (
-                <span className="squad-badge">Squad {student.squad_id}</span>
-              )}
+          <div className="modal-header-info">
+            <StudentAvatar student={student} />
+            <div>
+              <div className="modal-title-row">
+                <h3>{student.name || student.full_name}</h3>
+                {student.squad_id && <span className="squad-badge">Squad {student.squad_id}</span>}
+              </div>
+              {student.title && <p className="subtext"><Briefcase size={14} /> {student.title}</p>}
             </div>
-            {student.title && <p className="subtext">{student.title}</p>}
           </div>
-          <button onClick={onClose} className="modal-close-btn"><X size={18} /></button>
+          <button onClick={onClose} className="icon-btn close-btn" aria-label="Close"><X size={20} /></button>
         </div>
 
         <div className="modal-body">
-          {student.bio && <p className="modal-bio">"{student.bio}"</p>}
+          {student.bio && <div className="modal-bio">"{student.bio}"</div>}
 
-          {/* Contact Details */}
-          <div className="modal-info-group">
-            <div className="section-label">Contact Details</div>
-            {(student.kalvium_email || student.email) && (
-              <div className="meta-item">
-                <Mail size={14} />
-                <span>Kalvium: {student.kalvium_email || student.email}</span>
-              </div>
-            )}
-            {student.personal_email && (
-              <div className="meta-item">
-                <Mail size={14} />
-                <span>Personal: {student.personal_email}</span>
-              </div>
-            )}
+          <div className="modal-section">
+            <h4 className="section-title">Contact Details</h4>
+            <div className="contact-grid">
+              {(student.kalvium_email || student.email) && (
+                <div className="contact-item">
+                  <Mail size={16} />
+                  <div>
+                    <span className="contact-label">Kalvium Email</span>
+                    <span className="contact-value">{student.kalvium_email || student.email}</span>
+                  </div>
+                </div>
+              )}
+              {student.personal_email && (
+                <div className="contact-item">
+                  <Mail size={16} />
+                  <div>
+                    <span className="contact-label">Personal Email</span>
+                    <span className="contact-value">{student.personal_email}</span>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Coding Profiles & Live Stats */}
-          <div className="modal-info-group" style={{ marginTop: 20 }}>
-            <div className="group-title-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div className="section-label">Coding Profiles & Live Stats</div>
+          <div className="modal-section">
+            <div className="section-header">
+              <h4 className="section-title">Coding Profiles & Stats</h4>
               {isFetchingStats && (
-                <span className="fetching-indicator" style={{ fontSize: "12px", display: "flex", gap: "4px", alignItems: "center" }}>
-                  <Loader2 size={12} className="spin-icon" /> Fetching stats...
+                <span className="fetching-badge">
+                  <Loader2 size={12} className="spin-icon" /> Fetching live data...
                 </span>
               )}
             </div>
 
-            <div className="modal-links-grid" style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "10px" }}>
-              {/* LeetCode Card */}
+            <div className="profiles-grid">
               {student.leetcode && (
-                <div className="modal-link-card leetcode">
-                  <div className="card-main">
-                    <Code2 size={18} />
-                    <div className="card-info">
-                      <div className="card-title-row">
-                        <strong>LeetCode</strong>
-                        <a href={student.leetcode} target="_blank" rel="noopener noreferrer">
-                          View Profile <ExternalLink size={12} />
-                        </a>
-                      </div>
+                <div className="profile-card leetcode-card">
+                  <div className="profile-card-header">
+                    <div className="brand">
+                      <Code2 size={20} /> <strong>LeetCode</strong>
                     </div>
+                    <a href={student.leetcode} target="_blank" rel="noopener noreferrer" className="external-link">
+                      Visit <ExternalLink size={14} />
+                    </a>
                   </div>
                   {leetcodeStats && (
-                    <div className="api-stats-pills" style={{ display: "flex", gap: "8px", marginTop: "6px" }}>
-                      {leetcodeStats.totalSolved !== undefined && (
-                        <span className="stat-pill primary">Solved: <strong>{leetcodeStats.totalSolved}</strong></span>
-                      )}
-                      {leetcodeStats.easySolved !== undefined && (
-                        <span className="stat-pill easy">Easy: {leetcodeStats.easySolved}</span>
-                      )}
-                      {leetcodeStats.mediumSolved !== undefined && (
-                        <span className="stat-pill medium">Med: {leetcodeStats.mediumSolved}</span>
-                      )}
-                      {leetcodeStats.hardSolved !== undefined && (
-                        <span className="stat-pill hard">Hard: {leetcodeStats.hardSolved}</span>
-                      )}
+                    <div className="stats-row">
+                      <div className="stat-box primary">
+                        <span className="stat-val">{leetcodeStats.totalSolved || 0}</span>
+                        <span className="stat-lbl">Solved</span>
+                      </div>
+                      <div className="stat-box easy">
+                        <span className="stat-val">{leetcodeStats.easySolved || 0}</span>
+                        <span className="stat-lbl">Easy</span>
+                      </div>
+                      <div className="stat-box medium">
+                        <span className="stat-val">{leetcodeStats.mediumSolved || 0}</span>
+                        <span className="stat-lbl">Medium</span>
+                      </div>
+                      <div className="stat-box hard">
+                        <span className="stat-val">{leetcodeStats.hardSolved || 0}</span>
+                        <span className="stat-lbl">Hard</span>
+                      </div>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* GitHub Card */}
               {student.github && (
-                <div className="modal-link-card github">
-                  <div className="card-main">
-                    <GithubIcon size={18} />
-                    <div className="card-info">
-                      <div className="card-title-row">
-                        <strong>GitHub</strong>
-                        <a href={student.github} target="_blank" rel="noopener noreferrer">
-                          View Repositories <ExternalLink size={12} />
-                        </a>
-                      </div>
+                <div className="profile-card github-card">
+                  <div className="profile-card-header">
+                    <div className="brand">
+                      <GithubIcon size={20} /> <strong>GitHub</strong>
                     </div>
+                    <a href={student.github} target="_blank" rel="noopener noreferrer" className="external-link">
+                      Visit <ExternalLink size={14} />
+                    </a>
                   </div>
                   {githubStats && (
-                    <div className="api-stats-pills" style={{ display: "flex", gap: "8px", marginTop: "6px" }}>
-                      {githubStats.followers !== undefined && (
-                        <span className="stat-pill primary">Followers: <strong>{githubStats.followers}</strong></span>
-                      )}
-                      {(githubStats.repos !== undefined || githubStats.public_repos !== undefined) && (
-                        <span className="stat-pill">Repos: <strong>{githubStats.repos ?? githubStats.public_repos}</strong></span>
-                      )}
-                      {githubStats.contributions !== undefined && (
-                        <span className="stat-pill">Contributions: <strong>{githubStats.contributions}</strong></span>
-                      )}
+                    <div className="stats-row">
+                      <div className="stat-box">
+                        <span className="stat-val">{githubStats.followers || 0}</span>
+                        <span className="stat-lbl">Followers</span>
+                      </div>
+                      <div className="stat-box">
+                        <span className="stat-val">{githubStats.repos ?? githubStats.public_repos ?? 0}</span>
+                        <span className="stat-lbl">Repos</span>
+                      </div>
+                      <div className="stat-box">
+                        <span className="stat-val">{githubStats.contributions || 0}</span>
+                        <span className="stat-lbl">Contributions</span>
+                      </div>
                     </div>
                   )}
                 </div>
               )}
+            </div>
 
-              {/* LinkedIn */}
+            <div className="quick-links">
               {student.linkedin && (
-                <div className="modal-link-card linkedin">
-                  <div className="card-main">
-                    <LinkedinIcon size={18} />
-                    <div className="card-info">
-                      <div className="card-title-row">
-                        <strong>LinkedIn</strong>
-                        <a href={student.linkedin} target="_blank" rel="noopener noreferrer">
-                          View Profile <ExternalLink size={12} />
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <a href={student.linkedin} target="_blank" rel="noopener noreferrer" className="quick-link linkedin-link">
+                  <LinkedinIcon size={16} /> LinkedIn Profile
+                </a>
               )}
-
-              {/* Resume */}
               {student.resume_url && (
-                <div className="modal-link-card resume">
-                  <div className="card-main">
-                    <FileText size={18} />
-                    <div className="card-info">
-                      <div className="card-title-row">
-                        <strong>Resume</strong>
-                        <a href={student.resume_url} target="_blank" rel="noopener noreferrer">
-                          View PDF Resume <ExternalLink size={12} />
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <a href={student.resume_url} target="_blank" rel="noopener noreferrer" className="quick-link resume-link">
+                  <FileText size={16} /> View Resume
+                </a>
               )}
             </div>
           </div>
 
-          {/* Recent Activity Section */}
-          <div className="modal-info-group" style={{ marginTop: 20 }}>
-            <div className="group-title-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div className="section-label">Recent Activity</div>
-              <Activity size={14} className="activity-heading-icon" />
-            </div>
-
+          <div className="modal-section">
+            <h4 className="section-title">Recent Activity Feed</h4>
             {isFetchingStats ? (
-              <div className="modal-loading-state" style={{ display: "flex", gap: "12px", alignItems: "center", marginTop: "10px" }}>
-                <Loader2 size={16} className="spin-icon" />
-                <span>Loading activity feed...</span>
+              <div className="loading-state-inline">
+                <Loader2 size={18} className="spin-icon" /> Loading activity...
               </div>
             ) : (
-              <div className="activity-timeline" style={{ marginTop: "10px" }}>
+              <div className="activity-timeline">
                 {githubStats?.recentRepo && (
-                  <div className="activity-item github-activity">
-                    <FolderGit2 size={15} className="activity-icon gh-icon" />
-                    <div className="activity-details">
-                      <span className="activity-title">
-                        Updated project <strong>{githubStats.recentRepo}</strong>
-                      </span>
-                      <span className="activity-meta"><Clock size={11} /> Latest Repository • GitHub</span>
+                  <div className="timeline-item">
+                    <div className="timeline-icon github"><FolderGit2 size={16} /></div>
+                    <div className="timeline-content">
+                      <p>Updated repository <strong>{githubStats.recentRepo}</strong></p>
+                      <span className="timeline-meta"><Clock size={12} /> Latest Repository • GitHub</span>
                     </div>
                   </div>
                 )}
-
-                {githubStats?.recentEvents?.length > 0 &&
-                  githubStats.recentEvents.slice(0, 2).map((evt, idx) => (
-                    <div key={`gh-${idx}`} className="activity-item github-activity">
-                      <GitCommit size={15} className="activity-icon gh-icon" />
-                      <div className="activity-details">
-                        <span className="activity-title">
-                          {evt.message || evt.description || "Pushed code update"}
-                        </span>
-                        <span className="activity-meta">
-                          <Clock size={11} /> {evt.timeAgo || "Recently"} • {evt.repoName || "GitHub"}
-                        </span>
-                      </div>
+                {githubStats?.recentEvents?.slice(0, 2).map((evt, idx) => (
+                  <div key={`gh-${idx}`} className="timeline-item">
+                    <div className="timeline-icon github"><GitCommit size={16} /></div>
+                    <div className="timeline-content">
+                      <p>{evt.message || evt.description || "Pushed code update"}</p>
+                      <span className="timeline-meta"><Clock size={12} /> {evt.timeAgo || "Recently"} • {evt.repoName || "GitHub"}</span>
                     </div>
-                  ))}
-
-                {leetcodeStats?.recentSubmissions?.length > 0 &&
-                  leetcodeStats.recentSubmissions.slice(0, 2).map((sub, idx) => (
-                    <div key={`lc-${idx}`} className="activity-item leetcode-activity">
-                      <CheckCircle2 size={15} className="activity-icon lc-icon" />
-                      <div className="activity-details">
-                        <span className="activity-title">
-                          Solved <strong>{sub.title}</strong>
-                        </span>
-                        <span className="activity-meta">
-                          <Clock size={11} /> {sub.timeAgo || "Recently"} • LeetCode
-                        </span>
-                      </div>
+                  </div>
+                ))}
+                {leetcodeStats?.recentSubmissions?.slice(0, 2).map((sub, idx) => (
+                  <div key={`lc-${idx}`} className="timeline-item">
+                    <div className="timeline-icon leetcode"><CheckCircle2 size={16} /></div>
+                    <div className="timeline-content">
+                      <p>Solved <strong>{sub.title}</strong></p>
+                      <span className="timeline-meta"><Clock size={12} /> {sub.timeAgo || "Recently"} • LeetCode</span>
                     </div>
-                  ))}
-
+                  </div>
+                ))}
                 {!hasAnyActivity && (
-                  <p className="no-links-text" style={{ fontSize: "13px", color: "#64748b" }}>
-                    No recent submission or commit activity found.
-                  </p>
+                  <div className="empty-activity">
+                    <Activity size={24} />
+                    <p>No recent submission or commit activity found.</p>
+                  </div>
                 )}
               </div>
             )}
@@ -299,41 +303,80 @@ export default function Assigned() {
   const [loadingId, setLoadingId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  
   const [mainSearch, setMainSearch] = useState("");
   const [modalSearch, setModalSearch] = useState("");
   const [squadFilter, setSquadFilter] = useState("All");
+  const [activityFilter, setActivityFilter] = useState("all"); 
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Fetch both assigned records and complete student profiles in parallel
-      const [assignedData, allStudents] = await Promise.all([
+      const [assignedData, allStudents, leaderboardData] = await Promise.all([
         getAssignedStudents(), 
-        getStudents()
+        getStudents(),
+        getLeaderboardData()
       ]);
+      
+      const leetcodeStatsMap = new Map();
+      (leaderboardData || []).forEach((stat) => {
+        if (stat.user_id) leetcodeStatsMap.set(String(stat.user_id), stat);
+      });
 
-      // 2. Build a lookup map of full profiles keyed by student ID
       const fullProfileMap = new Map();
       (allStudents || []).forEach((student) => {
-        const id = student.id || student.user_id;
+        const id = student.user_id || student.id; 
         if (id) fullProfileMap.set(String(id), student);
       });
 
-      // 3. Merge complete profile information into assigned students
       const mergedAssigned = (assignedData || []).map((assignedStudent) => {
-        const studentId = String(assignedStudent.student_user_id || assignedStudent.id);
+        const studentId = String(assignedStudent.student_user_id || assignedStudent.user_id || assignedStudent.id);
         const detailedProfile = fullProfileMap.get(studentId) || {};
+        
+        const liveStats = leetcodeStatsMap.get(studentId);
+
+        let isCurrentlyActive = false;
+        if (liveStats?.last_solved_at) {
+          const lastSolved = new Date(liveStats.last_solved_at).getTime();
+          const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+          
+          const timeDifference = Math.abs(Date.now() - lastSolved); 
+          isCurrentlyActive = timeDifference <= ONE_WEEK_MS;
+        }
+
         return {
           ...detailedProfile,
           ...assignedStudent,
-          email: detailedProfile.kalvium_email || detailedProfile.personal_email || assignedStudent.email
+          email: detailedProfile.kalvium_email || detailedProfile.personal_email || assignedStudent.email,
+          leetcode: detailedProfile.leetcode || (liveStats ? `https://leetcode.com/u/${liveStats.leetcode_username}` : null),
+          is_leetcode_active: isCurrentlyActive 
         };
       });
 
-      const assignedIds = new Set(mergedAssigned.map((s) => String(s.student_user_id || s.id)));
+      const assignedIds = new Set(mergedAssigned.map((s) => String(s.student_user_id || s.user_id || s.id)));
+      
+      const filteredNotAdded = (allStudents || [])
+        .filter((s) => !assignedIds.has(String(s.user_id || s.id)))
+        .map(student => {
+           const studentId = String(student.user_id || student.id);
+           const liveStats = leetcodeStatsMap.get(studentId);
+           
+           let isCurrentlyActive = false;
+           if (liveStats?.last_solved_at) {
+             const lastSolved = new Date(liveStats.last_solved_at).getTime();
+             const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+             isCurrentlyActive = Math.abs(Date.now() - lastSolved) <= ONE_WEEK_MS;
+           }
+           
+           return { 
+               ...student, 
+               leetcode: student.leetcode || (liveStats ? `https://leetcode.com/u/${liveStats.leetcode_username}` : null),
+               is_leetcode_active: isCurrentlyActive 
+           };
+        });
 
       setAssigned(mergedAssigned);
-      setNotAdded((allStudents || []).filter((s) => !assignedIds.has(String(s.id || s.user_id))));
+      setNotAdded(filteredNotAdded);
     } catch (err) {
       console.error("Failed to load dashboard data:", err);
     } finally {
@@ -367,120 +410,166 @@ export default function Assigned() {
     }
   };
 
-  const filteredAssigned = useMemo(
-    () => assigned.filter((s) => (s.name || "").toLowerCase().includes(mainSearch.toLowerCase())),
-    [assigned, mainSearch]
-  );
+  const activeCount = useMemo(() => assigned.filter(isLeetCodeActiveThisWeek).length, [assigned]);
 
-  const filteredNotAdded = useMemo(
+  const filteredAssigned = useMemo(() => {
+    return assigned.filter((s) => {
+      const matchName = (s.name || s.full_name || "").toLowerCase().includes(mainSearch.toLowerCase());
+      const isActive = isLeetCodeActiveThisWeek(s);
+      const matchActivity = activityFilter === "all" ? true : activityFilter === "active" ? isActive : !isActive;
+      return matchName && matchActivity;
+    });
+  }, [assigned, mainSearch, activityFilter]);
+
+  const filteredNotAddedList = useMemo(
     () => notAdded.filter((s) => {
-      const matchName = (s.name || "").toLowerCase().includes(modalSearch.toLowerCase());
+      const matchName = (s.name || s.full_name || "").toLowerCase().includes(modalSearch.toLowerCase());
       const matchSquad = squadFilter === "All" || String(s.squad_id) === squadFilter;
       return matchName && matchSquad;
     }),
     [notAdded, modalSearch, squadFilter]
   );
 
-  const uniqueSquads = useMemo(() => {
-    const set = new Set(notAdded.map((s) => String(s.squad_id)).filter(Boolean));
-    return ["All", ...Array.from(set)];
-  }, [notAdded]);
+  const uniqueSquads = useMemo(() => ["All", ...Array.from(new Set(notAdded.map((s) => String(s.squad_id)).filter(Boolean)))], [notAdded]);
 
   if (loading) {
     return (
-      <div className="loading-container">
-        <Loader2 size={36} className="spin-icon" />
-        <p>Loading assigned roster...</p>
+      <div className="full-page-loader">
+        <Loader2 size={48} className="spin-icon" />
+        <p>Loading your mentorship roster...</p>
       </div>
     );
   }
 
   return (
-    <div className="students-layout">
-      {/* Top Overview Cards */}
-      <div className="overview-cards">
-        <div className="overview-card">
-          <div className="overview-icon"><Users size={22} /></div>
-          <div>
-            <span className="overview-title">Assigned Students</span>
-            <div className="overview-value">{assigned.length}</div>
+    <div className="dashboard-layout">
+      {/* Overview Cards */}
+      <div className="metrics-grid">
+        <div className="metric-card bg-black">
+          <div className="metric-icon bg-red">
+            <Users size={24} />
+          </div>
+          <div className="metric-data">
+            <span className="metric-label">Assigned Mentees</span>
+            <span className="metric-value">{assigned.length}</span>
           </div>
         </div>
-        <div className="overview-card">
-          <div className="overview-icon accent"><SparklesIcon size={22} /></div>
-          <div>
-            <span className="overview-title">Not Added Students</span>
-            <div className="overview-value">{notAdded.length}</div>
+
+        <div 
+          className={`metric-card interactive ${activityFilter === 'active' ? 'active-filter' : ''}`}
+          onClick={() => setActivityFilter(activityFilter === 'active' ? 'all' : 'active')}
+        >
+          <div className="metric-icon bg-red">
+            <Activity size={24} />
+          </div>
+          <div className="metric-data">
+            <span className="metric-label">Active This Week</span>
+            <span className="metric-value">{activeCount}</span>
+            <span className="metric-hint">LeetCode submissions</span>
           </div>
         </div>
-        <button onClick={() => setIsModalOpen(true)} className="add-student-trigger-btn">
-          <UserPlus size={18} /> Assign Student
+
+        <button 
+          className="btn-primary assign-btn-large" 
+          onClick={() => setIsModalOpen(true)}
+        >
+          <UserPlus size={20} /> Assign New Students
         </button>
       </div>
 
-      {/* Main Content Table Card */}
-      <div className="table-card">
-        <div className="table-toolbar">
-          <div className="search-input-wrapper">
-            <Search size={16} className="search-icon" />
+      {/* Main Content Area */}
+      <div className="content-card">
+        <div className="content-toolbar">
+          <div className="search-box">
+            <Search size={18} className="text-muted" />
             <input 
               type="text" 
-              placeholder="Search by student name..." 
-              value={mainSearch} 
-              onChange={(e) => setMainSearch(e.target.value)} 
+              placeholder="Search assigned students..." 
+              value={mainSearch}
+              onChange={(e) => setMainSearch(e.target.value)}
             />
+          </div>
+
+          <div className="filter-box">
+            <Filter size={18} className="text-muted" />
+            <select 
+              value={activityFilter} 
+              onChange={(e) => setActivityFilter(e.target.value)}
+            >
+              <option value="all">All Activity Statuses</option>
+              <option value="active">Active (This Week)</option>
+              <option value="inactive">Inactive (&gt;1 Week)</option>
+            </select>
           </div>
         </div>
 
-        <div className="table-responsive">
-          <table className="students-table">
+        <div className="table-wrapper">
+          <table className="responsive-table">
             <thead>
               <tr>
-                <th>STUDENT</th>
-                <th>SQUAD</th>
-                <th>EMAIL</th>
-                <th>LINKED PROFILES</th>
-                <th className="align-right">ACTIONS</th>
+                <th>Student Details</th>
+                <th>Squad</th>
+                <th>Email Address</th>
+                <th>LeetCode Status</th>
+                <th>Linked Profiles</th>
+                <th className="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredAssigned.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="empty-state">
-                    No assigned students found.
+                  <td colSpan="6" className="empty-table-state">
+                    <div className="empty-message">
+                      <UserX size={36} />
+                      <p>No assigned students matching your criteria.</p>
+                    </div>
                   </td>
                 </tr>
               ) : (
-                filteredAssigned.map((s) => {
-                  const id = s.student_user_id || s.id;
+                filteredAssigned.map((student) => {
+                  const studentId = student.student_user_id || student.id;
+                  const isProcessing = loadingId === studentId;
+
                   return (
-                    <tr key={id}>
-                      <td>
-                        <div className="student-info-cell">
-                          <StudentAvatar name={s.name} />
-                          <span className="student-name">{s.name || "Unknown"}</span>
+                    <tr key={studentId}>
+                      <td data-label="Student Details">
+                        <div className="student-profile-cell">
+                          <StudentAvatar student={student} />
+                          <div className="student-info">
+                            <span className="student-name">{student.name || student.full_name}</span>
+                          </div>
                         </div>
                       </td>
-                      <td>
-                        <span className="squad-badge">Squad {s.squad_id || "N/A"}</span>
+                      <td data-label="Squad">
+                        {student.squad_id ? (
+                          <span className="squad-badge">Squad {student.squad_id}</span>
+                        ) : (
+                          <span className="text-muted">-</span>
+                        )}
                       </td>
-                      <td className="email-cell">
-                        <Mail size={13} /> <span>{s.email || "N/A"}</span>
+                      <td data-label="Email Address">
+                        <span className="email-text">{student.email || "N/A"}</span>
                       </td>
-                      <td>
-                        <PlatformBadges student={s} />
+                      <td data-label="LeetCode Status">
+                        <LeetCodeStatusBadge student={student} />
                       </td>
-                      <td className="align-right">
-                        <div className="action-buttons">
-                          <button onClick={() => setSelectedStudent(s)} className="btn-secondary">
+                      <td data-label="Linked Profiles">
+                        <PlatformBadges student={student} />
+                      </td>
+                      <td data-label="Actions" className="text-right">
+                        <div className="actions-cell">
+                          <button 
+                            className="btn-secondary btn-sm"
+                            onClick={() => setSelectedStudent(student)}
+                          >
                             <Activity size={14} /> Stats
                           </button>
                           <button 
-                            onClick={() => handleUnassign(s)} 
-                            disabled={loadingId === id}
-                            className="btn-danger"
+                            className="btn-danger btn-sm"
+                            disabled={isProcessing}
+                            onClick={() => handleUnassign(student)}
                           >
-                            {loadingId === id ? <Loader2 size={14} className="spin-icon" /> : <UserX size={14} />}
+                            {isProcessing ? <Loader2 size={14} className="spin-icon" /> : <UserX size={14} />}
                             Unassign
                           </button>
                         </div>
@@ -494,69 +583,70 @@ export default function Assigned() {
         </div>
       </div>
 
-      {/* Stats Modal */}
-      {selectedStudent && (
-        <StudentStatsModal student={selectedStudent} onClose={() => setSelectedStudent(null)} />
-      )}
-
-      {/* Assign Student Modal */}
+      {/* Assign Students Modal */}
       {isModalOpen && (
         <div className="modal-backdrop" onClick={() => setIsModalOpen(false)}>
-          <div className="modal-card list-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-card assign-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <div>
-                <h4>Assign Students</h4>
-                <p className="subtext">Select students to add to your mentorship roster</p>
+              <div className="modal-title-row">
+                <UserPlus size={20} className="text-muted" />
+                <h3>Assign Students to Roster</h3>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="modal-close-btn"><X size={18} /></button>
+              <button onClick={() => setIsModalOpen(false)} className="icon-btn" aria-label="Close"><X size={20} /></button>
             </div>
 
-            <div className="modal-toolbar">
-              <div className="search-input-wrapper">
-                <Search size={16} className="search-icon" />
+            <div className="modal-filters">
+              <div className="search-box">
+                <Search size={18} className="text-muted" />
                 <input 
                   type="text" 
-                  placeholder="Search students..." 
-                  value={modalSearch} 
-                  onChange={(e) => setModalSearch(e.target.value)} 
+                  placeholder="Search available students..." 
+                  value={modalSearch}
+                  onChange={(e) => setModalSearch(e.target.value)}
                 />
               </div>
-              <div className="filter-wrapper">
-                <Filter size={14} />
+
+              <div className="filter-box">
+                <Filter size={18} className="text-muted" />
                 <select value={squadFilter} onChange={(e) => setSquadFilter(e.target.value)}>
-                  {uniqueSquads.map((sq) => (
-                    <option key={sq} value={sq}>
-                      {sq === "All" ? "All Squads" : `Squad ${sq}`}
+                  {uniqueSquads.map((squad) => (
+                    <option key={squad} value={squad}>
+                      {squad === "All" ? "All Squads" : `Squad ${squad}`}
                     </option>
                   ))}
                 </select>
               </div>
             </div>
 
-            <div className="modal-student-list">
-              {filteredNotAdded.length === 0 ? (
-                <div className="empty-state">No unadded students match your criteria.</div>
+            <div className="assign-list">
+              {filteredNotAddedList.length === 0 ? (
+                <div className="empty-activity">
+                  <p>No available students found to assign.</p>
+                </div>
               ) : (
-                filteredNotAdded.map((s) => {
-                  const id = s.id || s.student_user_id;
+                filteredNotAddedList.map((student) => {
+                  const studentId = student.id || student.student_user_id;
+                  const isProcessing = loadingId === studentId;
+
                   return (
-                    <div key={id} className="available-student-item">
-                      <div className="student-details">
-                        <StudentAvatar name={s.name} />
+                    <div key={studentId} className="assign-list-item">
+                      <div className="assign-student-info">
+                        <StudentAvatar student={student} />
                         <div>
-                          <div className="student-name-row">
-                            <strong>{s.name}</strong>
-                            <span className="squad-tag">Squad {s.squad_id || "N/A"}</span>
-                          </div>
-                          <PlatformBadges student={s} />
+                          <h4>
+                            {student.name || student.full_name}
+                            {student.squad_id && <span className="squad-badge sm">Squad {student.squad_id}</span>}
+                          </h4>
+                          <span className="email-text">{student.email || student.kalvium_email || "N/A"}</span>
                         </div>
                       </div>
+
                       <button 
-                        onClick={() => handleAssign(s)} 
-                        disabled={loadingId === id}
-                        className="btn-primary"
+                        className="btn-primary btn-sm"
+                        disabled={isProcessing}
+                        onClick={() => handleAssign(student)}
                       >
-                        {loadingId === id ? <Loader2 size={14} className="spin-icon" /> : <Check size={14} />} 
+                        {isProcessing ? <Loader2 size={14} className="spin-icon" /> : <Check size={14} />}
                         Assign
                       </button>
                     </div>
@@ -566,6 +656,14 @@ export default function Assigned() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Student Details / Stats Modal */}
+      {selectedStudent && (
+        <StudentStatsModal 
+          student={selectedStudent} 
+          onClose={() => setSelectedStudent(null)} 
+        />
       )}
     </div>
   );
