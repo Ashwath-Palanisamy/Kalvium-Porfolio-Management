@@ -59,6 +59,22 @@ const extractUsername = (input, platform) => {
     return null;
 };
 
+// Helper to extract boolean active flag from joined relation
+const formatProfileWithActivity = (profile) => {
+    if (!profile) return profile;
+    const lbData = Array.isArray(profile.leetcode_leaderboard) 
+        ? profile.leetcode_leaderboard[0] 
+        : profile.leetcode_leaderboard;
+
+    const { leetcode_leaderboard, ...rest } = profile;
+
+    return {
+        ...rest,
+        is_leetcode_active: lbData?.is_leetcode_active ?? false,
+        last_solved_at: lbData?.last_solved_at || null
+    };
+};
+
 // ==========================================
 // 1. GET all profiles or filter using ?user_id= query
 // ==========================================
@@ -69,7 +85,10 @@ router.get('/profiles', allprofilesLimiter, async (req, res) => {
     if (user_id) {
       const { data, error } = await supabase
         .from('profiles')
-        .select('user_id, name, title, role, avatar_url, github, leetcode, linkedin')
+        .select(`
+            user_id, name, title, role, avatar_url, github, leetcode, linkedin,
+            leetcode_leaderboard ( is_leetcode_active, last_solved_at )
+        `)
         .eq('user_id', user_id)
         .single();
 
@@ -80,18 +99,22 @@ router.get('/profiles', allprofilesLimiter, async (req, res) => {
         return res.status(400).json({ error: error.message });
       }
 
-      return res.json(data);
+      return res.json(formatProfileWithActivity(data));
     }
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('user_id, name, title, squad_id , avatar_url, github, leetcode, linkedin');
+      .select(`
+          user_id, name, title, squad_id, avatar_url, github, leetcode, linkedin,
+          leetcode_leaderboard ( is_leetcode_active, last_solved_at )
+      `);
 
     if (error) {
       return res.status(400).json({ error: error.message });
     }
 
-    return res.json(data);
+    const formattedData = (data || []).map(formatProfileWithActivity);
+    return res.json(formattedData);
   } catch (err) {
     return res.status(500).json({ error: 'Internal Server Error', details: err.message });
   }
@@ -135,7 +158,10 @@ router.get('/profiles/:user_id', singleStudentLimiter, async (req, res) => {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('*') 
+      .select(`
+        *,
+        leetcode_leaderboard ( is_leetcode_active, last_solved_at )
+      `) 
       .eq('user_id', user_id)
       .single();
 
@@ -146,7 +172,7 @@ router.get('/profiles/:user_id', singleStudentLimiter, async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
-    return res.json(data);
+    return res.json(formatProfileWithActivity(data));
   } catch (err) {
     return res.status(500).json({ error: 'Internal Server Error', details: err.message });
   }
@@ -361,6 +387,8 @@ router.get("/leetcode-leaderboard", async (req, res) => {
                 ranking,
                 score,
                 updated_at,
+                last_solved_at,
+                is_leetcode_active,
                 profiles!inner (
                     name,
                     squad_id,
