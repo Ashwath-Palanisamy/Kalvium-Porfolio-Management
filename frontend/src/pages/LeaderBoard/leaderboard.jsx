@@ -147,6 +147,7 @@ function Leaderboard() {
   return (
     <div className="leaderboard-page">
       {/* PAGE HEADER */}
+      <title>Kalvium Portfolio | Leaderboard</title>
       <div className="leaderboard-title">
         <div className="title-header-row">
           <h1>Leaderboard</h1>
