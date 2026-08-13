@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { 
   Search, Mail, Users, UserX, UserPlus, X, Filter, 
-  Loader2, Activity, ExternalLink, Code2, FileText, Clock, GitCommit, CheckCircle2, FolderGit2, AlertCircle, Briefcase
+  Loader2, Activity, ExternalLink, Code2, FileText, Clock, 
+  GitCommit, CheckCircle2, FolderGit2, AlertCircle, Briefcase,
+  ChevronLeft, ChevronRight
 } from "lucide-react";
 import { useCodingStats } from "../../hooks/useCodingStats";
 import { 
@@ -346,7 +348,14 @@ export default function Assigned() {
   const [mainSearch, setMainSearch] = useState("");
   const [modalSearch, setModalSearch] = useState("");
   const [squadFilter, setSquadFilter] = useState("All");
-  const [activityFilter, setActivityFilter] = useState("all"); 
+  const [activityFilter, setActivityFilter] = useState("all");
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+
+  const [modalPage, setModalPage] = useState(1);
+  const [modalItemsPerPage] = useState(6);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -514,6 +523,15 @@ export default function Assigned() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Reset pagination when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [mainSearch, activityFilter]);
+
+  useEffect(() => {
+    setModalPage(1);
+  }, [modalSearch, squadFilter]);
+
   const handleAssign = async (s) => {
     const id = s.uuid_key || s.user_id || s.id || s.student_user_id;
     setLoadingId(id);
@@ -559,6 +577,32 @@ export default function Assigned() {
   );
 
   const uniqueSquads = useMemo(() => ["All", ...Array.from(new Set(notAdded.map((s) => String(s.squad_id)).filter(Boolean)))], [notAdded]);
+
+  // Main Table Pagination Logic
+  const totalPages = Math.ceil(filteredAssigned.length / itemsPerPage) || 1;
+  const paginatedAssigned = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredAssigned.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredAssigned, currentPage, itemsPerPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(Math.max(1, totalPages));
+    }
+  }, [filteredAssigned.length, totalPages, currentPage]);
+
+  // Modal List Pagination Logic
+  const modalTotalPages = Math.ceil(filteredNotAddedList.length / modalItemsPerPage) || 1;
+  const paginatedNotAddedList = useMemo(() => {
+    const startIndex = (modalPage - 1) * modalItemsPerPage;
+    return filteredNotAddedList.slice(startIndex, startIndex + modalItemsPerPage);
+  }, [filteredNotAddedList, modalPage, modalItemsPerPage]);
+
+  useEffect(() => {
+    if (modalPage > modalTotalPages) {
+      setModalPage(Math.max(1, modalTotalPages));
+    }
+  }, [filteredNotAddedList.length, modalTotalPages, modalPage]);
 
   if (loading) {
     return (
@@ -644,7 +688,7 @@ export default function Assigned() {
               </tr>
             </thead>
             <tbody>
-              {filteredAssigned.length === 0 ? (
+              {paginatedAssigned.length === 0 ? (
                 <tr>
                   <td colSpan="6" className="empty-table-state">
                     <div className="empty-message">
@@ -654,7 +698,7 @@ export default function Assigned() {
                   </td>
                 </tr>
               ) : (
-                filteredAssigned.map((student) => {
+                paginatedAssigned.map((student) => {
                   const studentKey = student.uuid_key || student.user_id || student.id;
                   const isProcessing = loadingId === studentKey;
 
@@ -709,6 +753,35 @@ export default function Assigned() {
             </tbody>
           </table>
         </div>
+
+        {/* Main Table Pagination Footer */}
+        {filteredAssigned.length > 0 && (
+          <div className="pagination-bar">
+            <span className="pagination-info">
+              Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredAssigned.length)} to{" "}
+              {Math.min(currentPage * itemsPerPage, filteredAssigned.length)} of {filteredAssigned.length} entries
+            </span>
+            <div className="pagination-controls">
+              <button
+                className="btn-secondary btn-sm pagination-btn"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((prev) => prev - 1)}
+              >
+                <ChevronLeft size={16} /> Previous
+              </button>
+              <span className="page-indicator">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                className="btn-secondary btn-sm pagination-btn"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((prev) => prev + 1)}
+              >
+                Next <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Student Stats Modal */}
@@ -755,13 +828,13 @@ export default function Assigned() {
             </div>
 
             <div className="unassigned-list-container">
-              {filteredNotAddedList.length === 0 ? (
+              {paginatedNotAddedList.length === 0 ? (
                 <div className="empty-message">
                   <UserX size={32} />
                   <p>No available students match your filters.</p>
                 </div>
               ) : (
-                filteredNotAddedList.map((s) => {
+                paginatedNotAddedList.map((s) => {
                   const studentKey = s.uuid_key || s.user_id || s.id;
                   const isProcessing = loadingId === studentKey;
 
@@ -790,6 +863,31 @@ export default function Assigned() {
                 })
               )}
             </div>
+
+            {/* Modal Pagination Footer */}
+            {filteredNotAddedList.length > 0 && (
+              <div className="pagination-bar modal-pagination">
+                <span className="pagination-info">
+                  Page {modalPage} of {modalTotalPages} ({filteredNotAddedList.length} total)
+                </span>
+                <div className="pagination-controls">
+                  <button
+                    className="btn-secondary btn-sm pagination-btn"
+                    disabled={modalPage === 1}
+                    onClick={() => setModalPage((prev) => prev - 1)}
+                  >
+                    <ChevronLeft size={16} /> Prev
+                  </button>
+                  <button
+                    className="btn-secondary btn-sm pagination-btn"
+                    disabled={modalPage === modalTotalPages}
+                    onClick={() => setModalPage((prev) => prev + 1)}
+                  >
+                    Next <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
