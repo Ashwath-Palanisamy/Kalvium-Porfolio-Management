@@ -9,8 +9,8 @@ import {
   getStudents, 
   assignStudent, 
   unassignStudent,
-  getLeaderboardData 
 } from "../../api/routes/MentorDashboard/main.js";
+import { getLeaderboardData } from "../../api/routes/Public/leaderboard.js";
 import "./assigned.css";
 
 const isLeetCodeActiveThisWeek = (student) => {
