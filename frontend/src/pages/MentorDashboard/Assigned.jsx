@@ -17,6 +17,49 @@ const isLeetCodeActiveThisWeek = (student) => {
   return !!student?.is_leetcode_active;
 };
 
+// Safely normalize UUID strings for Map lookups
+const cleanUuid = (val) => {
+  if (val === null || val === undefined) return null;
+  const str = String(val).trim().toLowerCase();
+  return str.length > 0 ? str : null;
+};
+
+// Parse date/timestamp format and evaluate whether activity occurred within 7 days
+const checkIsActive = (dateVal) => {
+  if (dateVal === null || dateVal === undefined || dateVal === "") return false;
+
+  if (typeof dateVal === 'boolean') return dateVal;
+
+  let timestamp = NaN;
+
+  if (dateVal instanceof Date) {
+    timestamp = dateVal.getTime();
+  } else if (typeof dateVal === 'number') {
+    timestamp = dateVal < 1e11 ? dateVal * 1000 : dateVal;
+  } else if (typeof dateVal === 'string') {
+    const trimmed = dateVal.trim();
+    
+    // Numeric string (Unix timestamp)
+    if (/^\d+$/.test(trimmed)) {
+      const num = Number(trimmed);
+      timestamp = num < 1e11 ? num * 1000 : num;
+    } else {
+      let raw = trimmed.replace(" ", "T");
+      if (raw.endsWith("+00") || raw.endsWith("-00")) {
+        raw = raw.slice(0, -3) + "Z";
+      }
+      timestamp = new Date(raw).getTime();
+    }
+  }
+
+  if (isNaN(timestamp)) return false;
+
+  const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+  const diff = Date.now() - timestamp;
+
+  return diff >= 0 && diff <= ONE_WEEK_MS;
+};
+
 const LinkedinIcon = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
@@ -317,62 +360,135 @@ export default function Assigned() {
         getStudents(),
         getLeaderboardData()
       ]);
-      
+
       const leetcodeStatsMap = new Map();
       (leaderboardData || []).forEach((stat) => {
-        if (stat.user_id) leetcodeStatsMap.set(String(stat.user_id), stat);
+        [stat.user_id, stat.student_user_id, stat.student_id, stat.profile_id, stat.id].forEach((field) => {
+          const key = cleanUuid(field);
+          if (key) leetcodeStatsMap.set(key, stat);
+        });
       });
 
       const fullProfileMap = new Map();
       (allStudents || []).forEach((student) => {
-        const id = student.user_id || student.id; 
-        if (id) fullProfileMap.set(String(id), student);
+        [student.user_id, student.student_user_id, student.student_id, student.profile_id, student.id].forEach((field) => {
+          const key = cleanUuid(field);
+          if (key) fullProfileMap.set(key, student);
+        });
       });
 
-      const mergedAssigned = (assignedData || []).map((assignedStudent) => {
-        const studentId = String(assignedStudent.student_user_id || assignedStudent.user_id || assignedStudent.id);
-        const detailedProfile = fullProfileMap.get(studentId) || {};
-        
-        const liveStats = leetcodeStatsMap.get(studentId);
-
-        let isCurrentlyActive = false;
-        if (liveStats?.last_solved_at) {
-          const lastSolved = new Date(liveStats.last_solved_at).getTime();
-          const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-          
-          const timeDifference = Math.abs(Date.now() - lastSolved); 
-          isCurrentlyActive = timeDifference <= ONE_WEEK_MS;
+      const findInMap = (map, record) => {
+        if (!record) return null;
+        const keys = [
+          record.user_id,
+          record.student_user_id,
+          record.student_id,
+          record.profile_id,
+          record.id
+        ];
+        for (const k of keys) {
+          const cleaned = cleanUuid(k);
+          if (cleaned && map.has(cleaned)) {
+            return map.get(cleaned);
+          }
         }
+        return null;
+      };
+
+      const extractActivityStatus = (record, profile, stats) => {
+        // Prioritize actual timestamp checks from leaderboard / profile / record
+        const lastSolvedTimestamp = 
+          stats?.last_solved_at || 
+          stats?.last_solved || 
+          stats?.last_submission_time || 
+          stats?.last_submission_at || 
+          stats?.last_active_at || 
+          stats?.last_active || 
+          profile?.last_solved_at || 
+          profile?.last_solved || 
+          record?.last_solved_at || 
+          record?.last_solved;
+
+        if (lastSolvedTimestamp !== undefined && lastSolvedTimestamp !== null) {
+          return checkIsActive(lastSolvedTimestamp);
+        }
+
+        // Fallback to explicit boolean flags if timestamps aren't populated
+        const directFlag = 
+          record?.is_leetcode_active ?? 
+          record?.is_active ?? 
+          profile?.is_leetcode_active ?? 
+          profile?.is_active ?? 
+          stats?.is_leetcode_active ?? 
+          stats?.is_active;
+
+        if (directFlag !== undefined && directFlag !== null) {
+          return Boolean(directFlag);
+        }
+
+        return false;
+      };
+
+      // Process assigned students
+      const mergedAssigned = (assignedData || []).map((assignedStudent) => {
+        const detailedProfile = findInMap(fullProfileMap, assignedStudent) || {};
+        const liveStats = findInMap(leetcodeStatsMap, assignedStudent) || findInMap(leetcodeStatsMap, detailedProfile);
+
+        const primaryUuid = cleanUuid(
+          assignedStudent.user_id || 
+          assignedStudent.student_user_id || 
+          assignedStudent.student_id || 
+          assignedStudent.profile_id || 
+          assignedStudent.id ||
+          detailedProfile.user_id ||
+          detailedProfile.id
+        );
+
+        const isCurrentlyActive = extractActivityStatus(assignedStudent, detailedProfile, liveStats);
 
         return {
           ...detailedProfile,
           ...assignedStudent,
+          uuid_key: primaryUuid,
           email: detailedProfile.kalvium_email || detailedProfile.personal_email || assignedStudent.email,
           leetcode: detailedProfile.leetcode || (liveStats ? `https://leetcode.com/u/${liveStats.leetcode_username}` : null),
           is_leetcode_active: isCurrentlyActive 
         };
       });
 
-      const assignedIds = new Set(mergedAssigned.map((s) => String(s.student_user_id || s.user_id || s.id)));
-      
+      const assignedUuidsSet = new Set(
+        mergedAssigned.map((s) => s.uuid_key).filter(Boolean)
+      );
+
+      // Process unassigned students
       const filteredNotAdded = (allStudents || [])
-        .filter((s) => !assignedIds.has(String(s.user_id || s.id)))
-        .map(student => {
-           const studentId = String(student.user_id || student.id);
-           const liveStats = leetcodeStatsMap.get(studentId);
-           
-           let isCurrentlyActive = false;
-           if (liveStats?.last_solved_at) {
-             const lastSolved = new Date(liveStats.last_solved_at).getTime();
-             const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-             isCurrentlyActive = Math.abs(Date.now() - lastSolved) <= ONE_WEEK_MS;
-           }
-           
-           return { 
-               ...student, 
-               leetcode: student.leetcode || (liveStats ? `https://leetcode.com/u/${liveStats.leetcode_username}` : null),
-               is_leetcode_active: isCurrentlyActive 
-           };
+        .filter((student) => {
+          const studentUuid = cleanUuid(
+            student.user_id || 
+            student.student_user_id || 
+            student.student_id || 
+            student.profile_id || 
+            student.id
+          );
+          return !assignedUuidsSet.has(studentUuid);
+        })
+        .map((student) => {
+          const primaryUuid = cleanUuid(
+            student.user_id || 
+            student.student_user_id || 
+            student.student_id || 
+            student.profile_id || 
+            student.id
+          );
+          const liveStats = findInMap(leetcodeStatsMap, student);
+          const isCurrentlyActive = extractActivityStatus(student, null, liveStats);
+
+          return { 
+            ...student,
+            uuid_key: primaryUuid,
+            leetcode: student.leetcode || (liveStats ? `https://leetcode.com/u/${liveStats.leetcode_username}` : null),
+            is_leetcode_active: isCurrentlyActive 
+          };
         });
 
       setAssigned(mergedAssigned);
@@ -387,23 +503,23 @@ export default function Assigned() {
   useEffect(() => { loadData(); }, [loadData]);
 
   const handleAssign = async (s) => {
-    const id = s.id || s.student_user_id;
+    const id = s.uuid_key || s.user_id || s.id || s.student_user_id;
     setLoadingId(id);
     try {
       await assignStudent(id, s.squad_id || s.squad);
-      setAssigned((prev) => [...prev, { ...s, student_user_id: id }]);
-      setNotAdded((prev) => prev.filter((item) => (item.id || item.student_user_id) !== id));
+      setAssigned((prev) => [...prev, { ...s, uuid_key: id }]);
+      setNotAdded((prev) => prev.filter((item) => item.uuid_key !== id));
     } finally {
       setLoadingId(null);
     }
   };
 
   const handleUnassign = async (s) => {
-    const id = s.student_user_id || s.id;
+    const id = s.uuid_key || s.user_id || s.student_user_id || s.id;
     setLoadingId(id);
     try {
       await unassignStudent(id);
-      setAssigned((prev) => prev.filter((item) => (item.student_user_id || item.id) !== id));
+      setAssigned((prev) => prev.filter((item) => item.uuid_key !== id));
       setNotAdded((prev) => [...prev, s]);
     } finally {
       setLoadingId(null);
@@ -527,11 +643,11 @@ export default function Assigned() {
                 </tr>
               ) : (
                 filteredAssigned.map((student) => {
-                  const studentId = student.student_user_id || student.id;
-                  const isProcessing = loadingId === studentId;
+                  const studentKey = student.uuid_key || student.user_id || student.id;
+                  const isProcessing = loadingId === studentKey;
 
                   return (
-                    <tr key={studentId}>
+                    <tr key={studentKey}>
                       <td data-label="Student Details">
                         <div className="student-profile-cell">
                           <StudentAvatar student={student} />
@@ -625,11 +741,11 @@ export default function Assigned() {
                 </div>
               ) : (
                 filteredNotAddedList.map((student) => {
-                  const studentId = student.id || student.student_user_id;
-                  const isProcessing = loadingId === studentId;
+                  const studentKey = student.uuid_key || student.user_id || student.id;
+                  const isProcessing = loadingId === studentKey;
 
                   return (
-                    <div key={studentId} className="assign-list-item">
+                    <div key={studentKey} className="assign-list-item">
                       <div className="assign-student-info">
                         <StudentAvatar student={student} />
                         <div>
