@@ -47,7 +47,7 @@ body {
 }
 
 /* ==========================================================================
-   SIDEBAR FIXES (REMOVES BLACK OUTLINE)
+   SIDEBAR FIXES
    ========================================================================== */
 .sidebar-menu .menu-item {
   border: 1px solid transparent !important;
@@ -86,6 +86,7 @@ body {
   transition: all 0.2s ease;
 }
 
+/* Dark Card Styling & Red Icon Container Fix */
 .metric-card.bg-black {
   background: var(--kalvium-navy);
   border-color: var(--kalvium-navy);
@@ -93,11 +94,16 @@ body {
 }
 
 .metric-card.bg-black .metric-label {
-  color: var(--text-subtle);
+  color: #94a3b8;
 }
 
 .metric-card.bg-black .metric-value {
   color: #ffffff;
+}
+
+.metric-card.bg-black .metric-icon.bg-red {
+  background: rgba(255, 59, 59, 0.15);
+  color: #ff5252;
 }
 
 .metric-card.interactive {
@@ -215,7 +221,7 @@ body {
 }
 
 /* ==========================================================================
-   TABLE LAYOUT & ACTIONS (FIXES RIGHT OVERFLOW)
+   TABLE LAYOUT & ACTIONS
    ========================================================================== */
 .table-wrapper {
   width: 100%;
@@ -264,7 +270,7 @@ body {
 }
 
 /* ==========================================================================
-   BUTTON STYLES (PRIMARY, SECONDARY, & DANGER / UNASSIGN)
+   BUTTON STYLES
    ========================================================================== */
 .btn-primary {
   background: var(--kalvium-red);
@@ -309,7 +315,6 @@ body {
   border-color: #cbd5e1;
 }
 
-/* UNASSIGN BUTTON (.btn-danger) */
 .btn-danger {
   background: var(--kalvium-red-light);
   color: var(--kalvium-red);
@@ -390,7 +395,6 @@ body {
   font-size: 0.8125rem;
 }
 
-/* Squad & Status Badges */
 .squad-badge {
   background: #e0e7ff;
   color: #4338ca;
@@ -428,7 +432,6 @@ body {
   border: 1px dashed var(--kalvium-border);
 }
 
-/* Linked Profile Chips */
 .platform-chips-container {
   display: flex;
   flex-direction: column;
@@ -463,7 +466,6 @@ body {
   font-style: italic;
 }
 
-/* Empty Table State */
 .empty-table-state {
   padding: 3rem 1rem !important;
   text-align: center;
@@ -537,6 +539,15 @@ body {
   color: var(--text-primary);
 }
 
+.subtext {
+  margin: 2px 0 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .icon-btn {
   background: transparent;
   border: none;
@@ -564,21 +575,47 @@ body {
 
 .modal-bio {
   font-style: italic;
-  color: var(--text-muted);
+  color: #475569;
   background: #f8fafc;
-  padding: 0.75rem 1rem;
+  padding: 0.85rem 1.1rem;
   border-radius: var(--radius-md);
   border-left: 3px solid var(--kalvium-red);
   font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.modal-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
 }
 
 .section-title {
   margin: 0 0 0.75rem 0;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 700;
-  color: var(--text-muted);
+  color: #475569;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  padding-bottom: 0.35rem;
+  border-bottom: 2px solid var(--kalvium-navy);
+  display: inline-block;
+  align-self: flex-start;
+}
+
+.fetching-badge {
+  font-size: 0.75rem;
+  color: var(--kalvium-red);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
 }
 
 .contact-grid, .profiles-grid {
@@ -587,6 +624,9 @@ body {
   gap: 1rem;
 }
 
+/* ==========================================================================
+   CONTACT DETAILS HOVER FIX
+   ========================================================================== */
 .contact-item {
   display: flex;
   align-items: center;
@@ -595,18 +635,35 @@ body {
   padding: 0.75rem 1rem;
   border-radius: var(--radius-md);
   border: 1px solid var(--kalvium-border);
+  transition: all 0.2s ease;
+  color: var(--text-primary);
+}
+
+.contact-item:hover {
+  background: #ffffff;
+  border-color: var(--kalvium-red-border);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.contact-item svg {
+  color: var(--kalvium-red);
+  flex-shrink: 0;
 }
 
 .contact-label {
   display: block;
   font-size: 0.75rem;
+  font-weight: 700;
   color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .contact-value {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--text-primary);
+  word-break: break-all;
 }
 
 .profile-card {
@@ -627,6 +684,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  font-weight: 700;
 }
 
 .external-link {
@@ -657,11 +715,124 @@ body {
 .stat-val {
   font-weight: 800;
   font-size: 0.9375rem;
+  color: var(--text-primary);
 }
+
+.stat-box.easy .stat-val { color: #0d9488; }
+.stat-box.medium .stat-val { color: #d97706; }
+.stat-box.hard .stat-val { color: #ef4444; }
 
 .stat-lbl {
   font-size: 0.6875rem;
   color: var(--text-muted);
+}
+
+.quick-links {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.quick-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.quick-link.linkedin-link {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.quick-link.linkedin-link:hover {
+  background: #c7d2fe;
+}
+
+.quick-link.resume-link {
+  background: #f1f5f9;
+  color: var(--text-primary);
+  border: 1px solid var(--kalvium-border);
+}
+
+.quick-link.resume-link:hover {
+  background: #e2e8f0;
+}
+
+.activity-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.timeline-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.64rem 0.85rem;
+  border-radius: var(--radius-md);
+  background: #f8fafc;
+  border: 1px solid var(--kalvium-border);
+}
+
+.timeline-icon {
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.timeline-icon.github { color: #0f172a; }
+.timeline-icon.leetcode { color: var(--kalvium-red); }
+
+.timeline-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.timeline-content p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.timeline-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.empty-activity {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  color: var(--text-muted);
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  background: #f8fafc;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--kalvium-border);
+}
+
+.loading-state-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  padding: 1rem 0;
 }
 
 /* Modal Assign Student List */
