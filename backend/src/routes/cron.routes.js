@@ -120,6 +120,12 @@ async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxR
                 lastSolvedAt = existingData?.last_solved_at || null;
             }
 
+            // Calculate 7-day activity boolean
+            const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+            const isLeetCodeActive = lastSolvedAt 
+                ? (Date.now() - new Date(lastSolvedAt).getTime()) <= SEVEN_DAYS_MS 
+                : false;
+
             const upsertPayload = {
                 profile_id: profileId,
                 user_id: userId,
@@ -131,7 +137,9 @@ async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxR
                 ranking: ranking,
                 score: score,
                 updated_at: new Date().toISOString(),
-                last_solved_at: lastSolvedAt
+                last_solved_at: lastSolvedAt,
+                is_leetcode_active: isLeetCodeActive, // Boolean flag for activity
+                is_active: isLeetCodeActive          // Fallback column name
             };
 
             const { error: dbError } = await supabaseAdmin
@@ -146,7 +154,7 @@ async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxR
                 return { status: 'DB_ERROR', username, error: dbError.message };
             }
 
-            return { status: 'SUCCESS', username: matchedUser.username };
+            return { status: 'SUCCESS', username: matchedUser.username, isActive: isLeetCodeActive };
 
         } catch (err) {
             if (attempt < maxRetries) {
@@ -199,6 +207,7 @@ router.post("/update-leetcode", async (req, res) => {
         const stats = {
             totalFetched: users.length,
             success: 0,
+            activeCount: 0,
             invalidUrl: 0,
             notFound: 0,
             httpError: 0,
@@ -215,7 +224,10 @@ router.post("/update-leetcode", async (req, res) => {
             const result = await syncSingleLeetCodeProfile(user.id, user.user_id, user.leetcode);
 
             switch (result?.status) {
-                case 'SUCCESS': stats.success++; break;
+                case 'SUCCESS': 
+                    stats.success++; 
+                    if (result.isActive) stats.activeCount++;
+                    break;
                 case 'INVALID_URL': stats.invalidUrl++; break;
                 case 'NOT_FOUND': stats.notFound++; break;
                 case 'HTTP_ERROR': stats.httpError++; break;
@@ -230,6 +242,7 @@ router.post("/update-leetcode", async (req, res) => {
         console.log("\n================ [Cron Execution Summary] ================");
         console.log(`Total Profiles Fetched from DB : ${stats.totalFetched}`);
         console.log(`Successfully Saved to DB      : ${stats.success}`);
+        console.log(`Active Users (Solved in 7 days): ${stats.activeCount}`);
         console.log(`Skipped (Invalid URL/Username): ${stats.invalidUrl}`);
         console.log(`LeetCode User Not Found (404) : ${stats.notFound}`);
         console.log(`HTTP Request Errors (Non-200) : ${stats.httpError}`);

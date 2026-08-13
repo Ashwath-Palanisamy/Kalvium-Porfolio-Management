@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { 
-  Search, Mail, Users, UserX, UserPlus, X, Check, Filter, 
+  Search, Mail, Users, UserX, UserPlus, X, Filter, 
   Loader2, Activity, ExternalLink, Code2, FileText, Clock, GitCommit, CheckCircle2, FolderGit2, AlertCircle, Briefcase
 } from "lucide-react";
 import { useCodingStats } from "../../hooks/useCodingStats";
@@ -13,51 +13,48 @@ import {
 import { getLeaderboardData } from "../../api/routes/Public/leaderboard.js";
 import "./assigned.css";
 
-const isLeetCodeActiveThisWeek = (student) => {
-  return !!student?.is_leetcode_active;
+const isTruthy = (val) => {
+  return val === true || val === 1 || val === "1" || val === "true" || val === "active" || val === "Active";
 };
 
-// Safely normalize UUID strings for Map lookups
+const checkIsActiveDate = (dateVal) => {
+  if (!dateVal) return false;
+  const subDate = new Date(dateVal);
+  if (isNaN(subDate.getTime())) return false;
+
+  const now = Date.now();
+  const diff = now - subDate.getTime();
+  const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+  return diff <= SEVEN_DAYS_MS && diff >= 0;
+};
+
+const isLeetCodeActiveThisWeek = (student) => {
+  if (student?.is_leetcode_active !== undefined && student?.is_leetcode_active !== null) {
+    return isTruthy(student.is_leetcode_active);
+  }
+  return checkIsActiveDate(student?.last_solved_at);
+};
+
+const extractActivityStatus = (record, profile, stats) => {
+  if (record?.is_leetcode_active !== undefined) return isTruthy(record.is_leetcode_active);
+  if (profile?.is_leetcode_active !== undefined) return isTruthy(profile.is_leetcode_active);
+  if (stats?.is_leetcode_active !== undefined) return isTruthy(stats.is_leetcode_active);
+
+  const lastSolved = stats?.last_solved_at || profile?.last_solved_at || record?.last_solved_at;
+  return checkIsActiveDate(lastSolved);
+};
+
 const cleanUuid = (val) => {
   if (val === null || val === undefined) return null;
   const str = String(val).trim().toLowerCase();
   return str.length > 0 ? str : null;
 };
 
-// Parse date/timestamp format and evaluate whether activity occurred within 7 days
-const checkIsActive = (dateVal) => {
-  if (dateVal === null || dateVal === undefined || dateVal === "") return false;
-
-  if (typeof dateVal === 'boolean') return dateVal;
-
-  let timestamp = NaN;
-
-  if (dateVal instanceof Date) {
-    timestamp = dateVal.getTime();
-  } else if (typeof dateVal === 'number') {
-    timestamp = dateVal < 1e11 ? dateVal * 1000 : dateVal;
-  } else if (typeof dateVal === 'string') {
-    const trimmed = dateVal.trim();
-    
-    // Numeric string (Unix timestamp)
-    if (/^\d+$/.test(trimmed)) {
-      const num = Number(trimmed);
-      timestamp = num < 1e11 ? num * 1000 : num;
-    } else {
-      let raw = trimmed.replace(" ", "T");
-      if (raw.endsWith("+00") || raw.endsWith("-00")) {
-        raw = raw.slice(0, -3) + "Z";
-      }
-      timestamp = new Date(raw).getTime();
-    }
-  }
-
-  if (isNaN(timestamp)) return false;
-
-  const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-  const diff = Date.now() - timestamp;
-
-  return diff >= 0 && diff <= ONE_WEEK_MS;
+const cleanLeetcodeUsername = (urlOrName) => {
+  if (!urlOrName) return null;
+  const str = String(urlOrName).trim().toLowerCase();
+  const match = str.match(/(?:leetcode\.com\/(?:u\/)?|leetcode\.com\/u\/)?([^\/\?#]+)/i);
+  return match ? match[1] : str;
 };
 
 const LinkedinIcon = ({ size = 16 }) => (
@@ -75,7 +72,7 @@ const GithubIcon = ({ size = 16 }) => (
   </svg>
 );
 
-const StudentAvatar = ({ student, name }) => {
+const StudentAvatar = ({ student }) => {
   const [imgError, setImgError] = useState(false);
 
   const avatarUrl =
@@ -86,7 +83,7 @@ const StudentAvatar = ({ student, name }) => {
     student?.image_url ||
     student?.profile_image;
 
-  const displayName = student?.name || student?.full_name || name || "Student";
+  const displayName = student?.name || student?.full_name || "Student";
 
   const initials = displayName
     .split(" ")
@@ -136,11 +133,10 @@ const PlatformBadges = ({ student }) => {
 };
 
 const LeetCodeStatusBadge = ({ student }) => {
-  if (!student.leetcode && !student.is_leetcode_active) {
+  if (!student.leetcode && student.is_leetcode_active === undefined) {
     return <span className="status-badge no-profile">No LeetCode</span>;
   }
-  const isActive = isLeetCodeActiveThisWeek(student);
-  return isActive ? (
+  return isLeetCodeActiveThisWeek(student) ? (
     <span className="status-badge active">
       <CheckCircle2 size={14} /> Active
     </span>
@@ -344,8 +340,8 @@ export default function Assigned() {
   const [notAdded, setNotAdded] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingId, setLoadingId] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   
   const [mainSearch, setMainSearch] = useState("");
   const [modalSearch, setModalSearch] = useState("");
@@ -361,12 +357,27 @@ export default function Assigned() {
         getLeaderboardData()
       ]);
 
-      const leetcodeStatsMap = new Map();
+      const statByUserId = new Map();
+      const statByProfileId = new Map();
+      const statByUsername = new Map();
+      const statByEmail = new Map();
+      const statByName = new Map();
+
       (leaderboardData || []).forEach((stat) => {
-        [stat.user_id, stat.student_user_id, stat.student_id, stat.profile_id, stat.id].forEach((field) => {
-          const key = cleanUuid(field);
-          if (key) leetcodeStatsMap.set(key, stat);
-        });
+        const uid = cleanUuid(stat.user_id || stat.student_user_id || stat.student_id);
+        if (uid) statByUserId.set(uid, stat);
+
+        const pid = cleanUuid(stat.profile_id);
+        if (pid) statByProfileId.set(pid, stat);
+
+        const uname = cleanLeetcodeUsername(stat.leetcode_username || stat.username || stat.leetcode);
+        if (uname) statByUsername.set(uname, stat);
+
+        const email = (stat.email || stat.kalvium_email)?.trim().toLowerCase();
+        if (email) statByEmail.set(email, stat);
+
+        const name = (stat.name || stat.full_name)?.trim().toLowerCase();
+        if (name) statByName.set(name, stat);
       });
 
       const fullProfileMap = new Map();
@@ -376,6 +387,41 @@ export default function Assigned() {
           if (key) fullProfileMap.set(key, student);
         });
       });
+
+      const findInStatsMap = (record, profile) => {
+        const candidates = [record, profile].filter(Boolean);
+
+        for (const item of candidates) {
+          const uids = [item.user_id, item.student_user_id, item.student_id].map(cleanUuid).filter(Boolean);
+          for (const uid of uids) {
+            if (statByUserId.has(uid)) return statByUserId.get(uid);
+          }
+        }
+
+        for (const item of candidates) {
+          const pids = [item.profile_id, item.id].map(cleanUuid).filter(Boolean);
+          for (const pid of pids) {
+            if (statByProfileId.has(pid)) return statByProfileId.get(pid);
+          }
+        }
+
+        for (const item of candidates) {
+          const uname = cleanLeetcodeUsername(item.leetcode || item.leetcode_username || item.username);
+          if (uname && statByUsername.has(uname)) return statByUsername.get(uname);
+        }
+
+        for (const item of candidates) {
+          const email = (item.kalvium_email || item.email || item.personal_email)?.trim().toLowerCase();
+          if (email && statByEmail.has(email)) return statByEmail.get(email);
+        }
+
+        for (const item of candidates) {
+          const name = (item.name || item.full_name)?.trim().toLowerCase();
+          if (name && statByName.has(name)) return statByName.get(name);
+        }
+
+        return null;
+      };
 
       const findInMap = (map, record) => {
         if (!record) return null;
@@ -395,44 +441,9 @@ export default function Assigned() {
         return null;
       };
 
-      const extractActivityStatus = (record, profile, stats) => {
-        // Prioritize actual timestamp checks from leaderboard / profile / record
-        const lastSolvedTimestamp = 
-          stats?.last_solved_at || 
-          stats?.last_solved || 
-          stats?.last_submission_time || 
-          stats?.last_submission_at || 
-          stats?.last_active_at || 
-          stats?.last_active || 
-          profile?.last_solved_at || 
-          profile?.last_solved || 
-          record?.last_solved_at || 
-          record?.last_solved;
-
-        if (lastSolvedTimestamp !== undefined && lastSolvedTimestamp !== null) {
-          return checkIsActive(lastSolvedTimestamp);
-        }
-
-        // Fallback to explicit boolean flags if timestamps aren't populated
-        const directFlag = 
-          record?.is_leetcode_active ?? 
-          record?.is_active ?? 
-          profile?.is_leetcode_active ?? 
-          profile?.is_active ?? 
-          stats?.is_leetcode_active ?? 
-          stats?.is_active;
-
-        if (directFlag !== undefined && directFlag !== null) {
-          return Boolean(directFlag);
-        }
-
-        return false;
-      };
-
-      // Process assigned students
       const mergedAssigned = (assignedData || []).map((assignedStudent) => {
         const detailedProfile = findInMap(fullProfileMap, assignedStudent) || {};
-        const liveStats = findInMap(leetcodeStatsMap, assignedStudent) || findInMap(leetcodeStatsMap, detailedProfile);
+        const liveStats = findInStatsMap(assignedStudent, detailedProfile);
 
         const primaryUuid = cleanUuid(
           assignedStudent.user_id || 
@@ -451,8 +462,9 @@ export default function Assigned() {
           ...assignedStudent,
           uuid_key: primaryUuid,
           email: detailedProfile.kalvium_email || detailedProfile.personal_email || assignedStudent.email,
-          leetcode: detailedProfile.leetcode || (liveStats ? `https://leetcode.com/u/${liveStats.leetcode_username}` : null),
-          is_leetcode_active: isCurrentlyActive 
+          leetcode: detailedProfile.leetcode || (liveStats ? `https://leetcode.com/u/${liveStats.leetcode_username || liveStats.username}` : null),
+          is_leetcode_active: isCurrentlyActive,
+          last_solved_at: liveStats?.last_solved_at || detailedProfile?.last_solved_at || assignedStudent?.last_solved_at
         };
       });
 
@@ -460,7 +472,6 @@ export default function Assigned() {
         mergedAssigned.map((s) => s.uuid_key).filter(Boolean)
       );
 
-      // Process unassigned students
       const filteredNotAdded = (allStudents || [])
         .filter((student) => {
           const studentUuid = cleanUuid(
@@ -480,14 +491,15 @@ export default function Assigned() {
             student.profile_id || 
             student.id
           );
-          const liveStats = findInMap(leetcodeStatsMap, student);
+          const liveStats = findInStatsMap(student, null);
           const isCurrentlyActive = extractActivityStatus(student, null, liveStats);
 
           return { 
             ...student,
             uuid_key: primaryUuid,
-            leetcode: student.leetcode || (liveStats ? `https://leetcode.com/u/${liveStats.leetcode_username}` : null),
-            is_leetcode_active: isCurrentlyActive 
+            leetcode: student.leetcode || (liveStats ? `https://leetcode.com/u/${liveStats.leetcode_username || liveStats.username}` : null),
+            is_leetcode_active: isCurrentlyActive,
+            last_solved_at: liveStats?.last_solved_at || student?.last_solved_at
           };
         });
 
@@ -566,14 +578,14 @@ export default function Assigned() {
             <Users size={24} />
           </div>
           <div className="metric-data">
-            <span className="metric-label">Assigned Mentees</span>
+            <span className="metric-label">Assigned Students</span>
             <span className="metric-value">{assigned.length}</span>
           </div>
         </div>
 
         <div 
-          className={`metric-card interactive ${activityFilter === 'active' ? 'active-filter' : ''}`}
-          onClick={() => setActivityFilter(activityFilter === 'active' ? 'all' : 'active')}
+          className={`metric-card interactive ${activityFilter === "active" ? "active-filter" : ""}`}
+          onClick={() => setActivityFilter(activityFilter === "active" ? "all" : "active")}
         >
           <div className="metric-icon bg-red">
             <Activity size={24} />
@@ -699,6 +711,14 @@ export default function Assigned() {
         </div>
       </div>
 
+      {/* Student Stats Modal */}
+      {selectedStudent && (
+        <StudentStatsModal 
+          student={selectedStudent} 
+          onClose={() => setSelectedStudent(null)} 
+        />
+      )}
+
       {/* Assign Students Modal */}
       {isModalOpen && (
         <div className="modal-backdrop" onClick={() => setIsModalOpen(false)}>
@@ -734,35 +754,35 @@ export default function Assigned() {
               </div>
             </div>
 
-            <div className="assign-list">
+            <div className="unassigned-list-container">
               {filteredNotAddedList.length === 0 ? (
-                <div className="empty-activity">
-                  <p>No available students found to assign.</p>
+                <div className="empty-message">
+                  <UserX size={32} />
+                  <p>No available students match your filters.</p>
                 </div>
               ) : (
-                filteredNotAddedList.map((student) => {
-                  const studentKey = student.uuid_key || student.user_id || student.id;
+                filteredNotAddedList.map((s) => {
+                  const studentKey = s.uuid_key || s.user_id || s.id;
                   const isProcessing = loadingId === studentKey;
 
                   return (
-                    <div key={studentKey} className="assign-list-item">
-                      <div className="assign-student-info">
-                        <StudentAvatar student={student} />
+                    <div key={studentKey} className="unassigned-item">
+                      <div className="unassigned-info">
+                        <StudentAvatar student={s} />
                         <div>
-                          <h4>
-                            {student.name || student.full_name}
-                            {student.squad_id && <span className="squad-badge sm">Squad {student.squad_id}</span>}
-                          </h4>
-                          <span className="email-text">{student.email || student.kalvium_email || "N/A"}</span>
+                          <span className="student-name">{s.name || s.full_name}</span>
+                          <div className="unassigned-meta">
+                            {s.squad_id && <span className="squad-badge">Squad {s.squad_id}</span>}
+                            <span className="email-text">{s.email || s.kalvium_email || "No email"}</span>
+                          </div>
                         </div>
                       </div>
-
                       <button 
                         className="btn-primary btn-sm"
                         disabled={isProcessing}
-                        onClick={() => handleAssign(student)}
+                        onClick={() => handleAssign(s)}
                       >
-                        {isProcessing ? <Loader2 size={14} className="spin-icon" /> : <Check size={14} />}
+                        {isProcessing ? <Loader2 size={14} className="spin-icon" /> : <UserPlus size={14} />}
                         Assign
                       </button>
                     </div>
@@ -772,14 +792,6 @@ export default function Assigned() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Student Details / Stats Modal */}
-      {selectedStudent && (
-        <StudentStatsModal 
-          student={selectedStudent} 
-          onClose={() => setSelectedStudent(null)} 
-        />
       )}
     </div>
   );
