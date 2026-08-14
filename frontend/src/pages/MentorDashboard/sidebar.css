@@ -2,6 +2,11 @@
    SIDEBAR
 =========================== */
 
+.sidebar,
+.sidebar * {
+  box-sizing: border-box;
+}
+
 .sidebar {
   width: 240px;
   flex: 0 0 240px;
@@ -10,6 +15,7 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
+  align-items: stretch;
   border-right: 1px solid #e2e8f0;
   padding: 20px 14px;
   gap: 24px;
@@ -33,7 +39,8 @@
 .sidebar-logo {
   display: flex;
   align-items: center;
-  padding: 0 4px;
+  width: 100%;
+  padding: 0;
   gap: 8px;
 }
 
@@ -108,6 +115,7 @@
 .sidebar-menu {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   padding: 0;
   gap: 4px;
   width: 100%;
@@ -116,6 +124,8 @@
 .menu-item {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
+  width: 100%;
   gap: 12px;
   padding: 10px 14px;
   border-radius: 12px;
@@ -141,6 +151,9 @@
 
 .menu-icon {
   font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Ensure svg icons size consistently */
@@ -168,6 +181,9 @@
   width: 100%;
   padding: 0;
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .logout-btn {
@@ -177,6 +193,7 @@
   border: none;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 12px;
   padding: 10px 14px;
   border-radius: 12px;
@@ -210,7 +227,7 @@
 
   .sidebar-logo {
     grid-area: brand;
-    padding: 16px 18px;
+    padding: 0;
   }
 
   .sidebar-menu {
@@ -236,11 +253,8 @@
 
   .menu-item {
     flex-shrink: 0;
+    width: auto;
     padding: 8px 12px;
-  }
-
-  .sidebar-footer {
-    display: flex;
   }
 
   .logout-btn {

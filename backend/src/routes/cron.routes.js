@@ -192,7 +192,6 @@ async function syncSingleLeetCodeProfile(
             }
 
             const matchedUser = result?.data?.matchedUser;
-
             if (!matchedUser) {
                 console.warn(
                     `[LEETCODE USER NOT FOUND] ${username}`
@@ -515,6 +514,7 @@ router.post("/update-leetcode", async (req, res) => {
         const stats = {
             totalFetched: users.length,
             success: 0,
+            activeCount: 0,
             activeCount: 0,
             invalidUrl: 0,
             notFound: 0,
