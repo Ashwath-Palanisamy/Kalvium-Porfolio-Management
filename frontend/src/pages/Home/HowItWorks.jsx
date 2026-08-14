@@ -38,9 +38,6 @@ export default function HowItWorks() {
         >
             <div className="how-it-works__container">
                 <header>
-                    <p className="how-it-works__eyebrow">
-                        WHY THIS PLATFORM EXISTS
-                    </p>
                     <h2 id="why-platform-exists-title">
                         Why This Platform Exists
                     </h2>

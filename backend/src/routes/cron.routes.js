@@ -1,12 +1,10 @@
 import express from 'express';
-import rateLimit from 'express-rate-limit';
 import { supabaseAdmin } from '../config/supabase.js';
 
 const router = express.Router();
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Generate a random delay with jitter 
 const getRandomDelay = (min = 1500, max = 3000) => 
     Math.floor(Math.random() * (max - min + 1)) + min;
 
@@ -16,7 +14,6 @@ const extractUsername = (input) => {
     if (!input) return null;
     let cleanInput = input.trim();
     try {
-        // Strip query parameters or anchor hashes (e.g., ?ref=1 or #overview)
         cleanInput = cleanInput.split('?')[0].split('#')[0];
         if (!cleanInput.includes("leetcode.com")) return cleanInput.replace(/\/$/, "");
         return cleanInput.match(/leetcode\.com\/(?:u\/)?([^/]+)/)?.[1]?.replace(/\/$/, "") || null;
@@ -25,11 +22,9 @@ const extractUsername = (input) => {
     }
 };
 
-// --- Helper: Fetch LeetCode Stats with Full API & DB Retry Logic ---
 async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxRetries = 3) {
     const username = extractUsername(rawLeetCodeUrl);
 
-    // 1. Explicit Logging for Invalid Username Skipping
     if (!username || !isValidLeetCodeUsername(username)) {
         console.warn(`[Skip Invalid Username] Profile ID: ${profileId} | Raw: "${rawLeetCodeUrl}" | Extracted: "${username}"`);
         return { status: 'INVALID_URL', username: username || rawLeetCodeUrl };
@@ -49,6 +44,9 @@ async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxR
                     ranking
                 }
             }
+            recentAcSubmissionList(username: $username, limit: 1) {
+                timestamp
+            }
         }
     `;
 
@@ -64,23 +62,18 @@ async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxR
                 body: JSON.stringify({ query, variables: { username } })
             });
 
-            // 2. Retry HTTP 429 (Rate Limit) or 5xx (Server Error) with Exponential Backoff
             if (response.status === 429 || response.status >= 500) {
                 const backoffTime = attempt * 5000;
-                console.warn(`[HTTP ${response.status}] Retrying ${username} in ${backoffTime / 1000}s (Attempt ${attempt}/${maxRetries})...`);
                 await delay(backoffTime);
                 continue;
             }
 
-            // 3. Explicit Logging for Non-200 HTTP Errors (e.g. 403 Cloudflare, 400 Bad Request)
             if (!response.ok) {
-                console.error(`[HTTP Error ${response.status}] Failed fetching ${username}: ${response.statusText}`);
-                return { status: 'HTTP_ERROR', username, status: response.status };
+                return { status: 'HTTP_ERROR', username, httpCode: response.status };
             }
 
             const result = await response.json();
 
-            // 4. Retry GraphQL-level rate limit errors
             if (result.errors) {
                 const isRateLimited = result.errors.some(err => 
                     err.message?.toLowerCase().includes("rate") || 
@@ -88,20 +81,14 @@ async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxR
                 );
 
                 if (isRateLimited && attempt < maxRetries) {
-                    const backoffTime = attempt * 5000;
-                    console.warn(`[GraphQL Rate Limit] Retrying ${username} in ${backoffTime / 1000}s (Attempt ${attempt}/${maxRetries})...`);
-                    await delay(backoffTime);
+                    await delay(attempt * 5000);
                     continue;
                 }
-
-                console.error(`[GraphQL Error] ${username}:`, result.errors[0]?.message);
                 return { status: 'GRAPHQL_ERROR', username, error: result.errors[0]?.message };
             }
 
             const matchedUser = result?.data?.matchedUser;
-
             if (!matchedUser) {
-                console.warn(`[LeetCode Profile Not Found] Username: "${username}" (Profile ID: ${profileId})`);
                 return { status: 'NOT_FOUND', username };
             }
 
@@ -111,27 +98,55 @@ async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxR
             const mediumSolved = submitStats.find(s => s.difficulty === "Medium")?.count || 0;
             const hardSolved = submitStats.find(s => s.difficulty === "Hard")?.count || 0;
             const ranking = matchedUser.profile?.ranking || 0;
-
             const score = (easySolved * 1) + (mediumSolved * 1.5) + (hardSolved * 2);
 
-            // 5. Database Upsert with Error Logging
+            const recentSubmissions = result?.data?.recentAcSubmissionList || [];
+            let lastSolvedAt = null;
+
+            if (recentSubmissions.length > 0 && recentSubmissions[0]?.timestamp) {
+                const unixSec = Number(recentSubmissions[0].timestamp);
+                if (!isNaN(unixSec) && unixSec > 0) {
+                    lastSolvedAt = new Date(unixSec * 1000).toISOString();
+                }
+            }
+
+            if (!lastSolvedAt) {
+                const { data: existingData } = await supabaseAdmin
+                    .from("leetcode_leaderboard")
+                    .select("last_solved_at")
+                    .eq("profile_id", profileId)
+                    .single();
+
+                lastSolvedAt = existingData?.last_solved_at || null;
+            }
+
+            // Calculate 7-day activity boolean
+            const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+            const isLeetCodeActive = lastSolvedAt 
+                ? (Date.now() - new Date(lastSolvedAt).getTime()) <= SEVEN_DAYS_MS 
+                : false;
+
+            const upsertPayload = {
+                profile_id: profileId,
+                user_id: userId,
+                leetcode_username: matchedUser.username,
+                easy_solved: easySolved,
+                medium_solved: mediumSolved,
+                hard_solved: hardSolved,
+                total_solved: totalSolved,
+                ranking: ranking,
+                score: score,
+                updated_at: new Date().toISOString(),
+                last_solved_at: lastSolvedAt,
+                is_leetcode_active: isLeetCodeActive, // Boolean flag for activity
+                is_active: isLeetCodeActive          // Fallback column name
+            };
+
             const { error: dbError } = await supabaseAdmin
                 .from("leetcode_leaderboard")
-                .upsert({
-                    profile_id: profileId,
-                    user_id: userId,
-                    leetcode_username: matchedUser.username,
-                    easy_solved: easySolved,
-                    medium_solved: mediumSolved,
-                    hard_solved: hardSolved,
-                    total_solved: totalSolved,
-                    ranking: ranking,
-                    score: score,
-                    updated_at: new Date().toISOString()
-                }, { onConflict: "profile_id" });
+                .upsert(upsertPayload, { onConflict: "profile_id" });
 
             if (dbError) {
-                console.error(`[DB Upsert Error] Failed for ${username} (Profile ID: ${profileId}):`, dbError.message);
                 if (attempt < maxRetries) {
                     await delay(2000);
                     continue; 
@@ -139,25 +154,18 @@ async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxR
                 return { status: 'DB_ERROR', username, error: dbError.message };
             }
 
-            console.log(`[Cron Success] Updated ${matchedUser.username}`);
-            return { status: 'SUCCESS', username: matchedUser.username };
+            return { status: 'SUCCESS', username: matchedUser.username, isActive: isLeetCodeActive };
 
         } catch (err) {
             if (attempt < maxRetries) {
-                const backoffTime = attempt * 3000;
-                console.warn(`[Network Error] Retrying ${username} in ${backoffTime / 1000}s (Attempt ${attempt}/${maxRetries}):`, err.message);
-                await delay(backoffTime);
+                await delay(attempt * 3000);
             } else {
-                console.error(`[Cron Fatal] Failed updating ${username} after ${maxRetries} attempts:`, err.message);
                 return { status: 'NETWORK_ERROR', username, error: err.message };
             }
         }
     }
 }
 
-// ==========================================
-// 1. POST /update-leetcode (Cron Job Endpoint)
-// ==========================================
 router.post("/update-leetcode", async (req, res) => {
     const authHeader = req.headers.authorization;
 
@@ -199,6 +207,7 @@ router.post("/update-leetcode", async (req, res) => {
         const stats = {
             totalFetched: users.length,
             success: 0,
+            activeCount: 0,
             invalidUrl: 0,
             notFound: 0,
             httpError: 0,
@@ -215,7 +224,10 @@ router.post("/update-leetcode", async (req, res) => {
             const result = await syncSingleLeetCodeProfile(user.id, user.user_id, user.leetcode);
 
             switch (result?.status) {
-                case 'SUCCESS': stats.success++; break;
+                case 'SUCCESS': 
+                    stats.success++; 
+                    if (result.isActive) stats.activeCount++;
+                    break;
                 case 'INVALID_URL': stats.invalidUrl++; break;
                 case 'NOT_FOUND': stats.notFound++; break;
                 case 'HTTP_ERROR': stats.httpError++; break;
@@ -227,10 +239,10 @@ router.post("/update-leetcode", async (req, res) => {
             await delay(getRandomDelay(1500, 3000));
         }
 
-        // Print final summary stats
         console.log("\n================ [Cron Execution Summary] ================");
         console.log(`Total Profiles Fetched from DB : ${stats.totalFetched}`);
         console.log(`Successfully Saved to DB      : ${stats.success}`);
+        console.log(`Active Users (Solved in 7 days): ${stats.activeCount}`);
         console.log(`Skipped (Invalid URL/Username): ${stats.invalidUrl}`);
         console.log(`LeetCode User Not Found (404) : ${stats.notFound}`);
         console.log(`HTTP Request Errors (Non-200) : ${stats.httpError}`);

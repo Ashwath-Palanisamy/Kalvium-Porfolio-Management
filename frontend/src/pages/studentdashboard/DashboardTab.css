@@ -122,6 +122,12 @@
   font-weight: 600 !important;
   color: #0f172a !important;
   text-align: right;
+
+  /* Fix long usernames */
+  min-width: 0;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap !important;
 }
 
