@@ -62,7 +62,6 @@ export default function Features() {
             >
                 <div className="features__container">
                     <header>
-                        <p className="features__eyebrow">PLATFORM FEATURES</p>
                         <h2 id="platform-features-title">Platform Features</h2>
                     </header>
                     <div className="features__grid">
