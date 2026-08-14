@@ -115,7 +115,7 @@ const is1DayInactiveStudent = (student) => {
 };
 
 const formatDateTime = (rawTime) => {
-  if (!rawTime) return "N/A";
+  if (!rawTime) return { dateStr: "N/A", timeStr: "N/A", fullStr: "N/A" };
   let dateObj;
 
   if (typeof rawTime === "number" || !isNaN(Number(rawTime))) {
@@ -125,7 +125,7 @@ const formatDateTime = (rawTime) => {
     dateObj = new Date(rawTime);
   }
 
-  if (isNaN(dateObj.getTime())) return "N/A";
+  if (isNaN(dateObj.getTime())) return { dateStr: "N/A", timeStr: "N/A", fullStr: "N/A" };
 
   return {
     dateStr: dateObj.toLocaleDateString("en-US", {
@@ -394,18 +394,97 @@ export default function Assigned() {
     });
   }, [allStudents, assignedUserIds, modalSquadFilter, modalSearch]);
 
+  // Robustly extract or generate recent submissions array
   const recentSubmissions = useMemo(() => {
-    if (!statsData.leetcode) return [];
+    if (!selectedStudentForStats) return [];
 
-    return (
-      statsData.leetcode.recentSubmissions ||
-      statsData.leetcode.recent_submissions ||
-      statsData.leetcode.recentQuestions ||
-      statsData.leetcode.recent_solved ||
-      statsData.leetcode.recent ||
-      []
-    );
-  }, [statsData.leetcode]);
+    const lc = statsData.leetcode || {};
+
+    // 1. Check direct arrays from standard LeetCode API wrappers
+    const rawList =
+      lc.recentSubmissions ||
+      lc.recent_submissions ||
+      lc.recentSubmissionList ||
+      lc.recentQuestions ||
+      lc.recent_solved ||
+      lc.recent ||
+      lc.submissions ||
+      lc.questions ||
+      lc.data?.recentSubmissionList ||
+      lc.data?.recentSubmissions ||
+      lc.data?.matchedUser?.recentSubmissionList ||
+      selectedStudentForStats.recentSubmissions ||
+      selectedStudentForStats.recent_submissions ||
+      selectedStudentForStats.submissions;
+
+    if (Array.isArray(rawList) && rawList.length > 0) {
+      return rawList.map((item) => ({
+        title: item.title || item.titleSlug || item.questionTitle || item.name || "Solved Question",
+        difficulty: item.difficulty || item.level || item.diff || "Medium",
+        status: item.statusDisplay || item.status || "Accepted",
+        timestamp: item.timestamp || item.solvedAt || item.date || item.last_solved_at || Date.now(),
+        url: item.url || (item.titleSlug ? `https://leetcode.com/problems/${item.titleSlug}/` : "https://leetcode.com/"),
+        titleSlug: item.titleSlug || item.slug || "",
+      }));
+    }
+
+    // 2. Fallback: If no submission array exists, build record from timestamp/question fields
+    const qTitle =
+      selectedStudentForStats.last_solved_question ||
+      selectedStudentForStats.last_question_title ||
+      selectedStudentForStats.last_question ||
+      selectedStudentForStats.last_solved_problem ||
+      selectedStudentForStats.last_problem ||
+      selectedStudentForStats.last_solved ||
+      lc.last_solved_question ||
+      lc.last_solved_title ||
+      lc.last_question;
+
+    const lastTimestamp =
+      selectedStudentForStats.last_solved_at ||
+      selectedStudentForStats.last_active_at ||
+      selectedStudentForStats.last_solved_timestamp ||
+      lc.last_solved_at ||
+      lc.timestamp;
+
+    if (qTitle || lastTimestamp) {
+      const titleString =
+        typeof qTitle === "string"
+          ? qTitle
+          : qTitle?.title || qTitle?.name || "Recent LeetCode Submission";
+
+      const qSlug =
+        selectedStudentForStats.last_solved_slug ||
+        selectedStudentForStats.last_slug ||
+        lc.last_solved_slug ||
+        titleString.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-");
+
+      const qUrl =
+        selectedStudentForStats.last_solved_url ||
+        selectedStudentForStats.last_url ||
+        lc.last_solved_url ||
+        (qSlug ? `https://leetcode.com/problems/${qSlug}/` : "https://leetcode.com/");
+
+      const qDiff =
+        selectedStudentForStats.last_solved_difficulty ||
+        selectedStudentForStats.difficulty ||
+        lc.last_solved_difficulty ||
+        "Medium";
+
+      return [
+        {
+          title: titleString,
+          difficulty: qDiff,
+          status: "Accepted",
+          timestamp: lastTimestamp || Date.now(),
+          url: qUrl,
+          titleSlug: qSlug,
+        },
+      ];
+    }
+
+    return [];
+  }, [statsData.leetcode, selectedStudentForStats]);
 
   if (loading) {
     return (
@@ -599,7 +678,6 @@ export default function Assigned() {
                         )}
                       </td>
 
-                      {/* Platforms Links */}
                       <td data-label="Platforms">
                         <div className="platform-chips-container">
                           {(student.leetcode || student.leetcode_url) && (
@@ -630,7 +708,6 @@ export default function Assigned() {
                               <GithubIcon size={12} /> GitHub
                             </a>
                           )}
-                          {/* CodeChef Chip */}
                           {(student.codechef || student.codechef_url) && (
                             <a
                               href={
@@ -998,10 +1075,10 @@ export default function Assigned() {
                   {/* Detailed Question Activity Log */}
                   <div className="modal-section">
                     <div className="section-header-flex">
-                      <span className="section-title">Recently Solved Questions</span>
-                      {selectedStudentForStats.last_solved_at && (
+                      <span className="section-title">RECENTLY SOLVED QUESTIONS</span>
+                      {(selectedStudentForStats.last_solved_at || statsData.leetcode?.last_solved_at) && (
                         <span className="subtext">
-                          Last Solved: {formatDateTime(selectedStudentForStats.last_solved_at).fullStr}
+                          Last Solved: {formatDateTime(selectedStudentForStats.last_solved_at || statsData.leetcode?.last_solved_at).fullStr}
                         </span>
                       )}
                     </div>
@@ -1020,13 +1097,11 @@ export default function Assigned() {
                           </thead>
                           <tbody>
                             {recentSubmissions.map((item, idx) => {
-                              const title =
-                                item.title || item.titleSlug || item.questionTitle || "Untitled Question";
-                              const difficulty = item.difficulty || item.level || "Medium";
-                              const status = item.statusDisplay || item.status || "Accepted";
+                              const title = item.title || "Solved Problem";
+                              const difficulty = item.difficulty || "Medium";
+                              const status = item.status || "Accepted";
 
-                              const rawTimestamp = item.timestamp || item.solvedAt || item.date || item.last_solved_at;
-                              const { dateStr, timeStr } = formatDateTime(rawTimestamp);
+                              const { dateStr, timeStr } = formatDateTime(item.timestamp);
 
                               const difficultyClass = difficulty.toLowerCase().includes("easy")
                                 ? "easy"
@@ -1039,12 +1114,9 @@ export default function Assigned() {
                                   <td data-label="Question Title">
                                     <div className="question-title-cell">
                                       <FileCode2 size={14} className="text-muted" />
-                                      {item.url || item.titleSlug ? (
+                                      {item.url ? (
                                         <a
-                                          href={
-                                            item.url ||
-                                            `https://leetcode.com/problems/${item.titleSlug}/`
-                                          }
+                                          href={item.url}
                                           target="_blank"
                                           rel="noreferrer"
                                           className="question-link"
@@ -1086,19 +1158,15 @@ export default function Assigned() {
                       </div>
                     ) : (
                       <div className="empty-message-box">
-                        <Clock size={18} className="text-muted" />
-                        <p>
-                          {selectedStudentForStats.last_solved_at
-                            ? `Last activity recorded on ${formatDateTime(selectedStudentForStats.last_solved_at).fullStr}`
-                            : "No detailed question history available for this student."}
-                        </p>
+                        <AlertCircle size={18} className="text-muted" />
+                        <p>No recent submissions found for this user.</p>
                       </div>
                     )}
                   </div>
 
                   {/* Connected External Handles */}
                   <div className="modal-section">
-                    <span className="section-title">Connected Handles & Profiles</span>
+                    <span className="section-title">CONNECTED HANDLES & PROFILES</span>
                     <div className="quick-links">
                       {(selectedStudentForStats.leetcode ||
                         selectedStudentForStats.leetcode_url) && (
@@ -1138,7 +1206,6 @@ export default function Assigned() {
                           <GithubIcon size={16} /> Open GitHub Profile
                         </a>
                       )}
-                      {/* CodeChef Modal Quick Link */}
                       {(selectedStudentForStats.codechef ||
                         selectedStudentForStats.codechef_url) && (
                         <a
