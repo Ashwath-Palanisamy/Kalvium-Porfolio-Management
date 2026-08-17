@@ -7,6 +7,7 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
+  ShieldCheck,
 } from "lucide-react";
 
 import kalviumLogo from "../../assets/kalvium-logo.svg";
@@ -18,6 +19,7 @@ import "./sidebar.css";
 const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard },
   { label: "Assigned", icon: Users },
+  { label: "Mentor Review", icon: ShieldCheck },
   { label: "Settings", icon: Settings },
 ];
 

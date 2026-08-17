@@ -1,19 +1,21 @@
-import { useEffect, useState } from "react";
-import "./MentorReview.css";
+import React, { useEffect, useState } from "react";
+import "./mentorreview.css";
 
-const API_URL = import.meta.env.VITE_API_URL;
-
-export default function MentorReview() {
+const MentorReview = ({ profile }) => {
   const [reviews, setReviews] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [processingId, setProcessingId] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchReviews();
+  }, []);
 
   const fetchReviews = async () => {
     try {
-      setLoading(true);
+      setIsLoading(true);
 
+      // We will connect this to your Render backend
       const response = await fetch(
-        `${API_URL}/mentor/dashboard/leaderboard/reviews`,
+        `${import.meta.env.VITE_API_URL}/mentor/dashboard/reviews`,
         {
           credentials: "include",
         }
@@ -25,24 +27,18 @@ export default function MentorReview() {
 
       const data = await response.json();
 
-      setReviews(data.reviews || []);
+      setReviews(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Error loading mentor reviews:", error);
+      console.error("Error fetching mentor reviews:", error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchReviews();
-  }, []);
-
-  const handleReview = async (submissionId, decision) => {
+  const handleReview = async (reviewId, decision) => {
     try {
-      setProcessingId(submissionId);
-
       const response = await fetch(
-        `${API_URL}/mentor/dashboard/leaderboard/review/${submissionId}`,
+        `${import.meta.env.VITE_API_URL}/mentor/dashboard/reviews/${reviewId}`,
         {
           method: "PATCH",
           headers: {
@@ -59,123 +55,158 @@ export default function MentorReview() {
         throw new Error("Failed to update review");
       }
 
-      // Remove reviewed item from the pending list
-      setReviews((current) =>
-        current.filter((review) => review.id !== submissionId)
+      // Remove reviewed item from the queue
+      setReviews((prev) =>
+        prev.filter((review) => review.id !== reviewId)
       );
+
     } catch (error) {
-      console.error("Review error:", error);
-      alert("Could not update the review.");
-    } finally {
-      setProcessingId(null);
+      console.error("Error updating review:", error);
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="mentor-review">
-        <h2>Mentor Review</h2>
-        <p>Loading pending reviews...</p>
+      <div className="mentor-review-page">
+        <div className="review-header">
+          <h1>Mentor Review</h1>
+          <p>Loading flagged submissions...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <section className="mentor-review">
+    <div className="mentor-review-page">
+
       <div className="review-header">
         <div>
-          <h2>Mentor Review</h2>
+          <h1>Mentor Review</h1>
           <p>
-            Review rapid consecutive LeetCode solves before they receive
-            leaderboard points.
+            Review suspiciously fast LeetCode submissions before
+            awarding leaderboard points.
           </p>
         </div>
 
-        <span className="review-count">
+        <div className="review-count">
           {reviews.length} Pending
-        </span>
+        </div>
       </div>
 
       {reviews.length === 0 ? (
         <div className="no-reviews">
-          <h3>🎉 No pending reviews</h3>
-          <p>All LeetCode submissions have been reviewed.</p>
+          <div className="no-review-icon">✓</div>
+
+          <h2>No pending reviews</h2>
+
+          <p>
+            All flagged submissions have been reviewed.
+          </p>
         </div>
       ) : (
         <div className="review-list">
+
           {reviews.map((review) => (
             <div className="review-card" key={review.id}>
+
               <div className="review-student">
+
                 <img
                   src={
-                    review.profiles?.avatar_url ||
+                    review.avatar_url ||
                     `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                      review.profiles?.name || "Student"
-                    )}`
+                      review.student_name || "Student"
+                    )}&background=ffdddd&color=d71920`
                   }
-                  alt={review.profiles?.name || "Student"}
+                  alt={review.student_name}
+                  className="review-avatar"
                 />
 
                 <div>
-                  <h3>
-                    {review.profiles?.name || "Unknown Student"}
-                  </h3>
+                  <h3>{review.student_name}</h3>
 
                   <p>
-                    @{review.leetcode_username || "unknown"}
+                    @{review.leetcode_username}
                   </p>
                 </div>
+
               </div>
 
               <div className="review-problem">
-                <span>Problem</span>
-                <strong>{review.problem_name}</strong>
+
+                <span className="review-label">
+                  Problem
+                </span>
+
+                <strong>
+                  {review.problem_title || "Unknown Problem"}
+                </strong>
+
               </div>
 
-              <div className="review-details">
-                <div>
-                  <span>Difficulty</span>
-                  <strong>{review.difficulty}</strong>
-                </div>
+              <div className="review-stats">
 
                 <div>
-                  <span>Time Gap</span>
-                  <strong className="rapid-time">
-                    {review.time_gap_seconds}s
+                  <span>Difficulty</span>
+                  <strong>
+                    {review.difficulty || "Unknown"}
                   </strong>
                 </div>
 
                 <div>
-                  <span>Reason</span>
-                  <strong>Rapid consecutive solve</strong>
+                  <span>Solve Time</span>
+                  <strong className="fast-time">
+                    {review.solve_time_seconds}s
+                  </strong>
                 </div>
+
+                <div>
+                  <span>Detected</span>
+                  <strong>
+                    {review.created_at
+                      ? new Date(review.created_at).toLocaleString()
+                      : "-"}
+                  </strong>
+                </div>
+
+              </div>
+
+              <div className="review-warning">
+                ⚠️ This submission was completed unusually quickly.
+                Please verify that the student solved the problem
+                independently.
               </div>
 
               <div className="review-actions">
-                <button
-                  className="approve-btn"
-                  disabled={processingId === review.id}
-                  onClick={() =>
-                    handleReview(review.id, "approved")
-                  }
-                >
-                  ✓ Approve
-                </button>
 
                 <button
                   className="reject-btn"
-                  disabled={processingId === review.id}
                   onClick={() =>
                     handleReview(review.id, "rejected")
                   }
                 >
-                  ✕ Reject
+                  Reject
                 </button>
+
+                <button
+                  className="approve-btn"
+                  onClick={() =>
+                    handleReview(review.id, "approved")
+                  }
+                >
+                  Approve
+                </button>
+
               </div>
+
             </div>
           ))}
+
         </div>
       )}
-    </section>
+
+    </div>
   );
-}
+};
+
+export default MentorReview;

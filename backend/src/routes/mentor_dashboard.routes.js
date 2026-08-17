@@ -409,4 +409,136 @@ router.post("/unassign-student", requireAuth, async (req, res) => {
     }
 });
 
+// ==========================================
+// MENTOR REVIEW ROUTES
+// ==========================================
+
+router.get("/review-queue", requireAuth, async (req, res) => {
+    try {
+        const mentorUserId = req.user.id;
+        const db = req.authedSupabase;
+
+        // Get students assigned to this mentor
+        const { data: assignments, error: assignmentError } = await db
+            .from("squad_students")
+            .select("student_user_id, squad_id, assigned_at")
+            .eq("mentor_user_id", mentorUserId);
+
+        if (assignmentError) {
+            console.error("Review Queue Assignment Error:", assignmentError);
+            return res.status(400).json({ error: assignmentError.message });
+        }
+
+        if (!assignments || assignments.length === 0) {
+            return res.status(200).json({
+                success: true,
+                reviews: []
+            });
+        }
+
+        const studentIds = assignments.map(
+            (item) => item.student_user_id
+        );
+
+        // Get student profiles
+        const { data: profiles, error: profileError } = await db
+            .from("profiles")
+            .select("*")
+            .in("user_id", studentIds);
+
+        if (profileError) {
+            console.error("Review Profile Error:", profileError);
+            return res.status(400).json({ error: profileError.message });
+        }
+
+        // Get leaderboard information
+        const { data: leaderboardData, error: leaderboardError } = await db
+            .from("leetcode_leaderboard")
+            .select("*")
+            .in("user_id", studentIds);
+
+        if (leaderboardError) {
+            console.error("Review Leaderboard Error:", leaderboardError);
+            return res.status(400).json({
+                error: leaderboardError.message
+            });
+        }
+
+        const leaderboardMap = createLeaderboardMap(
+            leaderboardData || []
+        );
+
+        const reviews = [];
+
+        for (const assignment of assignments) {
+            const profile =
+                profiles?.find(
+                    (p) =>
+                        String(p.user_id) ===
+                        String(assignment.student_user_id)
+                ) || {};
+
+            const stats =
+                leaderboardMap.get(
+                    String(assignment.student_user_id)
+                ) || {};
+
+            const pendingReviewCount =
+                stats.pending_review_count ??
+                stats.pending_solves ??
+                0;
+
+            // Only students requiring review
+            if (pendingReviewCount > 0) {
+                reviews.push({
+                    student_user_id: assignment.student_user_id,
+                    name: profile.name || "Unknown Student",
+                    email:
+                        profile.kalvium_email ||
+                        profile.personal_email ||
+                        profile.email ||
+                        "No email",
+                    avatar_url: profile.avatar_url || null,
+
+                    squad_id: assignment.squad_id,
+
+                    leetcode_username:
+                        stats.leetcode_username ||
+                        profile.leetcode ||
+                        null,
+
+                    pending_review_count: pendingReviewCount,
+
+                    easy_solved: stats.easy_solved || 0,
+                    medium_solved: stats.medium_solved || 0,
+                    hard_solved: stats.hard_solved || 0,
+
+                    total_solved:
+                        stats.total_solved ||
+                        (
+                            (stats.easy_solved || 0) +
+                            (stats.medium_solved || 0) +
+                            (stats.hard_solved || 0)
+                        ),
+
+                    score: stats.score || 0
+                });
+            }
+        }
+
+        return res.status(200).json({
+            success: true,
+            count: reviews.length,
+            reviews
+        });
+
+    } catch (error) {
+        console.error("Review Queue Error:", error);
+
+        return res.status(500).json({
+            error: "Internal server error"
+        });
+    }
+});
+
 export default router;
