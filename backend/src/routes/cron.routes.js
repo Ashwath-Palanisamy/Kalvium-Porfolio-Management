@@ -1,6 +1,5 @@
 import express from "express";
 import { supabaseAdmin } from "../config/supabase.js";
-import nodemailer from "nodemailer";
 
 const testemail = process.env.TEST_EMAIL;
 const router = express.Router();
@@ -20,19 +19,6 @@ const LEETCODE_GRAPHQL_URL = "https://leetcode.com/graphql";
 
 const isValidLeetCodeUsername = (username) =>
     /^[a-zA-Z0-9_-]{1,30}$/.test(username);
-
-// ============================================================
-// 2. BREVO SMTP TRANSPORTER CONFIGURATION
-// ============================================================
-const transporter = nodemailer.createTransport({
-    host: "smtp-relay.brevo.com",
-    port: 587,
-    secure: false, 
-    auth: {
-        user: process.env.BREVO_SMTP_USER,
-        pass: process.env.BREVO_SMTP_KEY,
-    },
-});
 
 // ============================================================
 // HELPERS
@@ -66,13 +52,13 @@ const logSupabaseError = (context, error, extra = {}) => {
 };
 
 // ============================================================
-// 3. NOTIFY MENTORS ABOUT INACTIVE STUDENTS FUNCTION
+// 3. NOTIFY MENTORS VIA BREVO REST API (CATEGORIZED BY INACTIVITY)
 // ============================================================
 async function notifyMentorsAboutInactiveStudents() {
-    console.log("\n [EMAIL SYSTEM] Starting inactive student notifications...");
+    console.log("\n [EMAIL SYSTEM] Starting inactive student notifications via Brevo API...");
 
     try {
-        // Step 1: Fetch inactive students from leaderboard
+        // Step 1: Fetch inactive students from leaderboard (is_leetcode_active = false)
         const { data: inactiveRecords, error: inactiveError } = await supabaseAdmin
             .from("leetcode_leaderboard")
             .select(`
@@ -103,19 +89,20 @@ async function notifyMentorsAboutInactiveStudents() {
             throw assignmentError;
         }
 
-        // Step 3: Map students to mentors
-        const studentToMentorMap = {};
+        // Step 3: Map students to mentors (Supports MULTIPLE mentors per student)
+        const studentToMentorsMap = {};
         assignments.forEach(assignment => {
-            studentToMentorMap[assignment.student_user_id] = assignment.mentor_user_id;
+            if (!studentToMentorsMap[assignment.student_user_id]) {
+                studentToMentorsMap[assignment.student_user_id] = [];
+            }
+            studentToMentorsMap[assignment.student_user_id].push(assignment.mentor_user_id);
         });
 
         // Step 4: Figure out which Mentors we need to email
         const activeMentorIdsToFetch = new Set();
         inactiveRecords.forEach(record => {
-            const mentorId = studentToMentorMap[record.user_id];
-            if (mentorId) {
-                activeMentorIdsToFetch.add(mentorId);
-            }
+            const mentorIds = studentToMentorsMap[record.user_id] || [];
+            mentorIds.forEach(mId => activeMentorIdsToFetch.add(mId));
         });
 
         if (activeMentorIdsToFetch.size === 0) {
@@ -136,55 +123,101 @@ async function notifyMentorsAboutInactiveStudents() {
             mentorDataMap[mentor.user_id] = mentor;
         });
 
-        // Step 6: Group the inactive students by their assigned mentor's email
+        // Step 6: Group students under ALL assigned mentors into 7+ days and 1-6 days categories
         const groupedByMentor = {};
+        const nowMs = Date.now();
+        const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
         inactiveRecords.forEach((record) => {
-            const mentorUserId = studentToMentorMap[record.user_id];
-            if (!mentorUserId) return; 
+            const mentorUserIds = studentToMentorsMap[record.user_id] || [];
+            if (mentorUserIds.length === 0) return; 
 
-            const mentor = mentorDataMap[mentorUserId];
-            if (!mentor || !mentor.kalvium_email) return; 
+            const lastSolvedDate = record.last_solved_at ? new Date(record.last_solved_at) : null;
+            const daysInactive = lastSolvedDate
+                ? Math.floor((nowMs - lastSolvedDate.getTime()) / ONE_DAY_MS)
+                : null; // null means never solved or missing date
 
             const student = {
                 name: record.profiles.name,
                 email: record.profiles.kalvium_email,
-                lastSolved: record.last_solved_at 
-                    ? new Date(record.last_solved_at).toLocaleDateString() 
-                    : "Never or Unknown",
+                lastSolved: lastSolvedDate ? lastSolvedDate.toLocaleDateString() : "Never / Unknown",
+                daysInactive: daysInactive !== null ? daysInactive : "Unknown",
             };
 
-            if (!groupedByMentor[mentor.kalvium_email]) {
-                groupedByMentor[mentor.kalvium_email] = {
-                    mentorName: mentor.name || "Mentor",
-                    students: [],
-                };
-            }
-            groupedByMentor[mentor.kalvium_email].students.push(student);
+            // Loop through every mentor assigned to this student
+            mentorUserIds.forEach((mentorUserId) => {
+                const mentor = mentorDataMap[mentorUserId];
+                if (!mentor || !mentor.kalvium_email) return; 
+
+                if (!groupedByMentor[mentor.kalvium_email]) {
+                    groupedByMentor[mentor.kalvium_email] = {
+                        mentorName: mentor.name || "Mentor",
+                        sevenDaysPlus: [],
+                        oneToSixDays: [],
+                    };
+                }
+
+                // Categorize into 7+ days vs 1-6 days
+                if (daysInactive === null || daysInactive >= 7) {
+                    groupedByMentor[mentor.kalvium_email].sevenDaysPlus.push(student);
+                } else {
+                    groupedByMentor[mentor.kalvium_email].oneToSixDays.push(student);
+                }
+            });
         });
 
-        // Step 7: Send grouped emails to each identified mentor
+        // Step 7: Send categorized email reports via Brevo REST API
         for (const [mentorEmail, data] of Object.entries(groupedByMentor)) {
-            const studentListHtml = data.students
-                .map((s) => `<li><strong>${s.name}</strong> (${s.email}) - Last active: ${s.lastSolved}</li>`)
-                .join("");
+            const renderList = (students) =>
+                students
+                    .map((s) => `<li><strong>${s.name}</strong> (${s.email}) — Last active: ${s.lastSolved} (${s.daysInactive} days inactive)</li>`)
+                    .join("");
 
-            const mailOptions = {
-                from: '"Kalvium Portfolio Management" <kpm-squad@googlegroups.com>',
-                to: testemail,
-                subject: "Daily Report: Inactive Students on LeetCode",
-                html: `
-                    <h3>Hello ${data.mentorName},</h3>
-                    <p>The following assigned students in your squad have been inactive on LeetCode for over 7 days:</p>
-                    <ul>
-                        ${studentListHtml}
-                    </ul>
-                    <p>Please reach out to them to check in on their progress.</p>
-                `,
-            };
+            const sevenDaysHtml = data.sevenDaysPlus.length
+                ? `<ul>${renderList(data.sevenDaysPlus)}</ul>`
+                : `<p><em>No students inactive for 7+ days.</em></p>`;
 
-            await transporter.sendMail(mailOptions);
-            console.log(`[EMAIL SENT] Notified mentor: ${mentorEmail} about ${data.students.length} students.`);
+            const oneToSixDaysHtml = data.oneToSixDays.length
+                ? `<ul>${renderList(data.oneToSixDays)}</ul>`
+                : `<p><em>No students inactive in the 1–6 day window.</em></p>`;
+
+            const totalCount = data.sevenDaysPlus.length + data.oneToSixDays.length;
+
+            const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+                method: "POST",
+                headers: {
+                    "accept": "application/json",
+                    "content-type": "application/json",
+                    "api-key": process.env.BREVO_API_KEY,
+                },
+                body: JSON.stringify({
+                    sender: {
+                        name: "Kalvium Portfolio Management",
+                        email: "kpm-squad@googlegroups.com",
+                    },
+                    to: [{ email: testemail, name: data.mentorName }],
+                    subject: `Daily Report [${data.mentorName}]: Squad LeetCode Inactivity Summary`,
+                    htmlContent: `
+                        <h3>Hello ${data.mentorName},</h3>
+                        <p>Here is the daily LeetCode inactivity report for your squad:</p>
+                        
+                        <h4 style="color: #d9534f;">🚨 High Priority: Inactive for 7+ Days (${data.sevenDaysPlus.length})</h4>
+                        ${sevenDaysHtml}
+
+                        <h4 style="color: #f0ad4e;">⚠️ Warning: Inactive for 1–6 Days (${data.oneToSixDays.length})</h4>
+                        ${oneToSixDaysHtml}
+
+                        <p>Please reach out to your squad members to keep them on track.</p>
+                    `,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error(`[EMAIL ERROR] Brevo API failed for ${mentorEmail}:`, errorData);
+            } else {
+                console.log(`[EMAIL SENT] Notified mentor ${data.mentorName} (${mentorEmail}) about ${totalCount} inactive students.`);
+            }
         }
 
         console.log("[EMAIL SYSTEM] Finished sending mentor notifications.");
@@ -329,9 +362,10 @@ async function syncSingleLeetCodeProfile(
                 lastSolvedAt = existingData?.last_solved_at || null;
             }
 
-            const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+            // Flag as inactive if last solved was 24+ hours ago
+            const ONE_DAY_MS = 24 * 60 * 60 * 1000;
             const isLeetCodeActive = lastSolvedAt
-                ? Date.now() - new Date(lastSolvedAt).getTime() <= SEVEN_DAYS_MS
+                ? Date.now() - new Date(lastSolvedAt).getTime() <= ONE_DAY_MS
                 : false;
 
             const upsertPayload = {
