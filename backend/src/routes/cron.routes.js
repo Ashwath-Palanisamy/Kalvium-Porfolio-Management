@@ -1,6 +1,5 @@
 import express from "express";
 import { supabaseAdmin } from "../config/supabase.js";
-import nodemailer from "nodemailer";
 
 const testemail = process.env.TEST_EMAIL;
 const router = express.Router();
@@ -20,19 +19,6 @@ const LEETCODE_GRAPHQL_URL = "https://leetcode.com/graphql";
 
 const isValidLeetCodeUsername = (username) =>
     /^[a-zA-Z0-9_-]{1,30}$/.test(username);
-
-// ============================================================
-// 2. BREVO SMTP TRANSPORTER CONFIGURATION
-// ============================================================
-const transporter = nodemailer.createTransport({
-    host: "smtp-relay.brevo.com",
-    port: 587,
-    secure: false, 
-    auth: {
-        user: process.env.BREVO_SMTP_USER,
-        pass: process.env.BREVO_SMTP_KEY,
-    },
-});
 
 // ============================================================
 // HELPERS
@@ -66,10 +52,10 @@ const logSupabaseError = (context, error, extra = {}) => {
 };
 
 // ============================================================
-// 3. NOTIFY MENTORS ABOUT INACTIVE STUDENTS FUNCTION
+// 3. NOTIFY MENTORS VIA BREVO REST API
 // ============================================================
 async function notifyMentorsAboutInactiveStudents() {
-    console.log("\n [EMAIL SYSTEM] Starting inactive student notifications...");
+    console.log("\n [EMAIL SYSTEM] Starting inactive student notifications via Brevo API...");
 
     try {
         // Step 1: Fetch inactive students from leaderboard
@@ -163,28 +149,43 @@ async function notifyMentorsAboutInactiveStudents() {
             groupedByMentor[mentor.kalvium_email].students.push(student);
         });
 
-        // Step 7: Send grouped emails to each identified mentor
+        // Step 7: Send emails via Brevo REST API (HTTPS / Port 443)
         for (const [mentorEmail, data] of Object.entries(groupedByMentor)) {
             const studentListHtml = data.students
                 .map((s) => `<li><strong>${s.name}</strong> (${s.email}) - Last active: ${s.lastSolved}</li>`)
                 .join("");
 
-            const mailOptions = {
-                from: '"Kalvium Portfolio Management" <kpm-squad@googlegroups.com>',
-                to: testemail,
-                subject: "Daily Report: Inactive Students on LeetCode",
-                html: `
-                    <h3>Hello ${data.mentorName},</h3>
-                    <p>The following assigned students in your squad have been inactive on LeetCode for over 7 days:</p>
-                    <ul>
-                        ${studentListHtml}
-                    </ul>
-                    <p>Please reach out to them to check in on their progress.</p>
-                `,
-            };
+            const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+                method: "POST",
+                headers: {
+                    "accept": "application/json",
+                    "content-type": "application/json",
+                    "api-key": process.env.BREVO_API_KEY,
+                },
+                body: JSON.stringify({
+                    sender: {
+                        name: "Kalvium Portfolio Management",
+                        email: "kpm-squad@googlegroups.com",
+                    },
+                    to: [{ email: testemail, name: data.mentorName }],
+                    subject: "Daily Report: Inactive Students on LeetCode",
+                    htmlContent: `
+                        <h3>Hello ${data.mentorName},</h3>
+                        <p>The following assigned students in your squad have been inactive on LeetCode for over 7 days:</p>
+                        <ul>
+                            ${studentListHtml}
+                        </ul>
+                        <p>Please reach out to them to check in on their progress.</p>
+                    `,
+                }),
+            });
 
-            await transporter.sendMail(mailOptions);
-            console.log(`[EMAIL SENT] Notified mentor: ${mentorEmail} about ${data.students.length} students.`);
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error(`[EMAIL ERROR] Brevo API failed for ${mentorEmail}:`, errorData);
+            } else {
+                console.log(`[EMAIL SENT] Successfully notified mentor: ${mentorEmail} about ${data.students.length} students.`);
+            }
         }
 
         console.log("[EMAIL SYSTEM] Finished sending mentor notifications.");
