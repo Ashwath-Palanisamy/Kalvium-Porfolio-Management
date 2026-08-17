@@ -280,9 +280,11 @@ router.post("/github", async (req, res) => {
 
         const userData = await userRes.json();
         const reposData = reposRes.ok ? await reposRes.json() : [];
+        const publicRepos = userData.public_repos ?? 0;
 
         return res.status(200).json({
-            repos: userData.public_repos || 0,
+            repos: publicRepos,
+            public_repos: publicRepos,
             followers: userData.followers || 0,
             recentRepo: Array.isArray(reposData) && reposData.length > 0 ? reposData[0].name : "No recent activity",
         });
@@ -319,6 +321,11 @@ router.post("/leetcode", statsRouteLimiter, async (req, res) => {
                         reputation
                     }
                 }
+                recentSubmissionList(username: $username, limit: 3) {
+                    title
+                    timestamp
+                    statusDisplay
+                }
             }
         `;
 
@@ -353,13 +360,30 @@ router.post("/leetcode", statsRouteLimiter, async (req, res) => {
         const mediumSolved = submitStats.find(s => s.difficulty === "Medium")?.count || 0;
         const hardSolved = submitStats.find(s => s.difficulty === "Hard")?.count || 0;
 
+        const recentSubmissionsRaw = result.data.recentSubmissionList || [];
+        const recentSubmissions = recentSubmissionsRaw.map((sub) => ({
+            title: sub.title || "Solved Problem",
+            statusDisplay: sub.statusDisplay || "Accepted",
+            timestamp: sub.timestamp,
+            timeAgo: sub.timestamp ? new Date(Number(sub.timestamp) * 1000).toLocaleString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit"
+            }) : "Recently"
+        }));
+
         return res.status(200).json({
             username: user.username,
             totalSolved,
             easySolved,
             mediumSolved,
             hardSolved,
-            ranking: user.profile?.ranking || "N/A"
+            ranking: user.profile?.ranking || "N/A",
+            recentSubmissions,
+            lastSolvedQuestion: recentSubmissions[0]?.title || null,
+            lastSolvedAt: recentSubmissions[0]?.timestamp || null
         });
 
     } catch (err) {
