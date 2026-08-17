@@ -38,6 +38,67 @@ const requireAuth = async (req, res, next) => {
 };
 
 // ==========================================
+// HELPER: NORMALIZE STUDENT ACTIVITY FIELDS
+// ==========================================
+const normalizeStudentActivity = (profile = {}) => {
+    // 1. Extract raw active flag from all possible database column names
+    const rawActive =
+        profile.is_leetcode_active ??
+        profile.leetcode_active ??
+        profile.is_active ??
+        profile.active;
+
+    // 2. Extract last solved timestamp from all possible database column names
+    const rawLastSolved =
+        profile.last_solved_at ??
+        profile.leetcode_last_solved_at ??
+        profile.last_solved ??
+        profile.last_active_at ??
+        profile.updated_at;
+
+    // 3. Determine true boolean status based on 7-day threshold
+    let isActive = false;
+    if (
+        rawActive === true ||
+        rawActive === 1 ||
+        rawActive === "true" ||
+        rawActive === "1"
+    ) {
+        isActive = true;
+    } else if (rawLastSolved) {
+        const solvedDate = new Date(rawLastSolved);
+        if (!isNaN(solvedDate.getTime())) {
+            const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+            isActive = solvedDate.getTime() >= sevenDaysAgo;
+        }
+    }
+
+    return {
+        ...profile,
+        id: profile.user_id || profile.id,
+        student_user_id: profile.user_id || profile.student_user_id || profile.id,
+        name: profile.name || "Unknown",
+        email: profile.kalvium_email || profile.personal_email || profile.email || "No email",
+        avatar_url: profile.avatar_url || null,
+        is_leetcode_active: isActive,
+        last_solved_at: rawLastSolved || null,
+        leetcode: profile.leetcode || profile.leetcode_username || profile.leetcode_handle || null,
+        github: profile.github || profile.github_username || profile.github_handle || null,
+        linkedin: profile.linkedin || profile.linkedin_url || null,
+    };
+};
+
+// Helper: Build a lookup map from leetcode_leaderboard data
+const createLeaderboardMap = (leaderboardRows = []) => {
+    const map = new Map();
+    leaderboardRows.forEach((row) => {
+        if (row.user_id) map.set(String(row.user_id), row);
+        if (row.profile_id) map.set(String(row.profile_id), row);
+    });
+    return map;
+};
+
+// ==========================================
 // SQUAD MANAGEMENT ROUTES (mentor_squads)
 // ==========================================
 
@@ -93,7 +154,7 @@ router.post("/savesquad", saveSquadLimiter, requireAuth, async (req, res) => {
         if (squadList.length > 0) {
             const recordsToInsert = squadList.map((squadId) => ({
                 mentor_user_id: mentorUserId,
-                squad_id: Number(squadId), // Ensured it matches integer type
+                squad_id: Number(squadId),
             }));
 
             const { data, error: insertError } = await db
@@ -156,13 +217,26 @@ router.get("/students", requireAuth, async (req, res) => {
             console.error("Fetch Students Error:", studentError);
             return res.status(400).json({ error: studentError.message });
         }
-        
-        // Map kalvium_email to email for the frontend standard
-        const mappedStudents = students ? students.map(s => ({
-            ...s,
-            email: s.kalvium_email || s.personal_email,
-            id: s.user_id || s.id 
-        })) : [];
+
+        // Fetch matching LeetCode activity stats from leetcode_leaderboard
+        const studentUserIds = students ? students.map((s) => s.user_id || s.id).filter(Boolean) : [];
+        const { data: leaderboardData } = await db
+            .from("leetcode_leaderboard")
+            .select("*")
+            .in("user_id", studentUserIds);
+
+        const leaderboardMap = createLeaderboardMap(leaderboardData);
+
+        // Merge profile info with leaderboard stats and normalize
+        const mappedStudents = students
+            ? students.map((s) => {
+                  const stats =
+                      leaderboardMap.get(String(s.user_id)) ||
+                      leaderboardMap.get(String(s.id)) ||
+                      {};
+                  return normalizeStudentActivity({ ...s, ...stats });
+              })
+            : [];
 
         return res.status(200).json({
             success: true,
@@ -184,7 +258,7 @@ router.get("/assigned-students", requireAuth, async (req, res) => {
         const mentorUserId = req.user.id;
         const db = req.authedSupabase;
 
-        // Step 1: Fetch assignments directly without join to avoid PGRST200 error
+        // Step 1: Fetch assignments directly
         const { data: assignments, error: assignError } = await db
             .from("squad_students")
             .select("squad_id, student_user_id, assigned_at")
@@ -195,37 +269,48 @@ router.get("/assigned-students", requireAuth, async (req, res) => {
             return res.status(400).json({ error: assignError.message });
         }
 
-        // Return early if no assignments
         if (!assignments || assignments.length === 0) {
             return res.status(200).json({ success: true, students: [] });
         }
 
-        // Step 2: Extract User IDs and fetch the matching profiles
-        const studentIds = assignments.map(a => a.student_user_id);
-        
+        // Step 2: Extract User IDs and fetch profiles
+        const studentIds = assignments.map((a) => a.student_user_id);
+
         const { data: profiles, error: profileError } = await db
             .from("profiles")
             .select("*")
             .in("user_id", studentIds);
-            
+
         if (profileError) {
             console.error("Fetch Profiles Error:", profileError);
             return res.status(400).json({ error: profileError.message });
         }
 
-        // Step 3: Combine the data and standardize column names for React
-        const assignedStudents = assignments.map(assignment => {
-            const profile = profiles?.find(p => p.user_id === assignment.student_user_id) || {};
-            
+        // Step 3: Fetch activity stats from leetcode_leaderboard
+        const { data: leaderboardData } = await db
+            .from("leetcode_leaderboard")
+            .select("*")
+            .in("user_id", studentIds);
+
+        const leaderboardMap = createLeaderboardMap(leaderboardData);
+
+        // Step 4: Merge profiles + leaderboard stats and normalize
+        const assignedStudents = assignments.map((assignment) => {
+            const profile =
+                profiles?.find((p) => String(p.user_id) === String(assignment.student_user_id)) || {};
+            const stats =
+                leaderboardMap.get(String(assignment.student_user_id)) ||
+                leaderboardMap.get(String(profile.id)) ||
+                {};
+
+            const mergedData = { ...profile, ...stats };
+            const normalized = normalizeStudentActivity(mergedData);
+
             return {
+                ...normalized,
                 student_user_id: assignment.student_user_id,
-                squad_id: assignment.squad_id,
+                squad_id: assignment.squad_id || profile.squad_id,
                 assigned_at: assignment.assigned_at,
-                // Append profile mapping specifically handling JSON column names
-                id: profile.user_id || assignment.student_user_id, 
-                name: profile.name || "Unknown",
-                email: profile.kalvium_email || profile.personal_email || "No email",
-                avatar_url: profile.avatar_url || null
             };
         });
 
@@ -235,6 +320,30 @@ router.get("/assigned-students", requireAuth, async (req, res) => {
         });
     } catch (error) {
         console.error("Server Error:", error);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+router.get("/student-stats/:studentUserId", requireAuth, async (req, res) => {
+    try {
+        const { studentUserId } = req.params;
+        const db = req.authedSupabase;
+
+        const [profileRes, statsRes] = await Promise.all([
+            db.from("profiles").select("*").eq("user_id", studentUserId).single(),
+            db.from("leetcode_leaderboard").select("*").eq("user_id", studentUserId).maybeSingle(),
+        ]);
+
+        if (profileRes.error || !profileRes.data) {
+            return res.status(404).json({ error: "Student profile not found" });
+        }
+
+        const mergedData = { ...profileRes.data, ...(statsRes.data || {}) };
+        const normalized = normalizeStudentActivity(mergedData);
+
+        return res.status(200).json({ success: true, student: normalized });
+    } catch (error) {
+        console.error("Fetch Student Stats Error:", error);
         return res.status(500).json({ error: "Internal server error" });
     }
 });

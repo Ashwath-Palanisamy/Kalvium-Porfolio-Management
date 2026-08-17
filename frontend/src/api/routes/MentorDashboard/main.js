@@ -19,7 +19,7 @@ export async function getSquads() {
       },
     });
 
-    return response.data.squads;
+    return response.data.squads || [];
   } catch (error) {
     console.error("Error fetching squads:", error);
     throw error;
@@ -75,7 +75,7 @@ export async function getStudents(squadId = null) {
 }
 
 // ==========================================
-// INDIVIDUAL STUDENT MANAGEMENT (squad_students)
+// INDIVIDUAL STUDENT MANAGEMENT
 // ==========================================
 
 export async function getAssignedStudents() {
@@ -147,6 +147,72 @@ export async function unassignStudent(studentUserId) {
     return response.data;
   } catch (error) {
     console.error("Error unassigning student:", error);
+    throw error;
+  }
+}
+
+// ==========================================
+// BULK & EXTENDED ACTIONS (ADDED)
+// ==========================================
+
+/**
+ * Assigns an array of students to a roster/squad in parallel execution.
+ * @param {Array<{student_user_id: string|number, squad_id: string|number}>} studentList
+ */
+export async function assignBulkStudents(studentList) {
+  if (!Array.isArray(studentList) || studentList.length === 0) return [];
+
+  try {
+    const assignPromises = studentList.map((item) =>
+      assignStudent(item.student_user_id || item.id, item.squad_id)
+    );
+    return await Promise.all(assignPromises);
+  } catch (error) {
+    console.error("Error in bulk assigning students:", error);
+    throw error;
+  }
+}
+
+/**
+ * Unassigns multiple students simultaneously.
+ * @param {Array<string|number>} studentUserIds
+ */
+export async function unassignBulkStudents(studentUserIds) {
+  if (!Array.isArray(studentUserIds) || studentUserIds.length === 0) return [];
+
+  try {
+    const unassignPromises = studentUserIds.map((id) => unassignStudent(id));
+    return await Promise.all(unassignPromises);
+  } catch (error) {
+    console.error("Error in bulk unassigning students:", error);
+    throw error;
+  }
+}
+
+/**
+ * Fetches detailed stats/activity breakdown for a specific student.
+ * @param {string|number} studentUserId
+ */
+export async function getStudentStats(studentUserId) {
+  const token = await jwt();
+  if (!token) {
+    console.error("No active session found");
+    return null;
+  }
+
+  try {
+    const response = await apiClient.get(
+      `/mentor/dashboard/student-stats/${studentUserId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching stats for student ${studentUserId}:`, error);
     throw error;
   }
 }

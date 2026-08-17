@@ -48,9 +48,9 @@ function Footer() {
                 <div className="footer-section">
                     <h3>About</h3>
 
-                    <a href="#about">
-                        About Project
-                    </a>
+                    <NavLink to="/">
+                        About
+                    </NavLink>
 
                     <a href="#features">
                         Features
@@ -65,9 +65,9 @@ function Footer() {
                         Students
                     </NavLink>
 
-                    <a href="#projects">
-                        Projects
-                    </a>
+                    <NavLink to="/leaderboard">
+                        Leaderboard
+                    </NavLink>
                 </div>
 
                 {/* Contact */}
