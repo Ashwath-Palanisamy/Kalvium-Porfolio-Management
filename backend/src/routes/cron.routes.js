@@ -171,7 +171,7 @@ async function notifyMentorsAboutInactiveStudents() {
                     subject: "Daily Report: Inactive Students on LeetCode",
                     htmlContent: `
                         <h3>Hello ${data.mentorName},</h3>
-                        <p>The following assigned students in your squad have been inactive on LeetCode for over 7 days:</p>
+                        <p>The following assigned students in your squad have been inactive on LeetCode for 1 day or more:</p>
                         <ul>
                             ${studentListHtml}
                         </ul>
@@ -330,9 +330,10 @@ async function syncSingleLeetCodeProfile(
                 lastSolvedAt = existingData?.last_solved_at || null;
             }
 
-            const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+            // Updated inactivity threshold: 1 Day (24 Hours)
+            const ONE_DAY_MS = 24 * 60 * 60 * 1000;
             const isLeetCodeActive = lastSolvedAt
-                ? Date.now() - new Date(lastSolvedAt).getTime() <= SEVEN_DAYS_MS
+                ? Date.now() - new Date(lastSolvedAt).getTime() <= ONE_DAY_MS
                 : false;
 
             const upsertPayload = {
