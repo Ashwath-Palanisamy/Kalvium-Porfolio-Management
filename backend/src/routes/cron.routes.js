@@ -96,7 +96,7 @@ async function notifyMentorsAboutInactiveStudents() {
         console.log("[EMAIL SYSTEM] Fetching mentor assignments from database...");
         // Ensure you replace "mentor_student_assignments" with your actual table name if it differs
         const { data: assignments, error: assignmentError } = await supabaseAdmin
-            .from("mentor_student_assignments")
+            .from("squad_students")
             .select("student_user_id, mentor_user_id");
 
         if (assignmentError) {
