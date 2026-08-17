@@ -259,7 +259,7 @@ router.put("/updateprofile", updateProfileLimiter, async (req, res) => {
 // ==========================================
 // 4. POST GitHub Profile Stats
 // ==========================================
-router.post("/github", statsRouteLimiter, async (req, res) => {
+router.post("/github", async (req, res) => {
     const { url } = req.body;
     const username = extractUsername(url, "github");
 

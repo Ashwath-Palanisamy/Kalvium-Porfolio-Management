@@ -1,186 +1,643 @@
-import express from 'express';
-import { supabaseAdmin } from '../config/supabase.js';
+import express from "express";
+import { supabaseAdmin } from "../config/supabase.js";
 
 const router = express.Router();
 
+// ============================================================
+// CONFIG
+// ============================================================
+
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const getRandomDelay = (min = 1500, max = 3000) => 
+const getRandomDelay = (min = 1500, max = 3000) =>
     Math.floor(Math.random() * (max - min + 1)) + min;
 
-const isValidLeetCodeUsername = (username) => /^[a-zA-Z0-9_-]{1,30}$/.test(username);
+const MAX_RETRIES = 3;
+
+const LEETCODE_GRAPHQL_URL = "https://leetcode.com/graphql";
+
+const isValidLeetCodeUsername = (username) =>
+    /^[a-zA-Z0-9_-]{1,30}$/.test(username);
+
+// ============================================================
+// HELPERS
+// ============================================================
 
 const extractUsername = (input) => {
     if (!input) return null;
-    let cleanInput = input.trim();
+
+    const cleanInput = input.trim().split("?")[0].split("#")[0];
+
     try {
-        cleanInput = cleanInput.split('?')[0].split('#')[0];
-        if (!cleanInput.includes("leetcode.com")) return cleanInput.replace(/\/$/, "");
-        return cleanInput.match(/leetcode\.com\/(?:u\/)?([^/]+)/)?.[1]?.replace(/\/$/, "") || null;
-    } catch (e) {
+        // Full LeetCode URL
+        if (cleanInput.includes("leetcode.com")) {
+            const match = cleanInput.match(
+                /leetcode\.com\/(?:u\/)?([^/]+)/
+            );
+
+            return match?.[1]?.replace(/\/$/, "") || null;
+        }
+
+        // Plain username
+        return cleanInput.replace(/\/$/, "");
+    } catch (error) {
+        console.error("[USERNAME EXTRACTION ERROR]", {
+            input,
+            message: error.message,
+        });
+
         return null;
     }
 };
 
-async function syncSingleLeetCodeProfile(profileId, userId, rawLeetCodeUrl, maxRetries = 3) {
+const logSupabaseError = (context, error, extra = {}) => {
+    console.error("\n❌ [SUPABASE ERROR]");
+    console.error(`Context : ${context}`);
+
+    console.error(
+        JSON.stringify(
+            {
+                ...extra,
+                code: error?.code,
+                message: error?.message,
+                details: error?.details,
+                hint: error?.hint,
+            },
+            null,
+            2
+        )
+    );
+
+    console.error("-----------------------------------------------");
+};
+
+// ============================================================
+// SYNC ONE LEETCODE PROFILE
+// ============================================================
+
+async function syncSingleLeetCodeProfile(
+    profileId,
+    userId,
+    rawLeetCodeUrl,
+    maxRetries = MAX_RETRIES
+) {
     const username = extractUsername(rawLeetCodeUrl);
 
+    console.log("\n┌──────────────────────────────────────────────");
+    console.log("│ 🔄 SYNC PROFILE");
+    console.log("├──────────────────────────────────────────────");
+    console.log(`│ Profile ID : ${profileId}`);
+    console.log(`│ User ID    : ${userId}`);
+    console.log(`│ Raw URL    : ${rawLeetCodeUrl}`);
+    console.log(`│ Username   : ${username}`);
+    console.log("└──────────────────────────────────────────────");
+
+    // ------------------------------------------------------------
+    // VALIDATE USERNAME
+    // ------------------------------------------------------------
+
     if (!username || !isValidLeetCodeUsername(username)) {
-        console.warn(`[Skip Invalid Username] Profile ID: ${profileId} | Raw: "${rawLeetCodeUrl}" | Extracted: "${username}"`);
-        return { status: 'INVALID_URL', username: username || rawLeetCodeUrl };
+        console.warn("⚠️ [INVALID LEETCODE USERNAME]", {
+            profileId,
+            rawLeetCodeUrl,
+            username,
+        });
+
+        return {
+            status: "INVALID_URL",
+            username: username || rawLeetCodeUrl,
+        };
     }
+
+    // ------------------------------------------------------------
+    // GRAPHQL QUERY
+    // ------------------------------------------------------------
 
     const query = `
         query getUserStats($username: String!) {
             matchedUser(username: $username) {
                 username
+
                 submitStatsGlobal {
                     acSubmissionNum {
                         difficulty
                         count
                     }
                 }
+
                 profile {
                     ranking
                 }
             }
-            recentAcSubmissionList(username: $username, limit: 1) {
+
+            recentAcSubmissionList(
+                username: $username
+                limit: 1
+            ) {
                 timestamp
             }
         }
     `;
 
+    // ------------------------------------------------------------
+    // RETRIES
+    // ------------------------------------------------------------
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-            const response = await fetch("https://leetcode.com/graphql", {
+            console.log(
+                `🌐 [LEETCODE] ${username} | Request ${attempt}/${maxRetries}`
+            );
+
+            const response = await fetch(LEETCODE_GRAPHQL_URL, {
                 method: "POST",
+
                 headers: {
                     "Content-Type": "application/json",
-                    "Referer": "https://leetcode.com",
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+                    Referer: "https://leetcode.com",
+                    "User-Agent":
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36",
                 },
-                body: JSON.stringify({ query, variables: { username } })
+
+                body: JSON.stringify({
+                    query,
+                    variables: {
+                        username,
+                    },
+                }),
             });
+
+            console.log(
+                `📡 [LEETCODE RESPONSE] ${username} | HTTP ${response.status}`
+            );
+
+            // --------------------------------------------------------
+            // RATE LIMIT / SERVER ERROR
+            // --------------------------------------------------------
 
             if (response.status === 429 || response.status >= 500) {
                 const backoffTime = attempt * 5000;
+
+                console.warn(
+                    `⏳ [LEETCODE RETRY] ${username} | HTTP ${response.status} | Waiting ${backoffTime}ms`
+                );
+
                 await delay(backoffTime);
                 continue;
             }
 
+            // --------------------------------------------------------
+            // OTHER HTTP ERRORS
+            // --------------------------------------------------------
+
             if (!response.ok) {
-                return { status: 'HTTP_ERROR', username, httpCode: response.status };
+                console.error(
+                    `❌ [LEETCODE HTTP ERROR] ${username} | HTTP ${response.status}`
+                );
+
+                return {
+                    status: "HTTP_ERROR",
+                    username,
+                    httpCode: response.status,
+                };
             }
 
             const result = await response.json();
 
+            // --------------------------------------------------------
+            // GRAPHQL ERRORS
+            // --------------------------------------------------------
+
             if (result.errors) {
-                const isRateLimited = result.errors.some(err => 
-                    err.message?.toLowerCase().includes("rate") || 
-                    err.message?.toLowerCase().includes("many requests")
+                const errorMessage =
+                    result.errors[0]?.message || "Unknown GraphQL error";
+
+                console.error(
+                    `❌ [LEETCODE GRAPHQL ERROR] ${username}`
+                );
+
+                console.error(
+                    JSON.stringify(result.errors, null, 2)
+                );
+
+                const isRateLimited = result.errors.some(
+                    (err) =>
+                        err.message
+                            ?.toLowerCase()
+                            .includes("rate") ||
+                        err.message
+                            ?.toLowerCase()
+                            .includes("many requests")
                 );
 
                 if (isRateLimited && attempt < maxRetries) {
-                    await delay(attempt * 5000);
+                    const waitTime = attempt * 5000;
+
+                    console.warn(
+                        `⏳ [RATE LIMIT RETRY] ${username} | Waiting ${waitTime}ms`
+                    );
+
+                    await delay(waitTime);
                     continue;
                 }
-                return { status: 'GRAPHQL_ERROR', username, error: result.errors[0]?.message };
+
+                return {
+                    status: "GRAPHQL_ERROR",
+                    username,
+                    error: errorMessage,
+                    details: result.errors,
+                };
             }
+
+            // --------------------------------------------------------
+            // USER NOT FOUND
+            // --------------------------------------------------------
 
             const matchedUser = result?.data?.matchedUser;
+
             if (!matchedUser) {
-                return { status: 'NOT_FOUND', username };
+                console.warn(
+                    `⚠️ [LEETCODE USER NOT FOUND] ${username}`
+                );
+
+                return {
+                    status: "NOT_FOUND",
+                    username,
+                };
             }
 
-            const submitStats = matchedUser.submitStatsGlobal?.acSubmissionNum || [];
-            const totalSolved = submitStats.find(s => s.difficulty === "All")?.count || 0;
-            const easySolved = submitStats.find(s => s.difficulty === "Easy")?.count || 0;
-            const mediumSolved = submitStats.find(s => s.difficulty === "Medium")?.count || 0;
-            const hardSolved = submitStats.find(s => s.difficulty === "Hard")?.count || 0;
-            const ranking = matchedUser.profile?.ranking || 0;
-            const score = (easySolved * 1) + (mediumSolved * 1.5) + (hardSolved * 2);
+            console.log(
+                `✅ [LEETCODE USER FOUND] ${matchedUser.username}`
+            );
 
-            const recentSubmissions = result?.data?.recentAcSubmissionList || [];
+            // --------------------------------------------------------
+            // PARSE STATS
+            // --------------------------------------------------------
+
+            const submitStats =
+                matchedUser.submitStatsGlobal?.acSubmissionNum || [];
+
+            const totalSolved =
+                submitStats.find(
+                    (s) => s.difficulty === "All"
+                )?.count || 0;
+
+            const easySolved =
+                submitStats.find(
+                    (s) => s.difficulty === "Easy"
+                )?.count || 0;
+
+            const mediumSolved =
+                submitStats.find(
+                    (s) => s.difficulty === "Medium"
+                )?.count || 0;
+
+            const hardSolved =
+                submitStats.find(
+                    (s) => s.difficulty === "Hard"
+                )?.count || 0;
+
+            const ranking =
+                matchedUser.profile?.ranking || 0;
+
+            const score =
+                easySolved * 1 +
+                mediumSolved * 1.5 +
+                hardSolved * 2;
+
+            console.log("\n📊 [LEETCODE STATS]");
+            console.log(`   Username : ${matchedUser.username}`);
+            console.log(`   Easy     : ${easySolved}`);
+            console.log(`   Medium   : ${mediumSolved}`);
+            console.log(`   Hard     : ${hardSolved}`);
+            console.log(`   Total    : ${totalSolved}`);
+            console.log(`   Ranking  : ${ranking}`);
+            console.log(`   Score    : ${score}`);
+
+            // --------------------------------------------------------
+            // LAST SOLVED
+            // --------------------------------------------------------
+
+            const recentSubmissions =
+                result?.data?.recentAcSubmissionList || [];
+
             let lastSolvedAt = null;
 
-            if (recentSubmissions.length > 0 && recentSubmissions[0]?.timestamp) {
-                const unixSec = Number(recentSubmissions[0].timestamp);
-                if (!isNaN(unixSec) && unixSec > 0) {
-                    lastSolvedAt = new Date(unixSec * 1000).toISOString();
+            if (
+                recentSubmissions.length > 0 &&
+                recentSubmissions[0]?.timestamp
+            ) {
+                const unixSec = Number(
+                    recentSubmissions[0].timestamp
+                );
+
+                if (!Number.isNaN(unixSec) && unixSec > 0) {
+                    lastSolvedAt = new Date(
+                        unixSec * 1000
+                    ).toISOString();
                 }
             }
 
+            // --------------------------------------------------------
+            // FALLBACK TO EXISTING LAST SOLVED
+            // --------------------------------------------------------
+
             if (!lastSolvedAt) {
-                const { data: existingData } = await supabaseAdmin
+                console.log(
+                    `🔎 [DB LOOKUP] No recent submission found. Checking existing last_solved_at...`
+                );
+
+                const {
+                    data: existingData,
+                    error: existingError,
+                } = await supabaseAdmin
                     .from("leetcode_leaderboard")
                     .select("last_solved_at")
                     .eq("profile_id", profileId)
-                    .single();
+                    .maybeSingle();
 
-                lastSolvedAt = existingData?.last_solved_at || null;
+                if (existingError) {
+                    logSupabaseError(
+                        `Existing leaderboard lookup failed`,
+                        existingError,
+                        {
+                            profileId,
+                            username,
+                        }
+                    );
+                }
+
+                lastSolvedAt =
+                    existingData?.last_solved_at || null;
             }
 
-            // Calculate 7-day activity boolean
-            const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-            const isLeetCodeActive = lastSolvedAt 
-                ? (Date.now() - new Date(lastSolvedAt).getTime()) <= SEVEN_DAYS_MS 
+            // --------------------------------------------------------
+            // ACTIVE STATUS
+            // --------------------------------------------------------
+
+            const SEVEN_DAYS_MS =
+                7 * 24 * 60 * 60 * 1000;
+
+            const isLeetCodeActive = lastSolvedAt
+                ? Date.now() -
+                      new Date(lastSolvedAt).getTime() <=
+                  SEVEN_DAYS_MS
                 : false;
+
+            // --------------------------------------------------------
+            // CHECK EXISTING SCORE BEFORE UPDATE
+            // --------------------------------------------------------
+
+            const {
+                data: existingRow,
+                error: existingRowError,
+            } = await supabaseAdmin
+                .from("leetcode_leaderboard")
+                .select(
+                    "score, easy_solved, medium_solved, hard_solved, total_solved"
+                )
+                .eq("profile_id", profileId)
+                .maybeSingle();
+
+            if (existingRowError) {
+                logSupabaseError(
+                    "Could not fetch existing leaderboard row",
+                    existingRowError,
+                    {
+                        profileId,
+                        username,
+                    }
+                );
+            }
+
+            // --------------------------------------------------------
+            // CHANGE DETECTION
+            // --------------------------------------------------------
+
+            if (existingRow) {
+                const scoreChanged =
+                    Number(existingRow.score || 0) !== Number(score);
+
+                const solvedChanged =
+                    Number(existingRow.total_solved || 0) !==
+                    Number(totalSolved);
+
+                if (scoreChanged || solvedChanged) {
+                    console.log("\n📈 [LEETCODE CHANGE DETECTED]");
+                    console.log(
+                        `   Score : ${existingRow.score ?? 0} → ${score}`
+                    );
+                    console.log(
+                        `   Total : ${existingRow.total_solved ?? 0} → ${totalSolved}`
+                    );
+                    console.log(
+                        `   Easy  : ${existingRow.easy_solved ?? 0} → ${easySolved}`
+                    );
+                    console.log(
+                        `   Medium: ${existingRow.medium_solved ?? 0} → ${mediumSolved}`
+                    );
+                    console.log(
+                        `   Hard  : ${existingRow.hard_solved ?? 0} → ${hardSolved}`
+                    );
+                } else {
+                    console.log(
+                        `ℹ️ [NO CHANGE] ${username} | Score remains ${score}`
+                    );
+                }
+            } else {
+                console.log(
+                    `🆕 [NEW LEADERBOARD ENTRY] ${username} | Score ${score}`
+                );
+            }
+
+            // --------------------------------------------------------
+            // SUPABASE PAYLOAD
+            // --------------------------------------------------------
 
             const upsertPayload = {
                 profile_id: profileId,
                 user_id: userId,
                 leetcode_username: matchedUser.username,
+
                 easy_solved: easySolved,
                 medium_solved: mediumSolved,
                 hard_solved: hardSolved,
                 total_solved: totalSolved,
-                ranking: ranking,
-                score: score,
+
+                ranking,
+                score,
+
                 updated_at: new Date().toISOString(),
                 last_solved_at: lastSolvedAt,
-                is_leetcode_active: isLeetCodeActive, // Boolean flag for activity
-                is_active: isLeetCodeActive          // Fallback column name
+
+                // ONLY activity field
+                is_leetcode_active: isLeetCodeActive,
             };
 
-            const { error: dbError } = await supabaseAdmin
+            console.log(
+                `💾 [DB UPSERT] ${username} | Updating leetcode_leaderboard...`
+            );
+
+            // --------------------------------------------------------
+            // UPSERT
+            // --------------------------------------------------------
+
+            const {
+                data: savedData,
+                error: dbError,
+            } = await supabaseAdmin
                 .from("leetcode_leaderboard")
-                .upsert(upsertPayload, { onConflict: "profile_id" });
+                .upsert(upsertPayload, {
+                    onConflict: "profile_id",
+                })
+                .select()
+                .single();
 
             if (dbError) {
+                logSupabaseError(
+                    `Leaderboard upsert failed for ${username}`,
+                    dbError,
+                    {
+                        profileId,
+                        userId,
+                        username,
+                        attempt,
+                        payload: upsertPayload,
+                    }
+                );
+
                 if (attempt < maxRetries) {
+                    console.warn(
+                        `🔁 [DB RETRY] ${username} | Attempt ${attempt}/${maxRetries}`
+                    );
+
                     await delay(2000);
-                    continue; 
+                    continue;
                 }
-                return { status: 'DB_ERROR', username, error: dbError.message };
+
+                return {
+                    status: "DB_ERROR",
+                    username,
+                    error: dbError.message,
+                    details: dbError.details,
+                    hint: dbError.hint,
+                    code: dbError.code,
+                };
             }
 
-            return { status: 'SUCCESS', username: matchedUser.username, isActive: isLeetCodeActive };
+            // --------------------------------------------------------
+            // SUCCESS
+            // --------------------------------------------------------
 
-        } catch (err) {
+            console.log(
+                `✅ [DB SUCCESS] ${username} | Score: ${score}`
+            );
+
+            console.log(
+                `   Updated At : ${upsertPayload.updated_at}`
+            );
+
+            console.log(
+                `   Active     : ${isLeetCodeActive}`
+            );
+
+            return {
+                status: "SUCCESS",
+                username: matchedUser.username,
+                isActive: isLeetCodeActive,
+                score,
+            };
+        } catch (error) {
+            console.error(
+                `💥 [SYNC EXCEPTION] ${username}`
+            );
+
+            console.error({
+                profileId,
+                userId,
+                attempt,
+                message: error.message,
+                stack: error.stack,
+            });
+
             if (attempt < maxRetries) {
-                await delay(attempt * 3000);
+                const waitTime = attempt * 3000;
+
+                console.warn(
+                    `🔁 [NETWORK RETRY] ${username} | Waiting ${waitTime}ms`
+                );
+
+                await delay(waitTime);
             } else {
-                return { status: 'NETWORK_ERROR', username, error: err.message };
+                return {
+                    status: "NETWORK_ERROR",
+                    username,
+                    error: error.message,
+                    stack: error.stack,
+                };
             }
         }
     }
 }
 
+// ============================================================
+// UPDATE LEADERBOARD ROUTE
+// ============================================================
+
 router.post("/update-leetcode", async (req, res) => {
+    const startTime = Date.now();
+
+    console.log("\n");
+    console.log("============================================================");
+    console.log("🚀 LEETCODE LEADERBOARD UPDATE STARTED");
+    console.log("============================================================");
+    console.log(`🕐 Started : ${new Date().toISOString()}`);
+
+    // --------------------------------------------------------
+    // AUTH
+    // --------------------------------------------------------
+
     const authHeader = req.headers.authorization;
 
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return res.status(401).json({ error: "Unauthorized" });
+    if (
+        authHeader !==
+        `Bearer ${process.env.CRON_SECRET}`
+    ) {
+        console.error("❌ [AUTH FAILED] Invalid CRON_SECRET");
+
+        return res.status(401).json({
+            error: "Unauthorized",
+        });
     }
 
-    res.status(200).json({ message: "Leaderboard update process started in background." });
+    console.log("🔐 [AUTH SUCCESS] Cron request authenticated.");
+
+    // Send response immediately because GitHub Actions
+    // doesn't need to wait for the entire sync.
+    res.status(200).json({
+        message:
+            "Leaderboard update process started in background.",
+    });
 
     try {
+        // --------------------------------------------------------
+        // FETCH PROFILES
+        // --------------------------------------------------------
+
+        console.log("\n📥 [PROFILE FETCH] Fetching profiles...");
+
         let users = null;
         let fetchError = null;
 
-        for (let i = 1; i <= 3; i++) {
-            const { data, error } = await supabaseAdmin
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            console.log(
+                `   Attempt ${attempt}/3`
+            );
+
+            const {
+                data,
+                error,
+            } = await supabaseAdmin
                 .from("profiles")
                 .select("id, user_id, leetcode")
                 .not("user_id", "is", null)
@@ -193,16 +650,32 @@ router.post("/update-leetcode", async (req, res) => {
             }
 
             fetchError = error;
-            console.warn(`[Cron DB Fetch Retry] Attempt ${i}/3 failed:`, error.message);
+
+            logSupabaseError(
+                `Profiles fetch attempt ${attempt}`,
+                error
+            );
+
             await delay(2000);
         }
 
         if (!users) {
-            console.error("[Cron Fatal Error] Could not fetch profiles after retries:", fetchError?.message);
+            console.error(
+                "💥 [CRON FATAL] Unable to fetch profiles."
+            );
+
+            console.error(fetchError);
+
             return;
         }
 
-        console.log(`[Cron Start] Fetched ${users.length} profiles with LeetCode links from DB.`);
+        console.log(
+            `✅ [PROFILE FETCH SUCCESS] Found ${users.length} profiles.`
+        );
+
+        // --------------------------------------------------------
+        // STATISTICS
+        // --------------------------------------------------------
 
         const stats = {
             totalFetched: users.length,
@@ -213,46 +686,250 @@ router.post("/update-leetcode", async (req, res) => {
             httpError: 0,
             graphqlError: 0,
             dbError: 0,
-            networkError: 0
+            networkError: 0,
         };
 
-        let count = 0;
-        for (const user of users) {
-            count++;
-            console.log(`\n[ Cron Progress ${count}/${users.length} ] Processing Profile ID: ${user.id} | Raw Input: "${user.leetcode}"`);
+        const failures = [];
 
-            const result = await syncSingleLeetCodeProfile(user.id, user.user_id, user.leetcode);
+        // --------------------------------------------------------
+        // PROCESS USERS
+        // --------------------------------------------------------
+
+        for (let index = 0; index < users.length; index++) {
+            const user = users[index];
+
+            console.log("\n");
+            console.log(
+                `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+            );
+            console.log(
+                `👤 PROFILE ${index + 1}/${users.length}`
+            );
+            console.log(
+                `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+            );
+
+            const result =
+                await syncSingleLeetCodeProfile(
+                    user.id,
+                    user.user_id,
+                    user.leetcode
+                );
 
             switch (result?.status) {
-                case 'SUCCESS': 
-                    stats.success++; 
-                    if (result.isActive) stats.activeCount++;
+                case "SUCCESS":
+                    stats.success++;
+
+                    if (result.isActive) {
+                        stats.activeCount++;
+                    }
+
                     break;
-                case 'INVALID_URL': stats.invalidUrl++; break;
-                case 'NOT_FOUND': stats.notFound++; break;
-                case 'HTTP_ERROR': stats.httpError++; break;
-                case 'GRAPHQL_ERROR': stats.graphqlError++; break;
-                case 'DB_ERROR': stats.dbError++; break;
-                default: stats.networkError++; break;
+
+                case "INVALID_URL":
+                    stats.invalidUrl++;
+
+                    failures.push({
+                        profileId: user.id,
+                        username: result.username,
+                        status: result.status,
+                    });
+
+                    break;
+
+                case "NOT_FOUND":
+                    stats.notFound++;
+
+                    failures.push({
+                        profileId: user.id,
+                        username: result.username,
+                        status: result.status,
+                    });
+
+                    break;
+
+                case "HTTP_ERROR":
+                    stats.httpError++;
+
+                    failures.push({
+                        profileId: user.id,
+                        username: result.username,
+                        status: result.status,
+                        httpCode: result.httpCode,
+                    });
+
+                    break;
+
+                case "GRAPHQL_ERROR":
+                    stats.graphqlError++;
+
+                    failures.push({
+                        profileId: user.id,
+                        username: result.username,
+                        status: result.status,
+                        error: result.error,
+                    });
+
+                    break;
+
+                case "DB_ERROR":
+                    stats.dbError++;
+
+                    failures.push({
+                        profileId: user.id,
+                        username: result.username,
+                        status: result.status,
+                        error: result.error,
+                        details: result.details,
+                        hint: result.hint,
+                        code: result.code,
+                    });
+
+                    break;
+
+                default:
+                    stats.networkError++;
+
+                    failures.push({
+                        profileId: user.id,
+                        username: result?.username,
+                        status: result?.status,
+                        error: result?.error,
+                    });
+
+                    break;
             }
 
-            await delay(getRandomDelay(1500, 3000));
+            await delay(
+                getRandomDelay(1500, 3000)
+            );
         }
 
-        console.log("\n================ [Cron Execution Summary] ================");
-        console.log(`Total Profiles Fetched from DB : ${stats.totalFetched}`);
-        console.log(`Successfully Saved to DB      : ${stats.success}`);
-        console.log(`Active Users (Solved in 7 days): ${stats.activeCount}`);
-        console.log(`Skipped (Invalid URL/Username): ${stats.invalidUrl}`);
-        console.log(`LeetCode User Not Found (404) : ${stats.notFound}`);
-        console.log(`HTTP Request Errors (Non-200) : ${stats.httpError}`);
-        console.log(`GraphQL API Errors            : ${stats.graphqlError}`);
-        console.log(`Database Upsert Errors        : ${stats.dbError}`);
-        console.log(`Network Exceptions            : ${stats.networkError}`);
-        console.log("==========================================================\n");
+        // --------------------------------------------------------
+        // FINAL SUMMARY
+        // --------------------------------------------------------
 
-    } catch (err) {
-        console.error("[Cron Fatal Error]:", err.message);
+        const durationSeconds = (
+            (Date.now() - startTime) /
+            1000
+        ).toFixed(2);
+
+        const successRate = stats.totalFetched
+            ? (
+                  (stats.success /
+                      stats.totalFetched) *
+                  100
+              ).toFixed(2)
+            : "0.00";
+
+        console.log("\n\n");
+        console.log(
+            "╔══════════════════════════════════════════════════════════╗"
+        );
+        console.log(
+            "║             📊 LEADERBOARD UPDATE SUMMARY              ║"
+        );
+        console.log(
+            "╠══════════════════════════════════════════════════════════╣"
+        );
+
+        console.log(
+            `║ Profiles Fetched     : ${String(stats.totalFetched).padEnd(30)}║`
+        );
+
+        console.log(
+            `║ Successfully Updated : ${String(stats.success).padEnd(30)}║`
+        );
+
+        console.log(
+            `║ Active - Last 7 Days : ${String(stats.activeCount).padEnd(30)}║`
+        );
+
+        console.log(
+            `║ Invalid URLs         : ${String(stats.invalidUrl).padEnd(30)}║`
+        );
+
+        console.log(
+            `║ Users Not Found      : ${String(stats.notFound).padEnd(30)}║`
+        );
+
+        console.log(
+            `║ HTTP Errors          : ${String(stats.httpError).padEnd(30)}║`
+        );
+
+        console.log(
+            `║ GraphQL Errors       : ${String(stats.graphqlError).padEnd(30)}║`
+        );
+
+        console.log(
+            `║ Database Errors      : ${String(stats.dbError).padEnd(30)}║`
+        );
+
+        console.log(
+            `║ Network Errors       : ${String(stats.networkError).padEnd(30)}║`
+        );
+
+        console.log(
+            `║ Success Rate         : ${`${successRate}%`.padEnd(30)}║`
+        );
+
+        console.log(
+            `║ Execution Time       : ${`${durationSeconds}s`.padEnd(30)}║`
+        );
+
+        console.log(
+            "╚══════════════════════════════════════════════════════════╝"
+        );
+
+        // --------------------------------------------------------
+        // FAILURE REPORT
+        // --------------------------------------------------------
+
+        if (failures.length > 0) {
+            console.log("\n");
+            console.log(
+                "================= FAILURE REPORT ================="
+            );
+
+            failures.forEach((failure, index) => {
+                console.error(
+                    `\n[${index + 1}/${failures.length}]`,
+                    JSON.stringify(failure, null, 2)
+                );
+            });
+
+            console.log(
+                "\n======================================================"
+            );
+        } else {
+            console.log(
+                "\n [CRON COMPLETE] All profiles updated successfully!"
+            );
+        }
+
+        console.log(
+            `\nFinished : ${new Date().toISOString()}`
+        );
+
+        console.log(
+            "============================================================\n"
+        );
+    } catch (error) {
+        console.error("\n");
+        console.error(
+            " =================================================="
+        );
+        console.error(
+            " [CRON FATAL EXCEPTION]"
+        );
+        console.error(
+            " =================================================="
+        );
+
+        console.error({
+            message: error.message,
+            stack: error.stack,
+        });
     }
 });
 
