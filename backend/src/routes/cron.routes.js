@@ -89,19 +89,20 @@ async function notifyMentorsAboutInactiveStudents() {
             throw assignmentError;
         }
 
-        // Step 3: Map students to mentors
-        const studentToMentorMap = {};
+        // Step 3: Map students to mentors (Supports MULTIPLE mentors per student)
+        const studentToMentorsMap = {};
         assignments.forEach(assignment => {
-            studentToMentorMap[assignment.student_user_id] = assignment.mentor_user_id;
+            if (!studentToMentorsMap[assignment.student_user_id]) {
+                studentToMentorsMap[assignment.student_user_id] = [];
+            }
+            studentToMentorsMap[assignment.student_user_id].push(assignment.mentor_user_id);
         });
 
         // Step 4: Figure out which Mentors we need to email
         const activeMentorIdsToFetch = new Set();
         inactiveRecords.forEach(record => {
-            const mentorId = studentToMentorMap[record.user_id];
-            if (mentorId) {
-                activeMentorIdsToFetch.add(mentorId);
-            }
+            const mentorIds = studentToMentorsMap[record.user_id] || [];
+            mentorIds.forEach(mId => activeMentorIdsToFetch.add(mId));
         });
 
         if (activeMentorIdsToFetch.size === 0) {
@@ -122,17 +123,14 @@ async function notifyMentorsAboutInactiveStudents() {
             mentorDataMap[mentor.user_id] = mentor;
         });
 
-        // Step 6: Group students into 7+ days and 1-6 days categories per mentor
+        // Step 6: Group students under ALL assigned mentors into 7+ days and 1-6 days categories
         const groupedByMentor = {};
         const nowMs = Date.now();
         const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
         inactiveRecords.forEach((record) => {
-            const mentorUserId = studentToMentorMap[record.user_id];
-            if (!mentorUserId) return; 
-
-            const mentor = mentorDataMap[mentorUserId];
-            if (!mentor || !mentor.kalvium_email) return; 
+            const mentorUserIds = studentToMentorsMap[record.user_id] || [];
+            if (mentorUserIds.length === 0) return; 
 
             const lastSolvedDate = record.last_solved_at ? new Date(record.last_solved_at) : null;
             const daysInactive = lastSolvedDate
@@ -146,20 +144,26 @@ async function notifyMentorsAboutInactiveStudents() {
                 daysInactive: daysInactive !== null ? daysInactive : "Unknown",
             };
 
-            if (!groupedByMentor[mentor.kalvium_email]) {
-                groupedByMentor[mentor.kalvium_email] = {
-                    mentorName: mentor.name || "Mentor",
-                    sevenDaysPlus: [],
-                    oneToSixDays: [],
-                };
-            }
+            // Loop through every mentor assigned to this student
+            mentorUserIds.forEach((mentorUserId) => {
+                const mentor = mentorDataMap[mentorUserId];
+                if (!mentor || !mentor.kalvium_email) return; 
 
-            // Categorize into 7+ days vs 1-6 days
-            if (daysInactive === null || daysInactive >= 7) {
-                groupedByMentor[mentor.kalvium_email].sevenDaysPlus.push(student);
-            } else {
-                groupedByMentor[mentor.kalvium_email].oneToSixDays.push(student);
-            }
+                if (!groupedByMentor[mentor.kalvium_email]) {
+                    groupedByMentor[mentor.kalvium_email] = {
+                        mentorName: mentor.name || "Mentor",
+                        sevenDaysPlus: [],
+                        oneToSixDays: [],
+                    };
+                }
+
+                // Categorize into 7+ days vs 1-6 days
+                if (daysInactive === null || daysInactive >= 7) {
+                    groupedByMentor[mentor.kalvium_email].sevenDaysPlus.push(student);
+                } else {
+                    groupedByMentor[mentor.kalvium_email].oneToSixDays.push(student);
+                }
+            });
         });
 
         // Step 7: Send categorized email reports via Brevo REST API
@@ -192,7 +196,7 @@ async function notifyMentorsAboutInactiveStudents() {
                         email: "kpm-squad@googlegroups.com",
                     },
                     to: [{ email: testemail, name: data.mentorName }],
-                    subject: "Daily Report: Squad LeetCode Inactivity Summary",
+                    subject: `Daily Report [${data.mentorName}]: Squad LeetCode Inactivity Summary`,
                     htmlContent: `
                         <h3>Hello ${data.mentorName},</h3>
                         <p>Here is the daily LeetCode inactivity report for your squad:</p>
@@ -212,7 +216,7 @@ async function notifyMentorsAboutInactiveStudents() {
                 const errorData = await response.json();
                 console.error(`[EMAIL ERROR] Brevo API failed for ${mentorEmail}:`, errorData);
             } else {
-                console.log(`[EMAIL SENT] Notified mentor ${mentorEmail} about ${totalCount} inactive students.`);
+                console.log(`[EMAIL SENT] Notified mentor ${data.mentorName} (${mentorEmail}) about ${totalCount} inactive students.`);
             }
         }
 
