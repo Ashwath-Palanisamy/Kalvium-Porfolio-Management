@@ -94,7 +94,6 @@ async function notifyMentorsAboutInactiveStudents() {
 
         // Step 2: Fetch mentor-student assignments dynamically from Supabase
         console.log("[EMAIL SYSTEM] Fetching mentor assignments from database...");
-        // Ensure you replace "mentor_student_assignments" with your actual table name if it differs
         const { data: assignments, error: assignmentError } = await supabaseAdmin
             .from("squad_students")
             .select("student_user_id, mentor_user_id");
@@ -124,10 +123,10 @@ async function notifyMentorsAboutInactiveStudents() {
             return;
         }
 
-        // Step 5: Fetch mentor details securely from the profiles table
+        // Step 5: Fetch mentor details securely using kalvium_email
         const { data: mentorProfiles, error: mentorError } = await supabaseAdmin
             .from("profiles")
-            .select("user_id, name, email")
+            .select("user_id, name, kalvium_email")
             .in("user_id", Array.from(activeMentorIdsToFetch));
 
         if (mentorError) throw mentorError;
@@ -142,26 +141,26 @@ async function notifyMentorsAboutInactiveStudents() {
 
         inactiveRecords.forEach((record) => {
             const mentorUserId = studentToMentorMap[record.user_id];
-            if (!mentorUserId) return; // Skip if no mentor is mapped in the dataset
+            if (!mentorUserId) return; 
 
             const mentor = mentorDataMap[mentorUserId];
-            if (!mentor || !mentor.email) return; // Skip if mentor profile is missing
+            if (!mentor || !mentor.kalvium_email) return; 
 
             const student = {
                 name: record.profiles.name,
-                email: record.profiles.email,
+                email: record.profiles.kalvium_email,
                 lastSolved: record.last_solved_at 
                     ? new Date(record.last_solved_at).toLocaleDateString() 
                     : "Never or Unknown",
             };
 
-            if (!groupedByMentor[mentor.email]) {
-                groupedByMentor[mentor.email] = {
+            if (!groupedByMentor[mentor.kalvium_email]) {
+                groupedByMentor[mentor.kalvium_email] = {
                     mentorName: mentor.name || "Mentor",
                     students: [],
                 };
             }
-            groupedByMentor[mentor.email].students.push(student);
+            groupedByMentor[mentor.kalvium_email].students.push(student);
         });
 
         // Step 7: Send grouped emails to each identified mentor
@@ -445,7 +444,6 @@ router.post("/update-leetcode", async (req, res) => {
         // ============================================================
         // 5. TRIGGER THE NOTIFICATION FUNCTION HERE
         // ============================================================
-        // After syncing completes, map the datasets and fire the mentor emails.
         await notifyMentorsAboutInactiveStudents();
 
         console.log(`\nFinished : ${new Date().toISOString()}`);
