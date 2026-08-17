@@ -80,7 +80,7 @@ async function notifyMentorsAboutInactiveStudents() {
                 last_solved_at,
                 profiles!inner (
                     name,
-                    email
+                    kalvium_email
                 )
             `)
             .eq("is_leetcode_active", false);
