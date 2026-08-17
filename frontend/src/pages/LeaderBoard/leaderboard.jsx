@@ -42,6 +42,10 @@ function Leaderboard() {
           const easySolved = entry?.easy_solved ?? 0;
           const mediumSolved = entry?.medium_solved ?? 0;
           const hardSolved = entry?.hard_solved ?? 0;
+          
+          // Anti-cheat / Mentor review attributes
+          const pendingReviewCount = entry?.pending_review_count ?? entry?.pending_solves ?? 0;
+          const isUnderReview = entry?.is_under_review ?? pendingReviewCount > 0;
 
           return {
             user_id: entry?.user_id || entry?.profile_id || entry?.id,
@@ -59,12 +63,14 @@ function Leaderboard() {
             total: entry?.total_solved ?? easySolved + mediumSolved + hardSolved,
             score: entry?.score ?? 0,
             ranking: entry?.ranking ?? null,
-            failed: false,
+            pendingReviewCount,
+            isUnderReview,
           };
         });
 
         if (!isMounted) return;
 
+        // Sort primarily by approved score
         const sorted = results.sort((a, b) => b.score - a.score);
         setRankings(sorted);
       } catch (err) {
@@ -113,15 +119,18 @@ function Leaderboard() {
       <div className="leaderboard-title">
         <div className="title-header-row">
           <h1>Leaderboard</h1>
-          
         </div>
-        <p>Ranked by LeetCode problems solved & total points scored. Leaderboard will be updated every 24 hours.</p>
+        <p>
+          Ranked by verified LeetCode problems solved & total points scored. 
+          Rapid consecutive solves (under 2 mins) are automatically held in <strong>Mentor Evaluation Queue</strong> before point allocation.
+        </p>
 
-        {/* POINTS BADGES */}
+        {/* POINTS & AUDIT BADGES */}
         <div className="points-legend">
           <span className="point-badge easy">Easy: {POINTS.easy} pt</span>
           <span className="point-badge medium">Medium: {POINTS.medium} pts</span>
           <span className="point-badge hard">Hard: {POINTS.hard} pts</span>
+          <span className="point-badge review-info">🕒 Flagged Solves = Held for Review</span>
         </div>
       </div>
 
@@ -158,28 +167,26 @@ function Leaderboard() {
                   </p>
 
                   <div className="podium-points-badge">
-                     <strong>{topThree[1].score}</strong> pts
+                    <strong>{topThree[1].score}</strong> pts
                   </div>
+
+                  {topThree[1].pendingReviewCount > 0 && (
+                    <div className="pending-badge" title="Pending mentor review for fast consecutive solves">
+                      ⏳ {topThree[1].pendingReviewCount} in Review
+                    </div>
+                  )}
 
                   <div className="problem-stats">
                     <div>
-                      <strong className="easy-text">
-                        {topThree[1].easySolved}
-                      </strong>
+                      <strong className="easy-text">{topThree[1].easySolved}</strong>
                       <span>Easy</span>
                     </div>
-
                     <div>
-                      <strong className="medium-text">
-                        {topThree[1].mediumSolved}
-                      </strong>
+                      <strong className="medium-text">{topThree[1].mediumSolved}</strong>
                       <span>Medium</span>
                     </div>
-
                     <div>
-                      <strong className="hard-text">
-                        {topThree[1].hardSolved}
-                      </strong>
+                      <strong className="hard-text">{topThree[1].hardSolved}</strong>
                       <span>Hard</span>
                     </div>
                   </div>
@@ -207,28 +214,26 @@ function Leaderboard() {
                   </p>
 
                   <div className="podium-points-badge highlight">
-                     <strong>{topThree[0].score}</strong> pts
+                    <strong>{topThree[0].score}</strong> pts
                   </div>
+
+                  {topThree[0].pendingReviewCount > 0 && (
+                    <div className="pending-badge" title="Pending mentor review for fast consecutive solves">
+                      ⏳ {topThree[0].pendingReviewCount} in Review
+                    </div>
+                  )}
 
                   <div className="problem-stats">
                     <div>
-                      <strong className="easy-text">
-                        {topThree[0].easySolved}
-                      </strong>
+                      <strong className="easy-text">{topThree[0].easySolved}</strong>
                       <span>Easy</span>
                     </div>
-
                     <div>
-                      <strong className="medium-text">
-                        {topThree[0].mediumSolved}
-                      </strong>
+                      <strong className="medium-text">{topThree[0].mediumSolved}</strong>
                       <span>Medium</span>
                     </div>
-
                     <div>
-                      <strong className="hard-text">
-                        {topThree[0].hardSolved}
-                      </strong>
+                      <strong className="hard-text">{topThree[0].hardSolved}</strong>
                       <span>Hard</span>
                     </div>
                   </div>
@@ -256,28 +261,26 @@ function Leaderboard() {
                   </p>
 
                   <div className="podium-points-badge">
-                     <strong>{topThree[2].score}</strong> pts
+                    <strong>{topThree[2].score}</strong> pts
                   </div>
+
+                  {topThree[2].pendingReviewCount > 0 && (
+                    <div className="pending-badge" title="Pending mentor review for fast consecutive solves">
+                      ⏳ {topThree[2].pendingReviewCount} in Review
+                    </div>
+                  )}
 
                   <div className="problem-stats">
                     <div>
-                      <strong className="easy-text">
-                        {topThree[2].easySolved}
-                      </strong>
+                      <strong className="easy-text">{topThree[2].easySolved}</strong>
                       <span>Easy</span>
                     </div>
-
                     <div>
-                      <strong className="medium-text">
-                        {topThree[2].mediumSolved}
-                      </strong>
+                      <strong className="medium-text">{topThree[2].mediumSolved}</strong>
                       <span>Medium</span>
                     </div>
-
                     <div>
-                      <strong className="hard-text">
-                        {topThree[2].hardSolved}
-                      </strong>
+                      <strong className="hard-text">{topThree[2].hardSolved}</strong>
                       <span>Hard</span>
                     </div>
                   </div>
@@ -313,31 +316,24 @@ function Leaderboard() {
                     <div className="table-rank">#{rank}</div>
 
                     <div className="table-student">
-                      <img
-                        src={getAvatar(student)}
-                        alt={student.name}
-                      />
+                      <img src={getAvatar(student)} alt={student.name} />
 
                       <div>
                         <strong>{student.name}</strong>
                         <span>@{cleanUsername(student.username)}</span>
                       </div>
+
+                      {student.pendingReviewCount > 0 && (
+                        <span className="table-pending-pill" title="Solves under mentor evaluation">
+                          ⏳ {student.pendingReviewCount} review
+                        </span>
+                      )}
                     </div>
 
-                    <div className="easy-number">
-                      {student.easySolved}
-                    </div>
-
-                    <div className="medium-number">
-                      {student.mediumSolved}
-                    </div>
-
-                    <div className="hard-number">
-                      {student.hardSolved}
-                    </div>
-
+                    <div className="easy-number">{student.easySolved}</div>
+                    <div className="medium-number">{student.mediumSolved}</div>
+                    <div className="hard-number">{student.hardSolved}</div>
                     <div className="total-number">{student.total}</div>
-
                     <div className="points-number">{student.score}</div>
                   </div>
                 );
