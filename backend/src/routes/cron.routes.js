@@ -2,7 +2,7 @@ import express from "express";
 import { supabaseAdmin } from "../config/supabase.js";
 import nodemailer from "nodemailer";
 
-testemail = process.env.TEST_EMAIL;
+const testemail = process.env.TEST_EMAIL;
 const router = express.Router();
 
 // ============================================================
