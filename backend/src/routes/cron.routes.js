@@ -110,17 +110,29 @@ async function notifyMentorsAboutInactiveStudents() {
             return;
         }
 
-        // Step 5: Fetch mentor details securely using kalvium_email
-        const { data: mentorProfiles, error: mentorError } = await supabaseAdmin
-            .from("profiles")
-            .select("user_id, name, kalvium_email")
-            .in("user_id", Array.from(activeMentorIdsToFetch));
+        // Step 5: Fetch mentor details directly from Supabase Auth & Profiles
+        const mentorProfiles = await Promise.all(
+            Array.from(activeMentorIdsToFetch).map(async (mentorId) => {
+                const [{ data: authUserData }, { data: profile }] = await Promise.all([
+                    supabaseAdmin.auth.admin.getUserById(mentorId),
+                    supabaseAdmin.from("profiles").select("name").eq("user_id", mentorId).maybeSingle()
+                ]);
 
-        if (mentorError) throw mentorError;
+                const authUser = authUserData?.user;
+
+                return {
+                    user_id: mentorId,
+                    name: authUser?.user_metadata?.full_name || "Mentor",
+                    email: authUser?.email || null,
+                };
+            })
+        );
 
         const mentorDataMap = {};
         mentorProfiles.forEach(mentor => {
-            mentorDataMap[mentor.user_id] = mentor;
+            if (mentor.user_id && mentor.email) {
+                mentorDataMap[mentor.user_id] = mentor;
+            }
         });
 
         // Step 6: Group students under ALL assigned mentors into 7+ days and 1-6 days categories
@@ -147,10 +159,10 @@ async function notifyMentorsAboutInactiveStudents() {
             // Loop through every mentor assigned to this student
             mentorUserIds.forEach((mentorUserId) => {
                 const mentor = mentorDataMap[mentorUserId];
-                if (!mentor || !mentor.kalvium_email) return; 
+                if (!mentor || !mentor.email) return; 
 
-                if (!groupedByMentor[mentor.kalvium_email]) {
-                    groupedByMentor[mentor.kalvium_email] = {
+                if (!groupedByMentor[mentor.email]) {
+                    groupedByMentor[mentor.email] = {
                         mentorName: mentor.name || "Mentor",
                         sevenDaysPlus: [],
                         oneToSixDays: [],
@@ -159,9 +171,9 @@ async function notifyMentorsAboutInactiveStudents() {
 
                 // Categorize into 7+ days vs 1-6 days
                 if (daysInactive === null || daysInactive >= 7) {
-                    groupedByMentor[mentor.kalvium_email].sevenDaysPlus.push(student);
+                    groupedByMentor[mentor.email].sevenDaysPlus.push(student);
                 } else {
-                    groupedByMentor[mentor.kalvium_email].oneToSixDays.push(student);
+                    groupedByMentor[mentor.email].oneToSixDays.push(student);
                 }
             });
         });
