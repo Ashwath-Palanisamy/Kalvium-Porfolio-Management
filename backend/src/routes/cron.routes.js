@@ -168,6 +168,9 @@ async function notifyMentorsAboutInactiveStudents() {
 
         // Step 7: Send categorized email reports via Brevo REST API
         for (const [mentorEmail, data] of Object.entries(groupedByMentor)) {
+            // Determine recipient: Use TEST_EMAIL if set; otherwise fallback to real mentor's email
+            const recipientEmail = (testemail && testemail.trim() !== "") ? testemail : mentorEmail;
+
             const renderList = (students) =>
                 students
                     .map((s) => `<li><strong>${s.name}</strong> (${s.email}) — Last active: ${s.lastSolved} (${s.daysInactive} days inactive)</li>`)
@@ -195,16 +198,16 @@ async function notifyMentorsAboutInactiveStudents() {
                         name: "Kalvium Portfolio Management",
                         email: "kpm-squad@googlegroups.com",
                     },
-                    to: [{ email: testemail, name: data.mentorName }],
-                    subject: `Daily Report [${data.mentorName}]: Squad LeetCode Inactivity Summary`,
+                    to: [{ email: recipientEmail, name: data.mentorName }],
+                    subject: `[KPM Report] - Daily Report: Squad(s) LeetCode Inactivity Summary`,
                     htmlContent: `
                         <h3>Hello ${data.mentorName},</h3>
-                        <p>Here is the daily LeetCode inactivity report for your squad:</p>
+                        <p>Here is the daily LeetCode inactivity report for your squad(s):</p>
                         
-                        <h4 style="color: #d9534f;">🚨 High Priority: Inactive for 7+ Days (${data.sevenDaysPlus.length})</h4>
+                        <h4 style="color: #d9534f;">High Priority: Inactive for 7+ Days (${data.sevenDaysPlus.length})</h4>
                         ${sevenDaysHtml}
 
-                        <h4 style="color: #f0ad4e;">⚠️ Warning: Inactive for 1–6 Days (${data.oneToSixDays.length})</h4>
+                        <h4 style="color: #f0ad4e;">Warning: Inactive for 1–6 Days (${data.oneToSixDays.length})</h4>
                         ${oneToSixDaysHtml}
 
                         <p>Please reach out to your squad members to keep them on track.</p>
@@ -214,9 +217,9 @@ async function notifyMentorsAboutInactiveStudents() {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                console.error(`[EMAIL ERROR] Brevo API failed for ${mentorEmail}:`, errorData);
+                console.error(`[EMAIL ERROR] Brevo API failed for ${recipientEmail}:`, errorData);
             } else {
-                console.log(`[EMAIL SENT] Notified mentor ${data.mentorName} (${mentorEmail}) about ${totalCount} inactive students.`);
+                console.log(`[EMAIL SENT] Notified mentor ${data.mentorName} (Recipient: ${recipientEmail}) about ${totalCount} inactive students.`);
             }
         }
 
