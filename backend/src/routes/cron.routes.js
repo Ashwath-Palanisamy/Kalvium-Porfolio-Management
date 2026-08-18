@@ -378,11 +378,17 @@ async function syncSingleLeetCodeProfile(
             const SEVEN_DAYS_MS =
                 7 * 24 * 60 * 60 * 1000;
 
-            const isLeetCodeActive = lastSolvedAt
-                ? Date.now() -
-                      new Date(lastSolvedAt).getTime() <=
-                  SEVEN_DAYS_MS
-                : false;
+            const hasSolvedProblems = Number(totalSolved) > 0;
+            const isLeetCodeActive =
+                hasSolvedProblems && lastSolvedAt
+                    ? Date.now() -
+                          new Date(lastSolvedAt).getTime() <=
+                      SEVEN_DAYS_MS
+                    : false;
+
+            const normalizedLastSolvedAt = hasSolvedProblems
+                ? lastSolvedAt
+                : null;
 
             // --------------------------------------------------------
             // CHECK EXISTING SCORE BEFORE UPDATE
@@ -468,7 +474,7 @@ async function syncSingleLeetCodeProfile(
                 score,
 
                 updated_at: new Date().toISOString(),
-                last_solved_at: lastSolvedAt,
+                last_solved_at: normalizedLastSolvedAt,
 
                 // ONLY activity field
                 is_leetcode_active: isLeetCodeActive,
