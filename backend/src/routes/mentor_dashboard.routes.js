@@ -410,135 +410,407 @@ router.post("/unassign-student", requireAuth, async (req, res) => {
 });
 
 // ==========================================
-// MENTOR REVIEW ROUTES
+// MENTOR REVIEW QUEUE
 // ==========================================
 
-router.get("/review-queue", requireAuth, async (req, res) => {
+router.get("/leetcode-review/queue", requireAuth, async (req, res) => {
     try {
         const mentorUserId = req.user.id;
         const db = req.authedSupabase;
 
-        // Get students assigned to this mentor
+        // ==========================================
+        // 1. GET STUDENTS ASSIGNED TO THIS MENTOR
+        // ==========================================
+
         const { data: assignments, error: assignmentError } = await db
             .from("squad_students")
             .select("student_user_id, squad_id, assigned_at")
             .eq("mentor_user_id", mentorUserId);
 
         if (assignmentError) {
-            console.error("Review Queue Assignment Error:", assignmentError);
-            return res.status(400).json({ error: assignmentError.message });
+            console.error(
+                "Review Queue Assignment Error:",
+                assignmentError
+            );
+
+            return res.status(400).json({
+                error: assignmentError.message,
+            });
         }
 
         if (!assignments || assignments.length === 0) {
             return res.status(200).json({
                 success: true,
-                reviews: []
+                reviews: [],
             });
         }
 
-        const studentIds = assignments.map(
-            (item) => item.student_user_id
-        );
+        const studentIds = assignments
+            .map((item) => item.student_user_id)
+            .filter(Boolean);
 
-        // Get student profiles
+        // ==========================================
+        // 2. GET PENDING LEETCODE SUBMISSIONS
+        // ==========================================
+
+        const {
+            data: pendingSubmissions,
+            error: submissionError,
+        } = await db
+            .from("leetcode_submissions")
+            .select(`
+                id,
+                user_id,
+                leetcode_username,
+                submission_id,
+                title_slug,
+                difficulty,
+                submitted_at,
+                flag_reason,
+                review_status,
+                status
+            `)
+            .eq("review_status", "pending")
+            .in("user_id", studentIds)
+            .order("submitted_at", {
+                ascending: true,
+            });
+
+        if (submissionError) {
+            console.error(
+                "Pending Submission Error:",
+                submissionError
+            );
+
+            return res.status(400).json({
+                error: submissionError.message,
+            });
+        }
+
+        // No pending submissions
+        if (!pendingSubmissions || pendingSubmissions.length === 0) {
+            return res.status(200).json({
+                success: true,
+                reviews: [],
+            });
+        }
+
+        // ==========================================
+        // 3. GET STUDENT PROFILES
+        // ==========================================
+
         const { data: profiles, error: profileError } = await db
             .from("profiles")
-            .select("*")
+            .select(`
+                user_id,
+                name,
+                avatar_url,
+                squad_id,
+                leetcode
+            `)
             .in("user_id", studentIds);
 
         if (profileError) {
-            console.error("Review Profile Error:", profileError);
-            return res.status(400).json({ error: profileError.message });
-        }
+            console.error(
+                "Review Queue Profile Error:",
+                profileError
+            );
 
-        // Get leaderboard information
-        const { data: leaderboardData, error: leaderboardError } = await db
-            .from("leetcode_leaderboard")
-            .select("*")
-            .in("user_id", studentIds);
-
-        if (leaderboardError) {
-            console.error("Review Leaderboard Error:", leaderboardError);
             return res.status(400).json({
-                error: leaderboardError.message
+                error: profileError.message,
             });
         }
 
-        const leaderboardMap = createLeaderboardMap(
-            leaderboardData || []
-        );
+        // ==========================================
+        // 4. GET LEETCODE LEADERBOARD DATA
+        // ==========================================
+
+        const {
+            data: leaderboardData,
+            error: leaderboardError,
+        } = await db
+            .from("leetcode_leaderboard")
+            .select(`
+                user_id,
+                leetcode_username,
+                easy_solved,
+                medium_solved,
+                hard_solved,
+                total_solved,
+                score
+            `)
+            .in("user_id", studentIds);
+
+        if (leaderboardError) {
+            console.error(
+                "Review Queue Leaderboard Error:",
+                leaderboardError
+            );
+
+            return res.status(400).json({
+                error: leaderboardError.message,
+            });
+        }
+
+        // ==========================================
+        // 5. BUILD LOOKUP MAPS
+        // ==========================================
+
+        const profileMap = new Map();
+
+        (profiles || []).forEach((profile) => {
+            profileMap.set(
+                String(profile.user_id),
+                profile
+            );
+        });
+
+        const leaderboardMap = new Map();
+
+        (leaderboardData || []).forEach((row) => {
+            leaderboardMap.set(
+                String(row.user_id),
+                row
+            );
+        });
+
+        // ==========================================
+        // 6. BUILD MENTOR REVIEW CARDS
+        // ==========================================
 
         const reviews = [];
 
-        for (const assignment of assignments) {
-            const profile =
-                profiles?.find(
-                    (p) =>
-                        String(p.user_id) ===
-                        String(assignment.student_user_id)
-                ) || {};
+        for (const studentId of studentIds) {
+            const studentPendingSubmissions =
+                pendingSubmissions.filter(
+                    (submission) =>
+                        String(submission.user_id) ===
+                        String(studentId)
+                );
 
-            const stats =
-                leaderboardMap.get(
-                    String(assignment.student_user_id)
-                ) || {};
-
-            const pendingReviewCount =
-                stats.pending_review_count ??
-                stats.pending_solves ??
-                0;
-
-            // Only students requiring review
-            if (pendingReviewCount > 0) {
-                reviews.push({
-                    student_user_id: assignment.student_user_id,
-                    name: profile.name || "Unknown Student",
-                    email:
-                        profile.kalvium_email ||
-                        profile.personal_email ||
-                        profile.email ||
-                        "No email",
-                    avatar_url: profile.avatar_url || null,
-
-                    squad_id: assignment.squad_id,
-
-                    leetcode_username:
-                        stats.leetcode_username ||
-                        profile.leetcode ||
-                        null,
-
-                    pending_review_count: pendingReviewCount,
-
-                    easy_solved: stats.easy_solved || 0,
-                    medium_solved: stats.medium_solved || 0,
-                    hard_solved: stats.hard_solved || 0,
-
-                    total_solved:
-                        stats.total_solved ||
-                        (
-                            (stats.easy_solved || 0) +
-                            (stats.medium_solved || 0) +
-                            (stats.hard_solved || 0)
-                        ),
-
-                    score: stats.score || 0
-                });
+            // Student has no pending submissions
+            if (studentPendingSubmissions.length === 0) {
+                continue;
             }
+
+            const profile =
+                profileMap.get(String(studentId)) || {};
+
+            const leaderboard =
+                leaderboardMap.get(String(studentId)) || {};
+
+            reviews.push({
+                student_user_id: studentId,
+
+                name:
+                    profile.name ||
+                    "Unknown Student",
+
+                avatar_url:
+                    profile.avatar_url ||
+                    null,
+
+                squad_id:
+                    profile.squad_id ||
+                    null,
+
+                leetcode_username:
+                    leaderboard.leetcode_username ||
+                    studentPendingSubmissions[0]
+                        ?.leetcode_username ||
+                    profile.leetcode ||
+                    "unknown",
+
+                easy_solved:
+                    leaderboard.easy_solved || 0,
+
+                medium_solved:
+                    leaderboard.medium_solved || 0,
+
+                hard_solved:
+                    leaderboard.hard_solved || 0,
+
+                total_solved:
+                    leaderboard.total_solved || 0,
+
+                score:
+                    leaderboard.score || 0,
+
+                pending_review_count:
+                    studentPendingSubmissions.length,
+
+                pending_submissions:
+                    studentPendingSubmissions,
+            });
         }
+
+        // ==========================================
+        // 7. RETURN REVIEW QUEUE
+        // ==========================================
 
         return res.status(200).json({
             success: true,
-            count: reviews.length,
-            reviews
+            reviews,
         });
 
     } catch (error) {
-        console.error("Review Queue Error:", error);
+        console.error(
+            "Mentor Review Queue Error:",
+            error
+        );
 
         return res.status(500).json({
-            error: "Internal server error"
+            error: "Internal server error",
         });
     }
 });
+
+// ==========================================
+// APPROVE MENTOR REVIEW
+// ==========================================
+
+router.patch(
+    "/leetcode-review/:studentUserId/approve",
+    requireAuth,
+    async (req, res) => {
+        try {
+            const { studentUserId } = req.params;
+            const db = req.authedSupabase;
+
+            // Make sure this student actually has pending reviews
+            const { data: pending, error: pendingError } =
+                await db
+                    .from("leetcode_submissions")
+                    .select("id")
+                    .eq("user_id", studentUserId)
+                    .eq("review_status", "pending");
+
+            if (pendingError) {
+                return res.status(400).json({
+                    error: pendingError.message,
+                });
+            }
+
+            if (!pending || pending.length === 0) {
+                return res.status(404).json({
+                    error: "No pending review found for this student",
+                });
+            }
+
+            // Approve all pending submissions
+            const { data, error } = await db
+                .from("leetcode_submissions")
+                .update({
+                    review_status: "approved",
+                    status: "APPROVED",
+                    flag_reason: null,
+                })
+                .eq("user_id", studentUserId)
+                .eq("review_status", "pending")
+                .select();
+
+            if (error) {
+                console.error(
+                    "Approve Review Error:",
+                    error
+                );
+
+                return res.status(400).json({
+                    error: error.message,
+                });
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: "Review approved successfully",
+                updated: data,
+            });
+
+        } catch (error) {
+            console.error(
+                "Approve Review Server Error:",
+                error
+            );
+
+            return res.status(500).json({
+                error: "Internal server error",
+            });
+        }
+    }
+);
+
+
+// ==========================================
+// REJECT MENTOR REVIEW
+// ==========================================
+
+router.patch(
+    "/leetcode-review/:studentUserId/reject",
+    requireAuth,
+    async (req, res) => {
+        try {
+            const { studentUserId } = req.params;
+            const db = req.authedSupabase;
+
+            // Find pending submissions
+            const { data: pending, error: pendingError } =
+                await db
+                    .from("leetcode_submissions")
+                    .select("id")
+                    .eq("user_id", studentUserId)
+                    .eq("review_status", "pending");
+
+            if (pendingError) {
+                return res.status(400).json({
+                    error: pendingError.message,
+                });
+            }
+
+            if (!pending || pending.length === 0) {
+                return res.status(404).json({
+                    error: "No pending review found for this student",
+                });
+            }
+
+            // Reject suspicious submissions
+            const { data, error } = await db
+                .from("leetcode_submissions")
+                .update({
+                    review_status: "rejected",
+                    status: "REJECTED",
+                })
+                .eq("user_id", studentUserId)
+                .eq("review_status", "pending")
+                .select();
+
+            if (error) {
+                console.error(
+                    "Reject Review Error:",
+                    error
+                );
+
+                return res.status(400).json({
+                    error: error.message,
+                });
+            }
+
+            return res.status(200).json({
+                success: true,
+                message: "Suspicious submissions rejected",
+                updated: data,
+            });
+
+        } catch (error) {
+            console.error(
+                "Reject Review Server Error:",
+                error
+            );
+
+            return res.status(500).json({
+                error: "Internal server error",
+            });
+        }
+    }
+);
 
 export default router;

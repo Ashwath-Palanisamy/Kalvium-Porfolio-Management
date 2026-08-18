@@ -1,0 +1,185 @@
+/* Pending Review Banner - Notification Alert */
+
+.pending-review-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 16px 20px;
+    margin: 16px 0;
+    background: linear-gradient(135deg, #fff3cd 0%, #ffe6e6 100%);
+    border: 2px solid #ff6b6b;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.15);
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.pending-review-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    flex: 1;
+}
+
+.pending-review-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background-color: #ff6b6b;
+    color: white;
+    border-radius: 8px;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        background-color: #ff6b6b;
+    }
+    50% {
+        background-color: #ff5252;
+    }
+}
+
+.pending-review-message {
+    flex: 1;
+}
+
+.pending-review-message h3 {
+    margin: 0 0 6px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #d32f2f;
+}
+
+.pending-review-message p {
+    margin: 4px 0;
+    font-size: 14px;
+    color: #555;
+    line-height: 1.4;
+}
+
+.pending-submissions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 10px 0;
+    padding: 8px;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-left: 3px solid #ff6b6b;
+    border-radius: 4px;
+}
+
+.pending-submission-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #333;
+}
+
+.pending-submission-item svg {
+    flex-shrink: 0;
+    color: #ff6b6b;
+}
+
+.pending-submission-item strong {
+    font-weight: 600;
+    color: #d32f2f;
+}
+
+.pending-note {
+    font-size: 12px;
+    color: #666;
+    font-style: italic;
+    margin-top: 6px;
+}
+
+.pending-review-button {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 18px;
+    background-color: #ff6b6b;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.25);
+}
+
+.pending-review-button:hover {
+    background-color: #ff5252;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.35);
+}
+
+.pending-review-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(255, 107, 107, 0.2);
+}
+
+.pending-review-button svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .pending-review-banner {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .pending-review-button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .pending-review-message h3 {
+        font-size: 15px;
+    }
+
+    .pending-review-message p {
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 480px) {
+    .pending-review-banner {
+        padding: 12px 16px;
+        margin: 12px 0;
+    }
+
+    .pending-review-icon {
+        width: 36px;
+        height: 36px;
+    }
+
+    .pending-review-message h3 {
+        font-size: 14px;
+    }
+
+    .pending-submissions-list {
+        margin: 8px 0;
+        padding: 6px;
+    }
+}

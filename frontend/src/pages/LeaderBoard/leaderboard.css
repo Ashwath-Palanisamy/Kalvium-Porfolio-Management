@@ -521,12 +521,95 @@
 }
 
 /* =========================================
+   9. PENDING REVIEW NOTICE
+========================================= */
+
+.leaderboard-pending-notice {
+  max-width: 1140px;
+  margin: 0 auto 30px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #fff3cd 0%, #ffe6e6 100%);
+  border: 2px solid #ff6b6b;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.15);
+}
+
+.pending-notice-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex: 1;
+}
+
+.pending-icon {
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+}
+
+.pending-notice-content strong {
+  display: block;
+  color: #d32f2f;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.pending-notice-content p {
+  margin: 0;
+  font-size: 14px;
+  color: #555;
+  line-height: 1.4;
+}
+
+.pending-notice-button {
+  padding: 10px 16px;
+  background-color: #ff6b6b;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.25);
+}
+
+.pending-notice-button:hover {
+  background-color: #ff5252;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.35);
+}
+
+.pending-notice-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(255, 107, 107, 0.2);
+}
+
+/* =========================================
    10. RESPONSIVE DESIGN
 ========================================= */
 
 @media (max-width: 900px) {
   .leaderboard-page {
     padding: 30px 16px 60px;
+  }
+
+  .leaderboard-pending-notice {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .pending-notice-button {
+    width: 100%;
+    text-align: center;
   }
 
   .podium {

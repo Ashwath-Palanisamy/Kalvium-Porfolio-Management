@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getLeaderboardData } from "../../api/routes/Public/leaderboard";
+import { getPendingReviewStatus } from "../../api/routes/StudentDashboard/dashboard";
 import "./leaderboard.css";
 
 const POINTS = {
@@ -25,6 +26,10 @@ function Leaderboard() {
   const [rankings, setRankings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [userPendingReview, setUserPendingReview] = useState({
+    hasPendingReview: false,
+    pendingReviewCount: 0,
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -70,8 +75,16 @@ function Leaderboard() {
 
         if (!isMounted) return;
 
-        // Sort primarily by approved score
-        const sorted = results.sort((a, b) => b.score - a.score);
+        // Students with pending reviews should not appear in the ranked leaderboard
+        const verifiedStudents = results.filter(
+          (student) => !student.isUnderReview
+        );
+
+        // Sort only verified students by score
+        const sorted = verifiedStudents.sort(
+          (a, b) => b.score - a.score
+        );
+
         setRankings(sorted);
       } catch (err) {
         console.error("Error fetching leaderboard:", err);
@@ -87,6 +100,31 @@ function Leaderboard() {
     };
 
     fetchLeaderboard();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Check if current user has pending reviews
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkPendingReview = async () => {
+      try {
+        const status = await getPendingReviewStatus();
+        if (isMounted) {
+          setUserPendingReview({
+            hasPendingReview: status.hasPendingReview || false,
+            pendingReviewCount: status.pendingReviewCount || 0,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to check pending review status:", error);
+      }
+    };
+
+    checkPendingReview();
 
     return () => {
       isMounted = false;
@@ -133,6 +171,29 @@ function Leaderboard() {
           <span className="point-badge review-info">🕒 Flagged Solves = Held for Review</span>
         </div>
       </div>
+
+      {/* PENDING REVIEW NOTICE - If current user has pending reviews */}
+      {userPendingReview.hasPendingReview && (
+        <div className="leaderboard-pending-notice">
+          <div className="pending-notice-content">
+            <span className="pending-icon">⏳</span>
+            <div>
+              <strong>Your submissions are under mentor review</strong>
+              <p>
+                You have {userPendingReview.pendingReviewCount} rapid submission
+                {userPendingReview.pendingReviewCount !== 1 ? "s" : ""} awaiting verification.
+                Once approved, you'll appear on the leaderboard.
+              </p>
+            </div>
+          </div>
+          <button
+            className="pending-notice-button"
+            onClick={() => navigate("/profile")}
+          >
+            View Status
+          </button>
+        </div>
+      )}
 
       {error && <div className="leaderboard-error">{error}</div>}
 

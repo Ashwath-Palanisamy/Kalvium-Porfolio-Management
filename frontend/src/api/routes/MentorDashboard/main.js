@@ -216,3 +216,107 @@ export async function getStudentStats(studentUserId) {
     throw error;
   }
 }
+
+// ==========================================
+// LEETCODE MENTOR REVIEW
+// ==========================================
+
+/**
+ * Get all students/submissions waiting for mentor review.
+ */
+export async function getLeetCodeReviewQueue() {
+  const token = await jwt();
+
+  if (!token) {
+    console.error("No active session found");
+    return [];
+  }
+
+  try {
+    const response = await apiClient.get(
+      "/mentor/dashboard/leetcode-review-queue",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data.reviews || [];
+  } catch (error) {
+    console.error("Error fetching LeetCode review queue:", error);
+    throw error;
+  }
+}
+
+
+/**
+ * Approve a student's suspicious submission.
+ */
+export async function approveLeetCodeSubmission(submissionId) {
+  const token = await jwt();
+
+  if (!token) {
+    console.error("No active session found");
+    return null;
+  }
+
+  try {
+    const response = await apiClient.patch(
+      `/mentor/dashboard/leetcode-review/${submissionId}/approve`,
+      {},
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error(
+      `Error approving submission ${submissionId}:`,
+      error
+    );
+    throw error;
+  }
+}
+
+
+/**
+ * Reject a student's suspicious submission.
+ */
+export async function rejectLeetCodeSubmission(
+  submissionId,
+  reason = null
+) {
+  const token = await jwt();
+
+  if (!token) {
+    console.error("No active session found");
+    return null;
+  }
+
+  try {
+    const response = await apiClient.patch(
+      `/mentor/dashboard/leetcode-review/${submissionId}/reject`,
+      {
+        reason,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error(
+      `Error rejecting submission ${submissionId}:`,
+      error
+    );
+    throw error;
+  }
+}

@@ -48,3 +48,45 @@ export async function getLeetCodeStats(leetcodeUrl) {
         return null;
     }
 }
+
+// ==========================================
+// GET Pending Mentor Review Status
+// ==========================================
+export async function getPendingReviewStatus() {
+    const token = await jwt();
+
+    if (!token) {
+        console.error("No active session found");
+        return {
+            hasPendingReview: false,
+            pendingReviewCount: 0,
+            submissions: [],
+            profile: {}
+        };
+    }
+
+    try {
+        const response = await apiClient.get(
+            "/student/dashboard/pending-review",
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            }
+        );
+
+        return response.data;
+    } catch (error) {
+        console.error(
+            "Error fetching pending review status:",
+            error.response?.data || error.message
+        );
+
+        return {
+            hasPendingReview: false,
+            pendingReviewCount: 0,
+            submissions: [],
+            profile: {}
+        };
+    }
+}

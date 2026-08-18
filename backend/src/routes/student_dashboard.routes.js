@@ -305,4 +305,59 @@ router.post("/leetcode", statsRouteLimiter, requireAuth, async (req, res) => {
     }
 });
 
+// ==========================================
+// 5. GET Pending Mentor Review Status
+// ==========================================
+router.get("/pending-review", authRouteLimiter, requireAuth, async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        // Get all pending submissions for this user
+        const { data: pendingSubmissions, error: submissionError } = await req.authedSupabase
+            .from("leetcode_submissions")
+            .select(`
+                id,
+                submission_id,
+                title_slug,
+                difficulty,
+                submitted_at,
+                flag_reason,
+                review_status
+            `)
+            .eq("user_id", userId)
+            .eq("review_status", "pending")
+            .order("submitted_at", { ascending: false });
+
+        if (submissionError) {
+            console.error("Pending review fetch error:", submissionError);
+            return res.status(400).json({ error: submissionError.message });
+        }
+
+        // Get profile info for display
+        const { data: profile, error: profileError } = await req.authedSupabase
+            .from("profiles")
+            .select("name, leetcode_username")
+            .eq("user_id", userId)
+            .maybeSingle();
+
+        if (profileError) {
+            console.error("Profile fetch error:", profileError);
+            return res.status(400).json({ error: profileError.message });
+        }
+
+        const hasPendingReview = (pendingSubmissions || []).length > 0;
+
+        return res.status(200).json({
+            hasPendingReview,
+            pendingReviewCount: pendingSubmissions?.length || 0,
+            submissions: pendingSubmissions || [],
+            profile: profile || {}
+        });
+
+    } catch (err) {
+        console.error("Pending review status error:", err);
+        return res.status(500).json({ error: "Failed to fetch pending review status: " + err.message });
+    }
+});
+
 export default router;

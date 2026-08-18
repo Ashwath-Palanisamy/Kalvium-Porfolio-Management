@@ -373,7 +373,43 @@ router.post("/leetcode", statsRouteLimiter, async (req, res) => {
 // ==========================================
 router.get("/leetcode-leaderboard", async (req, res) => {
     try {
-        const { data, error } = await supabase
+
+        // ------------------------------------------
+        // 1. Find users who have pending reviews
+        // ------------------------------------------
+
+        const {
+            data: pendingSubmissions,
+            error: pendingError
+        } = await supabase
+            .from("leetcode_submissions")
+            .select("user_id")
+            .eq("review_status", "pending");
+
+        if (pendingError) {
+            console.error("Pending submission error:", pendingError);
+
+            return res.status(400).json({
+                error: pendingError.message
+            });
+        }
+
+        // Get unique user IDs
+        const pendingUserIds = [
+            ...new Set(
+                (pendingSubmissions || [])
+                    .map(row => row.user_id)
+            )
+        ];
+
+        // ------------------------------------------
+        // 2. Fetch leaderboard
+        // ------------------------------------------
+
+        const {
+            data,
+            error
+        } = await supabase
             .from("leetcode_leaderboard")
             .select(`
                 id,
@@ -399,12 +435,255 @@ router.get("/leetcode-leaderboard", async (req, res) => {
             .order("total_solved", { ascending: false });
 
         if (error) {
-            return res.status(400).json({ error: error.message });
+            return res.status(400).json({
+                error: error.message
+            });
         }
 
-        return res.status(200).json(data);
+        // ------------------------------------------
+        // 3. Remove students with pending reviews
+        // ------------------------------------------
+
+        const filteredLeaderboard = (data || []).filter(
+            student => !pendingUserIds.includes(student.user_id)
+        );
+
+        // ------------------------------------------
+        // 4. Return clean leaderboard
+        // ------------------------------------------
+
+        return res.status(200).json(filteredLeaderboard);
+
     } catch (err) {
-        return res.status(500).json({ error: "Internal Server Error", details: err.message });
+
+        console.error(
+            "Leaderboard error:",
+            err
+        );
+
+        return res.status(500).json({
+            error: "Internal Server Error",
+            details: err.message
+        });
+    }
+});
+
+// ==========================================
+// 7. GET LEETCODE RECENT SUBMISSIONS
+// ==========================================
+router.post("/leetcode-submissions", statsRouteLimiter, async (req, res) => {
+    console.log("🔥🔥🔥 LEETCODE SUBMISSIONS ROUTE CALLED 🔥🔥🔥");
+    console.log("BODY:", req.body);
+
+    // your existing code continues here...
+
+    const username = extractUsername(url, "leetcode");
+
+    if (!username) {
+        return res.status(400).json({
+            error: "Invalid LeetCode username or URL"
+        });
+    }
+
+    if (!user_id) {
+        return res.status(400).json({
+            error: "user_id is required"
+        });
+    }
+
+    try {
+        // ------------------------------------------
+        // Fetch recent accepted submissions
+        // ------------------------------------------
+
+        const query = `
+            query getRecentSubmissions($username: String!) {
+                recentAcSubmissionList(username: $username) {
+                    id
+                    title
+                    titleSlug
+                    timestamp
+                    lang
+                }
+            }
+        `;
+
+        const response = await fetch(
+            "https://leetcode.com/graphql",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json",
+                    "Referer": "https://leetcode.com/",
+                    "User-Agent": "Mozilla/5.0"
+                },
+
+                body: JSON.stringify({
+                    query,
+                    variables: {
+                        username
+                    }
+                })
+            }
+        );
+
+        if (!response.ok) {
+            return res.status(502).json({
+                error: "Failed to reach LeetCode"
+            });
+        }
+
+        const result = await response.json();
+
+        const submissions =
+            result?.data?.recentAcSubmissionList || [];
+
+        if (submissions.length === 0) {
+            return res.status(200).json({
+                success: true,
+                submissions: []
+            });
+        }
+
+        // ------------------------------------------
+        // Convert timestamps
+        // ------------------------------------------
+
+        const sortedSubmissions = [...submissions]
+            .map((submission) => ({
+                ...submission,
+                submittedAt: new Date(
+                    Number(submission.timestamp) * 1000
+                )
+            }))
+            .sort(
+                (a, b) =>
+                    a.submittedAt.getTime() -
+                    b.submittedAt.getTime()
+            );
+
+        // ------------------------------------------
+        // Create database records
+        // ------------------------------------------
+
+        const records = sortedSubmissions.map(
+            (submission, index) => {
+
+                let reviewStatus = "approved";
+                let flaggedReason = null;
+
+                // Compare with previous accepted solve
+                if (index > 0) {
+
+                    const previous =
+                        sortedSubmissions[index - 1];
+
+                    const differenceMs =
+                        submission.submittedAt.getTime() -
+                        previous.submittedAt.getTime();
+
+                    const differenceSeconds =
+                        differenceMs / 1000;
+
+                    // --------------------------------------
+                    // RAPID SOLVE DETECTION
+                    // --------------------------------------
+
+                    if (differenceSeconds <= 120) {
+
+                        reviewStatus = "pending";
+
+                        flaggedReason =
+                            `Solved ${Math.round(
+                                differenceSeconds
+                            )} seconds after previous solve`;
+                    }
+                }
+
+                return {
+                    user_id: user_id,
+
+                    leetcode_username:
+                        username,
+
+                    submission_id:
+                        String(submission.id),
+
+                    title_slug:
+                        submission.titleSlug,
+
+                    difficulty:
+                        null,
+
+                    submitted_at:
+                        submission.submittedAt.toISOString(),
+
+                    review_status:
+                        reviewStatus,
+
+                    flagged_reason:
+                        flaggedReason
+                };
+            }
+        );
+
+        // ------------------------------------------
+        // Save to Supabase
+        // ------------------------------------------
+
+        const {
+            data,
+            error
+        } = await supabase
+            .from("leetcode_submissions")
+            .upsert(
+                records,
+                {
+                    onConflict: "submission_id"
+                }
+            )
+            .select();
+
+        if (error) {
+
+            console.error(
+                "Save LeetCode submissions error:",
+                error
+            );
+
+            return res.status(500).json({
+                error: error.message
+            });
+        }
+
+        // ------------------------------------------
+        // Response
+        // ------------------------------------------
+
+        return res.status(200).json({
+            success: true,
+
+            username,
+
+            count:
+                data?.length || 0,
+
+            submissions:
+                data || []
+        });
+
+    } catch (err) {
+
+        console.error(
+            "LeetCode submission fetch error:",
+            err
+        );
+
+        return res.status(500).json({
+            error:
+                "Failed to fetch LeetCode submissions"
+        });
     }
 });
 
