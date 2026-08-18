@@ -98,6 +98,7 @@ const logSupabaseError = (
 
 // ============================================================
 // MENTOR REVIEW QUEUE
+// 3. NOTIFY MENTORS VIA BREVO REST API (CATEGORIZED BY INACTIVITY & UNSET PROFILES)
 // ============================================================
 
 router.get("/queue", async (req, res) => {
@@ -1055,6 +1056,23 @@ async function notifyMentorsAboutInactiveStudents() {
 
       return;
     }
+    console.log("\n [EMAIL SYSTEM] Starting inactive student notifications via Brevo API...");
+
+    try {
+        // Step 1: Fetch inactive students from leaderboard (is_leetcode_active = false)
+        const { data: inactiveRecords, error: inactiveError } = await supabaseAdmin
+            .from("leetcode_leaderboard")
+            .select(`
+                user_id,
+                last_solved_at,
+                profiles!inner (
+                    name,
+                    kalvium_email
+                )
+            `)
+            .eq("is_leetcode_active", false);
+
+        if (inactiveError) throw inactiveError;
 
     // ========================================================
     // GET ASSIGNMENTS
@@ -1072,6 +1090,15 @@ async function notifyMentorsAboutInactiveStudents() {
     if (assignmentError) {
       throw assignmentError;
     }
+        if (assignmentError) {
+            console.error("[EMAIL SYSTEM ERROR] Failed to fetch assignments.");
+            throw assignmentError;
+        }
+
+        if (!assignments || assignments.length === 0) {
+            console.log("[EMAIL SYSTEM] No mentor-student assignments found.");
+            return;
+        }
 
     // ========================================================
     // STUDENT -> MENTORS
@@ -1155,6 +1182,68 @@ async function notifyMentorsAboutInactiveStudents() {
     if (mentorError) {
       throw mentorError;
     }
+        // Step 3: Map students to mentors (Supports MULTIPLE mentors per student)
+        const studentToMentorsMap = {};
+        const allAssignedStudentUserIds = new Set();
+
+        assignments.forEach((assignment) => {
+            if (!studentToMentorsMap[assignment.student_user_id]) {
+                studentToMentorsMap[assignment.student_user_id] = [];
+            }
+            studentToMentorsMap[assignment.student_user_id].push(assignment.mentor_user_id);
+            allAssignedStudentUserIds.add(assignment.student_user_id);
+        });
+
+        // Step 4: Identify assigned students who haven't set their LeetCode profile URL
+        console.log("[EMAIL SYSTEM] Checking for students with unset LeetCode profiles...");
+        const { data: allStudentProfiles, error: profilesError } = await supabaseAdmin
+            .from("profiles")
+            .select("user_id, name, kalvium_email, leetcode")
+            .in("user_id", Array.from(allAssignedStudentUserIds));
+
+        if (profilesError) throw profilesError;
+
+        const missingProfileStudents = (allStudentProfiles || []).filter(
+            (p) => !p.leetcode || p.leetcode.trim() === ""
+        );
+
+        // Step 5: Figure out which Mentors we need to email
+        const activeMentorIdsToFetch = new Set();
+
+        // Add mentors of inactive leaderboard students
+        (inactiveRecords || []).forEach((record) => {
+            const mentorIds = studentToMentorsMap[record.user_id] || [];
+            mentorIds.forEach((mId) => activeMentorIdsToFetch.add(mId));
+        });
+
+        // Add mentors of students without LeetCode profile
+        missingProfileStudents.forEach((studentProfile) => {
+            const mentorIds = studentToMentorsMap[studentProfile.user_id] || [];
+            mentorIds.forEach((mId) => activeMentorIdsToFetch.add(mId));
+        });
+
+        if (activeMentorIdsToFetch.size === 0) {
+            console.log("[EMAIL SYSTEM] No inactive or profile-missing students mapped to mentors today.");
+            return;
+        }
+
+        // Step 6: Fetch mentor details directly from Supabase Auth & Profiles
+        const mentorProfiles = await Promise.all(
+            Array.from(activeMentorIdsToFetch).map(async (mentorId) => {
+                const [{ data: authUserData }, { data: profile }] = await Promise.all([
+                    supabaseAdmin.auth.admin.getUserById(mentorId),
+                    supabaseAdmin.from("profiles").select("name").eq("user_id", mentorId).maybeSingle(),
+                ]);
+
+                const authUser = authUserData?.user;
+
+                return {
+                    user_id: mentorId,
+                    name: profile?.name || authUser?.user_metadata?.full_name || "Mentor",
+                    email: authUser?.email || null,
+                };
+            })
+        );
 
     const mentorDataMap = {};
 
@@ -1206,6 +1295,27 @@ async function notifyMentorsAboutInactiveStudents() {
                 ONE_DAY_MS
             )
           : null;
+        const mentorDataMap = {};
+        mentorProfiles.forEach((mentor) => {
+            if (mentor.user_id && mentor.email) {
+                mentorDataMap[mentor.user_id] = mentor;
+            }
+        });
+
+        // Step 7: Group students under ALL assigned mentors (7+ days, 1-6 days, Profile Not Set)
+        const groupedByMentor = {};
+        const nowMs = Date.now();
+        const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+        // Group Inactive Students
+        (inactiveRecords || []).forEach((record) => {
+            const mentorUserIds = studentToMentorsMap[record.user_id] || [];
+            if (mentorUserIds.length === 0) return;
+
+            const lastSolvedDate = record.last_solved_at ? new Date(record.last_solved_at) : null;
+            const daysInactive = lastSolvedDate
+                ? Math.floor((nowMs - lastSolvedDate.getTime()) / ONE_DAY_MS)
+                : null;
 
       const student = {
         name:
@@ -1299,6 +1409,57 @@ async function notifyMentorsAboutInactiveStudents() {
     ) {
       const recipientEmail =
         mentorEmail;
+            mentorUserIds.forEach((mentorUserId) => {
+                const mentor = mentorDataMap[mentorUserId];
+                if (!mentor || !mentor.email) return;
+
+                if (!groupedByMentor[mentor.email]) {
+                    groupedByMentor[mentor.email] = {
+                        mentorName: mentor.name || "Mentor",
+                        sevenDaysPlus: [],
+                        oneToSixDays: [],
+                        missingProfile: [],
+                    };
+                }
+
+                if (daysInactive === null || daysInactive >= 7) {
+                    groupedByMentor[mentor.email].sevenDaysPlus.push(student);
+                } else {
+                    groupedByMentor[mentor.email].oneToSixDays.push(student);
+                }
+            });
+        });
+
+        // Group Missing Profile Students
+        missingProfileStudents.forEach((studentProfile) => {
+            const mentorUserIds = studentToMentorsMap[studentProfile.user_id] || [];
+            if (mentorUserIds.length === 0) return;
+
+            const student = {
+                name: studentProfile.name || "Unknown Student",
+                email: studentProfile.kalvium_email || "No Email",
+            };
+
+            mentorUserIds.forEach((mentorUserId) => {
+                const mentor = mentorDataMap[mentorUserId];
+                if (!mentor || !mentor.email) return;
+
+                if (!groupedByMentor[mentor.email]) {
+                    groupedByMentor[mentor.email] = {
+                        mentorName: mentor.name || "Mentor",
+                        sevenDaysPlus: [],
+                        oneToSixDays: [],
+                        missingProfile: [],
+                    };
+                }
+
+                groupedByMentor[mentor.email].missingProfile.push(student);
+            });
+        });
+
+        // Step 8: Send categorized email reports via Brevo REST API
+        for (const [mentorEmail, data] of Object.entries(groupedByMentor)) {
+            const recipientEmail = testemail && testemail.trim() !== "" ? testemail : mentorEmail;
 
       const renderList = (
         students
@@ -1353,6 +1514,27 @@ async function notifyMentorsAboutInactiveStudents() {
           .length +
         data.oneToSixDays
           .length;
+            const renderMissingList = (students) =>
+                students
+                    .map((s) => `<li><strong>${s.name}</strong> (${s.email}) — <em>Profile URL not set in portal</em></li>`)
+                    .join("");
+
+            const sevenDaysHtml = data.sevenDaysPlus.length
+                ? `<ul>${renderList(data.sevenDaysPlus)}</ul>`
+                : `<p><em>No students inactive for 7+ days.</em></p>`;
+
+            const oneToSixDaysHtml = data.oneToSixDays.length
+                ? `<ul>${renderList(data.oneToSixDays)}</ul>`
+                : `<p><em>No students inactive in the 1–6 day window.</em></p>`;
+
+            const missingProfileHtml = data.missingProfile.length
+                ? `<ul>${renderMissingList(data.missingProfile)}</ul>`
+                : `<p><em>All assigned squad members have configured their LeetCode profiles.</em></p>`;
+
+            const totalCount =
+                data.sevenDaysPlus.length + data.oneToSixDays.length + data.missingProfile.length;
+
+            if (totalCount === 0) continue;
 
       const response =
         await fetch(
@@ -1413,6 +1595,26 @@ async function notifyMentorsAboutInactiveStudents() {
                 </h4>
 
                 ${sevenDaysHtml}
+            const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+                method: "POST",
+                headers: {
+                    accept: "application/json",
+                    "content-type": "application/json",
+                    "api-key": process.env.BREVO_API_KEY,
+                },
+                body: JSON.stringify({
+                    sender: {
+                        name: "Kalvium Portfolio Management",
+                        email: "kpm-squad@googlegroups.com",
+                    },
+                    to: [{ email: recipientEmail, name: data.mentorName }],
+                    subject: `[KPM Report] - Daily Report: Squad(s) LeetCode Inactivity & Setup Summary`,
+                    htmlContent: `
+                        <h3>Hello ${data.mentorName},</h3>
+                        <p>Here is the daily LeetCode inactivity & profile setup report for your squad(s):</p>
+                        
+                        <h4 style="color: #d9534f;">🚨 High Priority: Inactive for 7+ Days (${data.sevenDaysPlus.length})</h4>
+                        ${sevenDaysHtml}
 
                 <h4>
                   Warning:
@@ -1421,6 +1623,11 @@ async function notifyMentorsAboutInactiveStudents() {
                 </h4>
 
                 ${oneToSixDaysHtml}
+                        <h4 style="color: #f0ad4e;">⚠️ Warning: Inactive for 1–6 Days (${data.oneToSixDays.length})</h4>
+                        ${oneToSixDaysHtml}
+
+                        <h4 style="color: #6c757d;">📝 Action Required: LeetCode Profile Not Set (${data.missingProfile.length})</h4>
+                        ${missingProfileHtml}
 
                 <p>
                   Please reach out
@@ -1447,6 +1654,13 @@ async function notifyMentorsAboutInactiveStudents() {
         );
       }
     }
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error(`[EMAIL ERROR] Brevo API failed for ${recipientEmail}:`, errorData);
+            } else {
+                console.log(`[EMAIL SENT] Notified mentor ${data.mentorName} (Recipient: ${recipientEmail}) about ${totalCount} student updates.`);
+            }
+        }
 
     console.log(
       "[EMAIL SYSTEM] Finished notifications."
@@ -1457,6 +1671,10 @@ async function notifyMentorsAboutInactiveStudents() {
       error.message
     );
   }
+        console.log("[EMAIL SYSTEM] Finished sending mentor notifications.");
+    } catch (err) {
+        console.error("[EMAIL SYSTEM ERROR] Failed to send mentor notifications:", err.message);
+    }
 }
 
 // ============================================================
@@ -1922,6 +2140,24 @@ async function syncSingleLeetCodeProfile(
               ).getTime() <=
             ONE_DAY_MS
           : false;
+                if (existingError) {
+                    logSupabaseError(`Existing leaderboard lookup failed`, existingError, { profileId, username });
+                }
+                lastSolvedAt = existingData?.last_solved_at || null;
+            }
+
+            // --------------------------------------------------------
+            // ACTIVE STATUS
+            // --------------------------------------------------------
+
+            const hasSolvedProblems = Number(totalSolved) > 0;
+            const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+            const normalizedLastSolvedAt = hasSolvedProblems ? lastSolvedAt : null;
+            const isLeetCodeActive =
+                hasSolvedProblems && normalizedLastSolvedAt
+                    ? Date.now() - new Date(normalizedLastSolvedAt).getTime() <= SEVEN_DAYS_MS
+                    : false;
 
       // ====================================================
       // LEADERBOARD UPSERT
@@ -1962,6 +2198,20 @@ async function syncSingleLeetCodeProfile(
         is_leetcode_active:
           isLeetCodeActive,
       };
+            const upsertPayload = {
+                profile_id: profileId,
+                user_id: userId,
+                leetcode_username: matchedUser.username,
+                easy_solved: easySolved,
+                medium_solved: mediumSolved,
+                hard_solved: hardSolved,
+                total_solved: totalSolved,
+                ranking,
+                score,
+                updated_at: new Date().toISOString(),
+                last_solved_at: normalizedLastSolvedAt,
+                is_leetcode_active: isLeetCodeActive,
+            };
 
       console.log(
         `[DB UPSERT] ${username} | Updating leetcode_leaderboard...`
