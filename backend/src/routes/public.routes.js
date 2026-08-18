@@ -62,16 +62,35 @@ const extractUsername = (input, platform) => {
 // Helper to extract boolean active flag from joined relation
 const formatProfileWithActivity = (profile) => {
     if (!profile) return profile;
-    const lbData = Array.isArray(profile.leetcode_leaderboard) 
-        ? profile.leetcode_leaderboard[0] 
+
+    const lbData = Array.isArray(profile.leetcode_leaderboard)
+        ? profile.leetcode_leaderboard[0]
         : profile.leetcode_leaderboard;
+
+    const totalSolved = Number(lbData?.total_solved ?? profile.total_solved ?? 0) || 0;
+    const hasSolvedProblems = totalSolved > 0;
+    const lastSolvedAt = hasSolvedProblems ? (lbData?.last_solved_at || profile.last_solved_at || null) : null;
+    const rawActive = lbData?.is_leetcode_active ?? profile.is_leetcode_active ?? false;
+
+    const effectiveIsActive =
+        hasSolvedProblems &&
+        (rawActive === true || rawActive === 1 || rawActive === "true" || rawActive === "1")
+            ? true
+            : hasSolvedProblems && lastSolvedAt
+                ? (() => {
+                    const solvedDate = new Date(lastSolvedAt);
+                    if (Number.isNaN(solvedDate.getTime())) return false;
+                    return solvedDate.getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000;
+                })()
+                : false;
 
     const { leetcode_leaderboard, ...rest } = profile;
 
     return {
         ...rest,
-        is_leetcode_active: lbData?.is_leetcode_active ?? false,
-        last_solved_at: lbData?.last_solved_at || null
+        is_leetcode_active: effectiveIsActive,
+        last_solved_at: lastSolvedAt,
+        total_solved: totalSolved,
     };
 };
 
@@ -87,7 +106,7 @@ router.get('/profiles', allprofilesLimiter, async (req, res) => {
         .from('profiles')
         .select(`
             user_id, name, title, role, avatar_url, github, leetcode, linkedin,
-            leetcode_leaderboard ( is_leetcode_active, last_solved_at )
+            leetcode_leaderboard ( is_leetcode_active, last_solved_at, total_solved )
         `)
         .eq('user_id', user_id)
         .single();
@@ -106,7 +125,7 @@ router.get('/profiles', allprofilesLimiter, async (req, res) => {
       .from('profiles')
       .select(`
           user_id, name, title, squad_id, avatar_url, github, leetcode, linkedin,
-          leetcode_leaderboard ( is_leetcode_active, last_solved_at )
+          leetcode_leaderboard ( is_leetcode_active, last_solved_at, total_solved )
       `);
 
     if (error) {
@@ -160,7 +179,7 @@ router.get('/profiles/:user_id', singleStudentLimiter, async (req, res) => {
       .from('profiles')
       .select(`
         *,
-        leetcode_leaderboard ( is_leetcode_active, last_solved_at )
+        leetcode_leaderboard ( is_leetcode_active, last_solved_at, total_solved )
       `) 
       .eq('user_id', user_id)
       .single();

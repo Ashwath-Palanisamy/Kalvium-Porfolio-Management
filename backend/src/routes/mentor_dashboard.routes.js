@@ -63,19 +63,21 @@ const normalizeStudentActivity = (profile = {}) => {
 
     const totalSolved = Number(rawTotalSolved) || 0;
     const hasSolvedProblems = totalSolved > 0;
+    const validLastSolved = hasSolvedProblems ? rawLastSolved || null : null;
 
     let isActive = false;
-    if (
-        (rawActive === true || rawActive === 1 || rawActive === "true" || rawActive === "1") &&
-        hasSolvedProblems
-    ) {
-        isActive = true;
-    } else if (hasSolvedProblems && rawLastSolved) {
-        const solvedDate = new Date(rawLastSolved);
+    if (hasSolvedProblems && validLastSolved) {
+        const solvedDate = new Date(validLastSolved);
         if (!isNaN(solvedDate.getTime())) {
             const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
             isActive = solvedDate.getTime() >= sevenDaysAgo;
         }
+    }
+
+    // If the raw active flag is true but the student has zero solved problems,
+    // it must still be treated as inactive.
+    if (!hasSolvedProblems) {
+        isActive = false;
     }
 
     return {
@@ -87,7 +89,7 @@ const normalizeStudentActivity = (profile = {}) => {
         avatar_url: profile.avatar_url || null,
         is_leetcode_active: isActive,
         total_solved: totalSolved,
-        last_solved_at: hasSolvedProblems ? rawLastSolved || null : null,
+        last_solved_at: validLastSolved,
         leetcode: profile.leetcode || profile.leetcode_username || profile.leetcode_handle || null,
         github: profile.github || profile.github_username || profile.github_handle || null,
         linkedin: profile.linkedin || profile.linkedin_url || null,
