@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import "./mentorReview.css";
+import "./MentorReview.css";
 
 const MentorReview = ({ profile }) => {
   const [reviews, setReviews] = useState([]);
