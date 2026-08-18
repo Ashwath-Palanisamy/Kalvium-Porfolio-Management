@@ -122,7 +122,7 @@ async function notifyMentorsAboutInactiveStudents() {
 
                 return {
                     user_id: mentorId,
-                    name: authUser?.user_metadata?.full_name || "Mentor",
+                    name: profile?.name || authUser?.user_metadata?.full_name || "Mentor",
                     email: authUser?.email || null,
                 };
             })
@@ -377,20 +377,11 @@ async function syncSingleLeetCodeProfile(
                 lastSolvedAt = existingData?.last_solved_at || null;
             }
 
-            // --------------------------------------------------------
-            // ACTIVE STATUS
-            // --------------------------------------------------------
-
-            const hasSolvedProblems = Number(totalSolved) > 0;
-            const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-
-            // A student with 0 solved problems must not be active, even if an old
-            // last_solved_at value still exists in the database.
-            const normalizedLastSolvedAt = hasSolvedProblems ? lastSolvedAt : null;
-            const isLeetCodeActive =
-                hasSolvedProblems && normalizedLastSolvedAt
-                    ? Date.now() - new Date(normalizedLastSolvedAt).getTime() <= SEVEN_DAYS_MS
-                    : false;
+            // Flag as inactive if last solved was 24+ hours ago
+            const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+            const isLeetCodeActive = lastSolvedAt
+                ? Date.now() - new Date(lastSolvedAt).getTime() <= ONE_DAY_MS
+                : false;
 
             const upsertPayload = {
                 profile_id: profileId,
@@ -403,7 +394,7 @@ async function syncSingleLeetCodeProfile(
                 ranking,
                 score,
                 updated_at: new Date().toISOString(),
-                last_solved_at: normalizedLastSolvedAt,
+                last_solved_at: lastSolvedAt,
                 is_leetcode_active: isLeetCodeActive,
             };
 
