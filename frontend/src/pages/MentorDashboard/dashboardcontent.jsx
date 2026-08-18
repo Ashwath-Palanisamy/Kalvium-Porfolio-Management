@@ -111,7 +111,7 @@ const DashboardContent = ({ onViewStudents }) => {
     <div className="dashboard-content">
       <header className="dashboard-header">
         <h1>Mentor Dashboard</h1>
-        <p>Track your assigned students, squad allocations, and profile links.</p>
+        <p>Track your squad allocations, and profile links.</p>
       </header>
 
       {/* Top Overview Card */}
@@ -128,8 +128,7 @@ const DashboardContent = ({ onViewStudents }) => {
           ) : (
             <h2>{students.length}</h2>
           )}
-
-          <p>Active students under your assigned squad(s).</p>
+          <p>Students under your selected squad(s).</p>
 
           <button
             type="button"

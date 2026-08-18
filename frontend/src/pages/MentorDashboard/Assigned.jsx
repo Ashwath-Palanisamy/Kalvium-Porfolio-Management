@@ -82,6 +82,16 @@ const LinkedinIcon = ({ size = 16, className = "" }) => (
 const isStudentActive = (student) => {
   if (!student) return false;
 
+  const totalSolved = Number(
+    student.total_solved ??
+      student.totalSolved ??
+      student.leetcode_total_solved ??
+      student.total ??
+      0
+  );
+
+  if (totalSolved <= 0) return false;
+
   const isActiveFlag =
     student.is_leetcode_active === true ||
     student.is_leetcode_active === 1 ||
@@ -103,6 +113,16 @@ const isStudentActive = (student) => {
 
 const is1DayInactiveStudent = (student) => {
   if (!student || !student.last_solved_at) return false;
+
+  const totalSolved = Number(
+    student.total_solved ??
+      student.totalSolved ??
+      student.leetcode_total_solved ??
+      student.total ??
+      0
+  );
+
+  if (totalSolved <= 0) return false;
 
   const lastSolved = new Date(student.last_solved_at);
   if (isNaN(lastSolved.getTime())) return false;
@@ -399,6 +419,15 @@ export default function Assigned() {
     if (!selectedStudentForStats) return [];
 
     const lc = statsData.leetcode || {};
+    const totalSolved = Number(
+      selectedStudentForStats.total_solved ??
+        selectedStudentForStats.totalSolved ??
+        lc.totalSolved ??
+        lc.total_solved ??
+        0
+    );
+
+    if (totalSolved <= 0) return [];
 
     // 1. Check direct arrays from standard LeetCode API wrappers
     const rawList =
@@ -415,17 +444,25 @@ export default function Assigned() {
       lc.data?.matchedUser?.recentSubmissionList ||
       selectedStudentForStats.recentSubmissions ||
       selectedStudentForStats.recent_submissions ||
-      selectedStudentForStats.submissions;
+      selectedStudentForStats.submissions ||
+      selectedStudentForStats.leetcode_recent_submissions;
 
     if (Array.isArray(rawList) && rawList.length > 0) {
-      return rawList.map((item) => ({
-        title: item.title || item.titleSlug || item.questionTitle || item.name || "Solved Question",
-        difficulty: item.difficulty || item.level || item.diff || "Medium",
-        status: item.statusDisplay || item.status || "Accepted",
-        timestamp: item.timestamp || item.solvedAt || item.date || item.last_solved_at || Date.now(),
-        url: item.url || (item.titleSlug ? `https://leetcode.com/problems/${item.titleSlug}/` : "https://leetcode.com/"),
-        titleSlug: item.titleSlug || item.slug || "",
-      }));
+      const normalizedList = rawList.filter((item) => {
+        const title = item?.title || item?.titleSlug || item?.questionTitle || item?.name || item?.question;
+        return title && !/^no recent/i.test(String(title).trim());
+      });
+
+      if (normalizedList.length > 0) {
+        return normalizedList.map((item) => ({
+          title: item.title || item.titleSlug || item.questionTitle || item.name || item.question || "Solved Question",
+          difficulty: item.difficulty || item.level || item.diff || "Medium",
+          status: item.statusDisplay || item.status || "Accepted",
+          timestamp: item.timestamp || item.solvedAt || item.date || item.last_solved_at || Date.now(),
+          url: item.url || (item.titleSlug ? `https://leetcode.com/problems/${item.titleSlug}/` : item.title ? `https://leetcode.com/problems/${String(item.title).toLowerCase().trim().replace(/[^a-z0-9]+/g, "-")}/` : "https://leetcode.com/"),
+          titleSlug: item.titleSlug || item.slug || "",
+        }));
+      }
     }
 
     // 2. Fallback: If no submission array exists, build record from timestamp/question fields
@@ -436,16 +473,22 @@ export default function Assigned() {
       selectedStudentForStats.last_solved_problem ||
       selectedStudentForStats.last_problem ||
       selectedStudentForStats.last_solved ||
+      lc.lastSolvedQuestion ||
       lc.last_solved_question ||
       lc.last_solved_title ||
-      lc.last_question;
+      lc.last_question ||
+      lc.recentSubmissions?.[0]?.title ||
+      lc.recentSubmissionList?.[0]?.title;
 
     const lastTimestamp =
       selectedStudentForStats.last_solved_at ||
       selectedStudentForStats.last_active_at ||
       selectedStudentForStats.last_solved_timestamp ||
+      lc.lastSolvedAt ||
       lc.last_solved_at ||
-      lc.timestamp;
+      lc.timestamp ||
+      lc.recentSubmissions?.[0]?.timestamp ||
+      lc.recentSubmissionList?.[0]?.timestamp;
 
     if (qTitle || lastTimestamp) {
       const titleString =
@@ -453,22 +496,30 @@ export default function Assigned() {
           ? qTitle
           : qTitle?.title || qTitle?.name || "Recent LeetCode Submission";
 
+      const normalizedTitle = typeof titleString === "string" ? titleString.trim() : "";
+      if (!normalizedTitle || /^no recent/i.test(normalizedTitle)) {
+        return [];
+      }
+
       const qSlug =
         selectedStudentForStats.last_solved_slug ||
         selectedStudentForStats.last_slug ||
+        lc.lastSolvedSlug ||
         lc.last_solved_slug ||
-        titleString.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-");
+        normalizedTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
       const qUrl =
         selectedStudentForStats.last_solved_url ||
         selectedStudentForStats.last_url ||
         lc.last_solved_url ||
+        lc.lastSolvedUrl ||
         (qSlug ? `https://leetcode.com/problems/${qSlug}/` : "https://leetcode.com/");
 
       const qDiff =
         selectedStudentForStats.last_solved_difficulty ||
         selectedStudentForStats.difficulty ||
         lc.last_solved_difficulty ||
+        lc.lastSolvedDifficulty ||
         "Medium";
 
       return [
@@ -997,7 +1048,7 @@ export default function Assigned() {
                           <div>
                             <span className="contact-label">Public Repos</span>
                             <span className="contact-value">
-                              {statsData.github?.public_repos ?? "N/A"}
+                              {statsData.github?.repos ?? statsData.github?.public_repos ?? "N/A"}
                             </span>
                           </div>
                         </div>
@@ -1007,17 +1058,6 @@ export default function Assigned() {
                             <span className="contact-label">Followers</span>
                             <span className="contact-value">
                               {statsData.github?.followers ?? "N/A"}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="contact-item">
-                          <GithubIcon size={18} />
-                          <div>
-                            <span className="contact-label">Total Contributions</span>
-                            <span className="contact-value">
-                              {statsData.github?.contributions ??
-                                statsData.github?.totalContributions ??
-                                "N/A"}
                             </span>
                           </div>
                         </div>
@@ -1083,85 +1123,92 @@ export default function Assigned() {
                       )}
                     </div>
 
-                    {recentSubmissions.length > 0 ? (
-                      <div className="questions-detail-table-wrapper">
-                        <table className="responsive-table questions-table">
-                          <thead>
+                    <div className="questions-detail-table-wrapper">
+                      <table className="responsive-table questions-table">
+                        <thead>
+                          <tr>
+                            <th>Question Title</th>
+                            <th>Difficulty</th>
+                            <th>Status</th>
+                            <th>Date Solved</th>
+                            <th>Exact Time</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {recentSubmissions.filter((item) => item?.title || item?.question || item?.titleSlug).length > 0 ? (
+                            recentSubmissions
+                              .filter((item) => item?.title || item?.question || item?.titleSlug)
+                              .map((item, idx) => {
+                                const title = item?.title || item?.question || "Solved Problem";
+                                const difficulty = item?.difficulty || item?.level || item?.diff || "Medium";
+                                const status = item?.statusDisplay || item?.status || "Accepted";
+                                const { dateStr, timeStr } = formatDateTime(
+                                  item?.timestamp || item?.solvedAt || item?.date || item?.last_solved_at
+                                );
+
+                                const difficultyClass = difficulty.toLowerCase().includes("easy")
+                                  ? "easy"
+                                  : difficulty.toLowerCase().includes("hard")
+                                  ? "hard"
+                                  : "medium";
+
+                                return (
+                                  <tr key={item.id || idx}>
+                                    <td data-label="Question Title">
+                                      <div className="question-title-cell">
+                                        <FileCode2 size={14} className="text-muted" />
+                                        {item.url ? (
+                                          <a
+                                            href={item.url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="question-link"
+                                          >
+                                            {title}
+                                          </a>
+                                        ) : (
+                                          <span>{title}</span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td data-label="Difficulty">
+                                      <span className={`difficulty-badge ${difficultyClass}`}>
+                                        {difficulty}
+                                      </span>
+                                    </td>
+                                    <td data-label="Status">
+                                      <span className="status-badge active">
+                                        <CheckCircle2 size={12} /> {status}
+                                      </span>
+                                    </td>
+                                    <td data-label="Date Solved">
+                                      <div className="time-info-cell">
+                                        <Calendar size={13} className="text-muted" />
+                                        <span>{dateStr}</span>
+                                      </div>
+                                    </td>
+                                    <td data-label="Exact Time">
+                                      <div className="time-info-cell">
+                                        <Clock size={13} className="text-muted" />
+                                        <span>{timeStr}</span>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })
+                          ) : (
                             <tr>
-                              <th>Question Title</th>
-                              <th>Difficulty</th>
-                              <th>Status</th>
-                              <th>Date Solved</th>
-                              <th>Exact Time</th>
+                              <td colSpan="5" style={{ textAlign: "center", padding: "1rem" }}>
+                                <div className="empty-message-box" style={{ margin: 0, display: "flex", justifyContent: "center", alignItems: "center", gap: "0.5rem" }}>
+                                  <AlertCircle size={18} className="text-muted" />
+                                  <span>No recent submission</span>
+                                </div>
+                              </td>
                             </tr>
-                          </thead>
-                          <tbody>
-                            {recentSubmissions.map((item, idx) => {
-                              const title = item.title || "Solved Problem";
-                              const difficulty = item.difficulty || "Medium";
-                              const status = item.status || "Accepted";
-
-                              const { dateStr, timeStr } = formatDateTime(item.timestamp);
-
-                              const difficultyClass = difficulty.toLowerCase().includes("easy")
-                                ? "easy"
-                                : difficulty.toLowerCase().includes("hard")
-                                ? "hard"
-                                : "medium";
-
-                              return (
-                                <tr key={item.id || idx}>
-                                  <td data-label="Question Title">
-                                    <div className="question-title-cell">
-                                      <FileCode2 size={14} className="text-muted" />
-                                      {item.url ? (
-                                        <a
-                                          href={item.url}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          className="question-link"
-                                        >
-                                          {title}
-                                        </a>
-                                      ) : (
-                                        <span>{title}</span>
-                                      )}
-                                    </div>
-                                  </td>
-                                  <td data-label="Difficulty">
-                                    <span className={`difficulty-badge ${difficultyClass}`}>
-                                      {difficulty}
-                                    </span>
-                                  </td>
-                                  <td data-label="Status">
-                                    <span className="status-badge active">
-                                      <CheckCircle2 size={12} /> {status}
-                                    </span>
-                                  </td>
-                                  <td data-label="Date Solved">
-                                    <div className="time-info-cell">
-                                      <Calendar size={13} className="text-muted" />
-                                      <span>{dateStr}</span>
-                                    </div>
-                                  </td>
-                                  <td data-label="Exact Time">
-                                    <div className="time-info-cell">
-                                      <Clock size={13} className="text-muted" />
-                                      <span>{timeStr}</span>
-                                    </div>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <div className="empty-message-box">
-                        <AlertCircle size={18} className="text-muted" />
-                        <p>No recent submissions found for this user.</p>
-                      </div>
-                    )}
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
 
                   {/* Connected External Handles */}
