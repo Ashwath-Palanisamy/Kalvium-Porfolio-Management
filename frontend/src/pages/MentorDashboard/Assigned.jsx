@@ -82,6 +82,16 @@ const LinkedinIcon = ({ size = 16, className = "" }) => (
 const isStudentActive = (student) => {
   if (!student) return false;
 
+  const totalSolved = Number(
+    student.total_solved ??
+      student.totalSolved ??
+      student.leetcode_total_solved ??
+      student.total ??
+      0
+  );
+
+  if (totalSolved <= 0) return false;
+
   const isActiveFlag =
     student.is_leetcode_active === true ||
     student.is_leetcode_active === 1 ||
@@ -103,6 +113,16 @@ const isStudentActive = (student) => {
 
 const is1DayInactiveStudent = (student) => {
   if (!student || !student.last_solved_at) return false;
+
+  const totalSolved = Number(
+    student.total_solved ??
+      student.totalSolved ??
+      student.leetcode_total_solved ??
+      student.total ??
+      0
+  );
+
+  if (totalSolved <= 0) return false;
 
   const lastSolved = new Date(student.last_solved_at);
   if (isNaN(lastSolved.getTime())) return false;
@@ -399,6 +419,15 @@ export default function Assigned() {
     if (!selectedStudentForStats) return [];
 
     const lc = statsData.leetcode || {};
+    const totalSolved = Number(
+      selectedStudentForStats.total_solved ??
+        selectedStudentForStats.totalSolved ??
+        lc.totalSolved ??
+        lc.total_solved ??
+        0
+    );
+
+    if (totalSolved <= 0) return [];
 
     // 1. Check direct arrays from standard LeetCode API wrappers
     const rawList =

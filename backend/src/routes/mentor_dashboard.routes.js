@@ -41,14 +41,12 @@ const requireAuth = async (req, res, next) => {
 // HELPER: NORMALIZE STUDENT ACTIVITY FIELDS
 // ==========================================
 const normalizeStudentActivity = (profile = {}) => {
-    // 1. Extract raw active flag from all possible database column names
     const rawActive =
         profile.is_leetcode_active ??
         profile.leetcode_active ??
         profile.is_active ??
         profile.active;
 
-    // 2. Extract last solved timestamp from all possible database column names
     const rawLastSolved =
         profile.last_solved_at ??
         profile.leetcode_last_solved_at ??
@@ -56,16 +54,23 @@ const normalizeStudentActivity = (profile = {}) => {
         profile.last_active_at ??
         profile.updated_at;
 
-    // 3. Determine true boolean status based on 7-day threshold
+    const rawTotalSolved =
+        profile.total_solved ??
+        profile.totalSolved ??
+        profile.leetcode_total_solved ??
+        profile.solved_count ??
+        0;
+
+    const totalSolved = Number(rawTotalSolved) || 0;
+    const hasSolvedProblems = totalSolved > 0;
+
     let isActive = false;
     if (
-        rawActive === true ||
-        rawActive === 1 ||
-        rawActive === "true" ||
-        rawActive === "1"
+        (rawActive === true || rawActive === 1 || rawActive === "true" || rawActive === "1") &&
+        hasSolvedProblems
     ) {
         isActive = true;
-    } else if (rawLastSolved) {
+    } else if (hasSolvedProblems && rawLastSolved) {
         const solvedDate = new Date(rawLastSolved);
         if (!isNaN(solvedDate.getTime())) {
             const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -81,7 +86,8 @@ const normalizeStudentActivity = (profile = {}) => {
         email: profile.kalvium_email || profile.personal_email || profile.email || "No email",
         avatar_url: profile.avatar_url || null,
         is_leetcode_active: isActive,
-        last_solved_at: rawLastSolved || null,
+        total_solved: totalSolved,
+        last_solved_at: hasSolvedProblems ? rawLastSolved || null : null,
         leetcode: profile.leetcode || profile.leetcode_username || profile.leetcode_handle || null,
         github: profile.github || profile.github_username || profile.github_handle || null,
         linkedin: profile.linkedin || profile.linkedin_url || null,

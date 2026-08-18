@@ -377,6 +377,24 @@ async function syncSingleLeetCodeProfile(
                 lastSolvedAt = existingData?.last_solved_at || null;
             }
 
+            // --------------------------------------------------------
+            // ACTIVE STATUS
+            // --------------------------------------------------------
+
+            const SEVEN_DAYS_MS =
+                7 * 24 * 60 * 60 * 1000;
+
+            const hasSolvedProblems = Number(totalSolved) > 0;
+            const isLeetCodeActive =
+                hasSolvedProblems && lastSolvedAt
+                    ? Date.now() -
+                          new Date(lastSolvedAt).getTime() <=
+                      SEVEN_DAYS_MS
+                    : false;
+
+            const normalizedLastSolvedAt = hasSolvedProblems
+                ? lastSolvedAt
+                : null;
             // Flag as inactive if last solved was 24+ hours ago
             const ONE_DAY_MS = 24 * 60 * 60 * 1000;
             const isLeetCodeActive = lastSolvedAt
@@ -394,7 +412,9 @@ async function syncSingleLeetCodeProfile(
                 ranking,
                 score,
                 updated_at: new Date().toISOString(),
-                last_solved_at: lastSolvedAt,
+                last_solved_at: normalizedLastSolvedAt,
+
+                // ONLY activity field
                 is_leetcode_active: isLeetCodeActive,
             };
 
