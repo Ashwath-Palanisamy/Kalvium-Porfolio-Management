@@ -18,7 +18,6 @@ const MAX_RETRIES = 3;
 const LEETCODE_GRAPHQL_URL =
   "https://leetcode.com/graphql";
 
-// Less than 2 minutes = potentially suspicious
 const RAPID_SOLVE_SECONDS = 120;
 
 // ============================================================
@@ -98,7 +97,6 @@ const logSupabaseError = (
 
 // ============================================================
 // MENTOR REVIEW QUEUE
-// 3. NOTIFY MENTORS VIA BREVO REST API (CATEGORIZED BY INACTIVITY & UNSET PROFILES)
 // ============================================================
 
 router.get("/queue", async (req, res) => {
@@ -106,10 +104,6 @@ router.get("/queue", async (req, res) => {
     console.log(
       "[MENTOR REVIEW] Fetching pending submissions..."
     );
-
-    // ========================================================
-    // 1. GET PENDING SUBMISSIONS
-    // ========================================================
 
     const {
       data: submissions,
@@ -146,7 +140,6 @@ router.get("/queue", async (req, res) => {
       });
     }
 
-    // No pending reviews
     if (
       !submissions ||
       submissions.length === 0
@@ -157,7 +150,7 @@ router.get("/queue", async (req, res) => {
     }
 
     // ========================================================
-    // 2. GET UNIQUE STUDENT IDS
+    // UNIQUE STUDENTS
     // ========================================================
 
     const studentIds = [
@@ -169,7 +162,7 @@ router.get("/queue", async (req, res) => {
     ];
 
     // ========================================================
-    // 3. GET PROFILES
+    // PROFILES
     // ========================================================
 
     const {
@@ -196,10 +189,6 @@ router.get("/queue", async (req, res) => {
       });
     }
 
-    // ========================================================
-    // 4. CREATE PROFILE MAP
-    // ========================================================
-
     const profileMap = {};
 
     for (const profile of profiles || []) {
@@ -207,7 +196,7 @@ router.get("/queue", async (req, res) => {
     }
 
     // ========================================================
-    // 5. GET SQUAD INFORMATION
+    // SQUADS
     // ========================================================
 
     const {
@@ -233,10 +222,6 @@ router.get("/queue", async (req, res) => {
       });
     }
 
-    // ========================================================
-    // 6. CREATE SQUAD MAP
-    // ========================================================
-
     const squadMap = {};
 
     for (const squad of squadStudents || []) {
@@ -245,7 +230,7 @@ router.get("/queue", async (req, res) => {
     }
 
     // ========================================================
-    // 7. GET LEETCODE LEADERBOARD DATA
+    // LEADERBOARD
     // ========================================================
 
     const {
@@ -277,21 +262,18 @@ router.get("/queue", async (req, res) => {
       });
     }
 
-    // ========================================================
-    // 8. CREATE LEADERBOARD MAP
-    // ========================================================
-
     const leaderboardMap = {};
 
     for (
-      const leaderboard of leaderboardRecords || []
+      const leaderboard of
+        leaderboardRecords || []
     ) {
       leaderboardMap[leaderboard.user_id] =
         leaderboard;
     }
 
     // ========================================================
-    // 9. GROUP SUBMISSIONS BY STUDENT
+    // GROUP SUBMISSIONS
     // ========================================================
 
     const studentMap = {};
@@ -299,7 +281,8 @@ router.get("/queue", async (req, res) => {
     for (const submission of submissions) {
       const userId = submission.user_id;
 
-      const profile = profileMap[userId];
+      const profile =
+        profileMap[userId];
 
       const leaderboard =
         leaderboardMap[userId];
@@ -325,10 +308,6 @@ router.get("/queue", async (req, res) => {
             submission.leetcode_username ||
             "unknown",
 
-          // ==============================================
-          // LEETCODE STATS
-          // ==============================================
-
           easy_solved:
             leaderboard?.easy_solved ||
             0,
@@ -353,10 +332,6 @@ router.get("/queue", async (req, res) => {
             leaderboard?.ranking ||
             0,
 
-          // ==============================================
-          // REVIEW DATA
-          // ==============================================
-
           pending_review_count: 0,
 
           submissions: [],
@@ -366,38 +341,36 @@ router.get("/queue", async (req, res) => {
       studentMap[userId]
         .pending_review_count++;
 
-      studentMap[userId].submissions.push({
-        id: submission.id,
+      studentMap[userId]
+        .submissions
+        .push({
+          id: submission.id,
 
-        submission_id:
-          submission.submission_id,
+          submission_id:
+            submission.submission_id,
 
-        title_slug:
-          submission.title_slug,
+          title_slug:
+            submission.title_slug,
 
-        difficulty:
-          submission.difficulty,
+          difficulty:
+            submission.difficulty,
 
-        submitted_at:
-          submission.submitted_at,
+          submitted_at:
+            submission.submitted_at,
 
-        status:
-          submission.status,
+          status:
+            submission.status,
 
-        flag_reason:
-          submission.flag_reason,
+          flag_reason:
+            submission.flag_reason,
 
-        review_status:
-          submission.review_status,
+          review_status:
+            submission.review_status,
 
-        created_at:
-          submission.created_at,
-      });
+          created_at:
+            submission.created_at,
+        });
     }
-
-    // ========================================================
-    // 10. FINAL RESPONSE
-    // ========================================================
 
     const reviews =
       Object.values(studentMap);
@@ -450,9 +423,7 @@ router.patch(
         .from("leetcode_submissions")
         .update({
           review_status: "approved",
-
           status: "APPROVED",
-
           flag_reason: null,
         })
         .eq("user_id", studentUserId)
@@ -532,7 +503,6 @@ router.patch(
         .from("leetcode_submissions")
         .update({
           review_status: "rejected",
-
           status: "REJECTED",
         })
         .eq("user_id", studentUserId)
@@ -641,7 +611,6 @@ function findRapidSubmissionIds(
       const currentId =
         String(sorted[i].id);
 
-      // Flag BOTH submissions
       rapidIds.add(previousId);
       rapidIds.add(currentId);
 
@@ -656,6 +625,82 @@ function findRapidSubmissionIds(
   }
 
   return rapidIds;
+}
+
+// ============================================================
+// CHECK & UPDATE LEADERBOARD SUSPENSION
+// ============================================================
+
+async function updateLeaderboardSuspensionStatus(
+  userId,
+  profileId
+) {
+  try {
+    // Check if user has ANY pending review submissions
+    const {
+      data: pendingReviews,
+      error: pendingError,
+    } = await supabaseAdmin
+      .from("leetcode_submissions")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("review_status", "pending")
+      .limit(1);
+
+    if (pendingError) {
+      console.error(
+        `[SUSPENSION CHECK ERROR] user_id: ${userId}`,
+        pendingError
+      );
+      return;
+    }
+
+    const hasPendingReviews =
+      pendingReviews &&
+      pendingReviews.length > 0;
+
+    // Update leaderboard suspension status
+    const {
+      error: updateError,
+    } = await supabaseAdmin
+      .from("leetcode_leaderboard")
+      .update({
+        is_suspended:
+          hasPendingReviews,
+
+        suspension_reason:
+          hasPendingReviews
+            ? "Pending mentor review for suspicious submission patterns"
+            : null,
+
+        updated_at:
+          new Date().toISOString(),
+      })
+      .eq("profile_id", profileId);
+
+    if (updateError) {
+      console.error(
+        `[SUSPENSION UPDATE ERROR] profile_id: ${profileId}`,
+        updateError
+      );
+      return;
+    }
+
+    if (hasPendingReviews) {
+      console.log(
+        `[SUSPENSION] user_id: ${userId} | Suspended until mentor review complete`
+      );
+    } else {
+      console.log(
+        `[SUSPENSION LIFTED] user_id: ${userId} | All submissions approved`
+      );
+    }
+  } catch (error) {
+    console.error(
+      `[SUSPENSION CHECK EXCEPTION] user_id: ${userId}`,
+      error.message
+    );
+  }
 }
 
 // ============================================================
@@ -682,10 +727,6 @@ async function saveLeetCodeSubmissions(
     `[SUBMISSIONS] ${username} | Found ${recentSubmissions.length} accepted submissions`
   );
 
-  // ========================================================
-  // CLEAN + SORT
-  // ========================================================
-
   const validSubmissions =
     recentSubmissions
       .filter(
@@ -699,10 +740,6 @@ async function saveLeetCodeSubmissions(
           Number(b.timestamp)
       );
 
-  // ========================================================
-  // DETECT RAPID SUBMISSIONS
-  // ========================================================
-
   const rapidSubmissionIds =
     findRapidSubmissionIds(
       validSubmissions
@@ -711,10 +748,6 @@ async function saveLeetCodeSubmissions(
   console.log(
     `[RAPID CHECK] ${username} | ${rapidSubmissionIds.size} submissions flagged`
   );
-
-  // ========================================================
-  // GET EXISTING DATABASE RECORDS
-  // ========================================================
 
   const submissionIds =
     validSubmissions.map(
@@ -750,10 +783,6 @@ async function saveLeetCodeSubmissions(
     return;
   }
 
-  // ========================================================
-  // MAP EXISTING RECORDS
-  // ========================================================
-
   const existingMap = {};
 
   for (
@@ -766,10 +795,6 @@ async function saveLeetCodeSubmissions(
       )
     ] = record;
   }
-
-  // ========================================================
-  // BUILD RECORDS
-  // ========================================================
 
   const submissionRecords =
     validSubmissions.map(
@@ -793,10 +818,6 @@ async function saveLeetCodeSubmissions(
         let status;
         let flagReason;
 
-        // ==================================================
-        // 1. EXISTING APPROVED
-        // ==================================================
-
         if (
           existing?.review_status ===
           "approved"
@@ -808,17 +829,7 @@ async function saveLeetCodeSubmissions(
             "APPROVED";
 
           flagReason = null;
-
-          console.log(
-            `[SUBMISSION PRESERVED] ${username} | ${submissionId} | Mentor approved`
-          );
-        }
-
-        // ==================================================
-        // 2. EXISTING REJECTED
-        // ==================================================
-
-        else if (
+        } else if (
           existing?.review_status ===
           "rejected"
         ) {
@@ -831,17 +842,7 @@ async function saveLeetCodeSubmissions(
           flagReason =
             existing.flag_reason ||
             "Rejected by mentor";
-
-          console.log(
-            `[SUBMISSION PRESERVED] ${username} | ${submissionId} | Mentor rejected`
-          );
-        }
-
-        // ==================================================
-        // 3. EXISTING PENDING
-        // ==================================================
-
-        else if (
+        } else if (
           existing?.review_status ===
           "pending"
         ) {
@@ -854,17 +855,7 @@ async function saveLeetCodeSubmissions(
           flagReason =
             existing.flag_reason ||
             "Rapid consecutive solve (< 2 minutes)";
-
-          console.log(
-            `[SUBMISSION PRESERVED] ${username} | ${submissionId} | Still pending`
-          );
-        }
-
-        // ==================================================
-        // 4. NEW RAPID SUBMISSION
-        // ==================================================
-
-        else if (isRapid) {
+        } else if (isRapid) {
           reviewStatus =
             "pending";
 
@@ -877,13 +868,7 @@ async function saveLeetCodeSubmissions(
           console.log(
             `[MENTOR REVIEW FLAG] ${username} | ${submissionId} | ${flagReason}`
           );
-        }
-
-        // ==================================================
-        // 5. NEW NORMAL SUBMISSION
-        // ==================================================
-
-        else {
+        } else {
           reviewStatus =
             "approved";
 
@@ -891,10 +876,6 @@ async function saveLeetCodeSubmissions(
             "APPROVED";
 
           flagReason = null;
-
-          console.log(
-            `[NORMAL SUBMISSION] ${username} | ${submissionId} | Automatically approved`
-          );
         }
 
         return {
@@ -930,10 +911,6 @@ async function saveLeetCodeSubmissions(
       }
     );
 
-  // ========================================================
-  // UPSERT
-  // ========================================================
-
   const {
     data,
     error,
@@ -965,10 +942,6 @@ async function saveLeetCodeSubmissions(
 
     return;
   }
-
-  // ========================================================
-  // LOG SUMMARY
-  // ========================================================
 
   const pendingCount =
     submissionRecords.filter(
@@ -1011,17 +984,17 @@ async function saveLeetCodeSubmissions(
 }
 
 // ============================================================
-// NOTIFY MENTORS ABOUT INACTIVE STUDENTS
+// NOTIFY MENTORS
 // ============================================================
 
 async function notifyMentorsAboutInactiveStudents() {
   console.log(
-    "\n[EMAIL SYSTEM] Starting inactive student notifications..."
+    "\n[EMAIL SYSTEM] Starting mentor notifications..."
   );
 
   try {
     // ========================================================
-    // GET INACTIVE STUDENTS
+    // 1. GET INACTIVE STUDENTS
     // ========================================================
 
     const {
@@ -1046,36 +1019,14 @@ async function notifyMentorsAboutInactiveStudents() {
       throw inactiveError;
     }
 
-    if (
-      !inactiveRecords ||
-      inactiveRecords.length === 0
-    ) {
-      console.log(
-        "[EMAIL SYSTEM] No inactive students found."
-      );
-
-      return;
-    }
-    console.log("\n [EMAIL SYSTEM] Starting inactive student notifications via Brevo API...");
-
-    try {
-        // Step 1: Fetch inactive students from leaderboard (is_leetcode_active = false)
-        const { data: inactiveRecords, error: inactiveError } = await supabaseAdmin
-            .from("leetcode_leaderboard")
-            .select(`
-                user_id,
-                last_solved_at,
-                profiles!inner (
-                    name,
-                    kalvium_email
-                )
-            `)
-            .eq("is_leetcode_active", false);
-
-        if (inactiveError) throw inactiveError;
+    console.log(
+      `[EMAIL SYSTEM] Inactive students: ${
+        inactiveRecords?.length || 0
+      }`
+    );
 
     // ========================================================
-    // GET ASSIGNMENTS
+    // 2. GET STUDENT-MENTOR ASSIGNMENTS
     // ========================================================
 
     const {
@@ -1090,80 +1041,154 @@ async function notifyMentorsAboutInactiveStudents() {
     if (assignmentError) {
       throw assignmentError;
     }
-        if (assignmentError) {
-            console.error("[EMAIL SYSTEM ERROR] Failed to fetch assignments.");
-            throw assignmentError;
-        }
-
-        if (!assignments || assignments.length === 0) {
-            console.log("[EMAIL SYSTEM] No mentor-student assignments found.");
-            return;
-        }
-
-    // ========================================================
-    // STUDENT -> MENTORS
-    // ========================================================
-
-    const studentToMentorsMap = {};
-
-    for (
-      const assignment of
-        assignments || []
-    ) {
-      if (
-        !studentToMentorsMap[
-          assignment.student_user_id
-        ]
-      ) {
-        studentToMentorsMap[
-          assignment.student_user_id
-        ] = [];
-      }
-
-      studentToMentorsMap[
-        assignment.student_user_id
-      ].push(
-        assignment.mentor_user_id
-      );
-    }
-
-    // ========================================================
-    // GET MENTOR IDS
-    // ========================================================
-
-    const mentorIds =
-      new Set();
-
-    for (
-      const record of
-        inactiveRecords
-    ) {
-      const mentors =
-        studentToMentorsMap[
-          record.user_id
-        ] || [];
-
-      for (
-        const mentorId of mentors
-      ) {
-        mentorIds.add(
-          mentorId
-        );
-      }
-    }
 
     if (
-      mentorIds.size === 0
+      !assignments ||
+      assignments.length === 0
     ) {
       console.log(
-        "[EMAIL SYSTEM] No inactive students mapped to mentors."
+        "[EMAIL SYSTEM] No mentor-student assignments found."
       );
 
       return;
     }
 
     // ========================================================
-    // GET MENTOR PROFILES
+    // 3. STUDENT -> MULTIPLE MENTORS
+    // ========================================================
+
+    const studentToMentorsMap = {};
+
+    const allAssignedStudentUserIds =
+      new Set();
+
+    for (const assignment of assignments) {
+      const studentId =
+        assignment.student_user_id;
+
+      const mentorId =
+        assignment.mentor_user_id;
+
+      if (!studentId || !mentorId) {
+        continue;
+      }
+
+      if (
+        !studentToMentorsMap[
+          studentId
+        ]
+      ) {
+        studentToMentorsMap[
+          studentId
+        ] = [];
+      }
+
+      if (
+        !studentToMentorsMap[
+          studentId
+        ].includes(mentorId)
+      ) {
+        studentToMentorsMap[
+          studentId
+        ].push(mentorId);
+      }
+
+      allAssignedStudentUserIds.add(
+        studentId
+      );
+    }
+
+    // ========================================================
+    // 4. GET STUDENTS WITHOUT LEETCODE PROFILE
+    // ========================================================
+
+    const {
+      data: allStudentProfiles,
+      error: profilesError,
+    } = await supabaseAdmin
+      .from("profiles")
+      .select(
+        "user_id, name, kalvium_email, leetcode"
+      )
+      .in(
+        "user_id",
+        Array.from(
+          allAssignedStudentUserIds
+        )
+      );
+
+    if (profilesError) {
+      throw profilesError;
+    }
+
+    const missingProfileStudents =
+      (allStudentProfiles || []).filter(
+        (profile) =>
+          !profile.leetcode ||
+          profile.leetcode.trim() === ""
+      );
+
+    console.log(
+      `[EMAIL SYSTEM] Students without LeetCode profile: ${missingProfileStudents.length}`
+    );
+
+    // ========================================================
+    // 5. FIND ALL MENTORS WHO NEED NOTIFICATION
+    // ========================================================
+
+    const mentorIdsToNotify =
+      new Set();
+
+    // Inactive students
+    for (
+      const record of
+        inactiveRecords || []
+    ) {
+      const mentorIds =
+        studentToMentorsMap[
+          record.user_id
+        ] || [];
+
+      for (
+        const mentorId of mentorIds
+      ) {
+        mentorIdsToNotify.add(
+          mentorId
+        );
+      }
+    }
+
+    // Students without LeetCode URL
+    for (
+      const student of
+        missingProfileStudents
+    ) {
+      const mentorIds =
+        studentToMentorsMap[
+          student.user_id
+        ] || [];
+
+      for (
+        const mentorId of mentorIds
+      ) {
+        mentorIdsToNotify.add(
+          mentorId
+        );
+      }
+    }
+
+    if (
+      mentorIdsToNotify.size === 0
+    ) {
+      console.log(
+        "[EMAIL SYSTEM] No mentors require notification."
+      );
+
+      return;
+    }
+
+    // ========================================================
+    // 6. GET MENTOR PROFILES
     // ========================================================
 
     const {
@@ -1176,74 +1201,14 @@ async function notifyMentorsAboutInactiveStudents() {
       )
       .in(
         "user_id",
-        Array.from(mentorIds)
+        Array.from(
+          mentorIdsToNotify
+        )
       );
 
     if (mentorError) {
       throw mentorError;
     }
-        // Step 3: Map students to mentors (Supports MULTIPLE mentors per student)
-        const studentToMentorsMap = {};
-        const allAssignedStudentUserIds = new Set();
-
-        assignments.forEach((assignment) => {
-            if (!studentToMentorsMap[assignment.student_user_id]) {
-                studentToMentorsMap[assignment.student_user_id] = [];
-            }
-            studentToMentorsMap[assignment.student_user_id].push(assignment.mentor_user_id);
-            allAssignedStudentUserIds.add(assignment.student_user_id);
-        });
-
-        // Step 4: Identify assigned students who haven't set their LeetCode profile URL
-        console.log("[EMAIL SYSTEM] Checking for students with unset LeetCode profiles...");
-        const { data: allStudentProfiles, error: profilesError } = await supabaseAdmin
-            .from("profiles")
-            .select("user_id, name, kalvium_email, leetcode")
-            .in("user_id", Array.from(allAssignedStudentUserIds));
-
-        if (profilesError) throw profilesError;
-
-        const missingProfileStudents = (allStudentProfiles || []).filter(
-            (p) => !p.leetcode || p.leetcode.trim() === ""
-        );
-
-        // Step 5: Figure out which Mentors we need to email
-        const activeMentorIdsToFetch = new Set();
-
-        // Add mentors of inactive leaderboard students
-        (inactiveRecords || []).forEach((record) => {
-            const mentorIds = studentToMentorsMap[record.user_id] || [];
-            mentorIds.forEach((mId) => activeMentorIdsToFetch.add(mId));
-        });
-
-        // Add mentors of students without LeetCode profile
-        missingProfileStudents.forEach((studentProfile) => {
-            const mentorIds = studentToMentorsMap[studentProfile.user_id] || [];
-            mentorIds.forEach((mId) => activeMentorIdsToFetch.add(mId));
-        });
-
-        if (activeMentorIdsToFetch.size === 0) {
-            console.log("[EMAIL SYSTEM] No inactive or profile-missing students mapped to mentors today.");
-            return;
-        }
-
-        // Step 6: Fetch mentor details directly from Supabase Auth & Profiles
-        const mentorProfiles = await Promise.all(
-            Array.from(activeMentorIdsToFetch).map(async (mentorId) => {
-                const [{ data: authUserData }, { data: profile }] = await Promise.all([
-                    supabaseAdmin.auth.admin.getUserById(mentorId),
-                    supabaseAdmin.from("profiles").select("name").eq("user_id", mentorId).maybeSingle(),
-                ]);
-
-                const authUser = authUserData?.user;
-
-                return {
-                    user_id: mentorId,
-                    name: profile?.name || authUser?.user_metadata?.full_name || "Mentor",
-                    email: authUser?.email || null,
-                };
-            })
-        );
 
     const mentorDataMap = {};
 
@@ -1257,7 +1222,7 @@ async function notifyMentorsAboutInactiveStudents() {
     }
 
     // ========================================================
-    // GROUP STUDENTS
+    // 7. GROUP DATA BY MENTOR
     // ========================================================
 
     const groupedByMentor = {};
@@ -1271,9 +1236,13 @@ async function notifyMentorsAboutInactiveStudents() {
       60 *
       1000;
 
+    // --------------------------------------------------------
+    // INACTIVE STUDENTS
+    // --------------------------------------------------------
+
     for (
       const record of
-        inactiveRecords
+        inactiveRecords || []
     ) {
       const assignedMentors =
         studentToMentorsMap[
@@ -1295,32 +1264,13 @@ async function notifyMentorsAboutInactiveStudents() {
                 ONE_DAY_MS
             )
           : null;
-        const mentorDataMap = {};
-        mentorProfiles.forEach((mentor) => {
-            if (mentor.user_id && mentor.email) {
-                mentorDataMap[mentor.user_id] = mentor;
-            }
-        });
-
-        // Step 7: Group students under ALL assigned mentors (7+ days, 1-6 days, Profile Not Set)
-        const groupedByMentor = {};
-        const nowMs = Date.now();
-        const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-
-        // Group Inactive Students
-        (inactiveRecords || []).forEach((record) => {
-            const mentorUserIds = studentToMentorsMap[record.user_id] || [];
-            if (mentorUserIds.length === 0) return;
-
-            const lastSolvedDate = record.last_solved_at ? new Date(record.last_solved_at) : null;
-            const daysInactive = lastSolvedDate
-                ? Math.floor((nowMs - lastSolvedDate.getTime()) / ONE_DAY_MS)
-                : null;
 
       const student = {
+        userId:
+          record.user_id,
+
         name:
-          record.profiles
-            ?.name ||
+          record.profiles?.name ||
           "Student",
 
         email:
@@ -1348,20 +1298,24 @@ async function notifyMentorsAboutInactiveStudents() {
             mentorId
           ];
 
-        if (
-          !mentor ||
-          !mentor.kalvium_email
-        ) {
+        if (!mentor) {
+          continue;
+        }
+
+        const mentorEmail =
+          mentor.kalvium_email;
+
+        if (!mentorEmail) {
           continue;
         }
 
         if (
           !groupedByMentor[
-            mentor.kalvium_email
+            mentorEmail
           ]
         ) {
           groupedByMentor[
-            mentor.kalvium_email
+            mentorEmail
           ] = {
             mentorName:
               mentor.name ||
@@ -1372,22 +1326,24 @@ async function notifyMentorsAboutInactiveStudents() {
 
             oneToSixDays:
               [],
+
+            missingProfile:
+              [],
           };
         }
 
         if (
-          daysInactive ===
-            null ||
+          daysInactive === null ||
           daysInactive >= 7
         ) {
           groupedByMentor[
-            mentor.kalvium_email
+            mentorEmail
           ].sevenDaysPlus.push(
             student
           );
         } else {
           groupedByMentor[
-            mentor.kalvium_email
+            mentorEmail
           ].oneToSixDays.push(
             student
           );
@@ -1395,8 +1351,92 @@ async function notifyMentorsAboutInactiveStudents() {
       }
     }
 
+    // --------------------------------------------------------
+    // MISSING LEETCODE PROFILE
+    // --------------------------------------------------------
+
+    for (
+      const student of
+        missingProfileStudents
+    ) {
+      const assignedMentors =
+        studentToMentorsMap[
+          student.user_id
+        ] || [];
+
+      for (
+        const mentorId of
+          assignedMentors
+      ) {
+        const mentor =
+          mentorDataMap[
+            mentorId
+          ];
+
+        if (!mentor) {
+          continue;
+        }
+
+        const mentorEmail =
+          mentor.kalvium_email;
+
+        if (!mentorEmail) {
+          continue;
+        }
+
+        if (
+          !groupedByMentor[
+            mentorEmail
+          ]
+        ) {
+          groupedByMentor[
+            mentorEmail
+          ] = {
+            mentorName:
+              mentor.name ||
+              "Mentor",
+
+            sevenDaysPlus:
+              [],
+
+            oneToSixDays:
+              [],
+
+            missingProfile:
+              [],
+          };
+        }
+
+        const alreadyExists =
+          groupedByMentor[
+            mentorEmail
+          ].missingProfile.some(
+            (item) =>
+              item.userId ===
+              student.user_id
+          );
+
+        if (!alreadyExists) {
+          groupedByMentor[
+            mentorEmail
+          ].missingProfile.push({
+            userId:
+              student.user_id,
+
+            name:
+              student.name ||
+              "Student",
+
+            email:
+              student.kalvium_email ||
+              "Unknown",
+          });
+        }
+      }
+    }
+
     // ========================================================
-    // SEND EMAILS
+    // 8. SEND EMAILS
     // ========================================================
 
     for (
@@ -1407,134 +1447,92 @@ async function notifyMentorsAboutInactiveStudents() {
         groupedByMentor
       )
     ) {
-      const recipientEmail =
-        mentorEmail;
-            mentorUserIds.forEach((mentorUserId) => {
-                const mentor = mentorDataMap[mentorUserId];
-                if (!mentor || !mentor.email) return;
+      const renderList =
+        (students) =>
+          students
+            .map(
+              (student) => `
+                <li>
+                  <strong>
+                    ${student.name}
+                  </strong>
+                  (${student.email})
+                  — Last active:
+                  ${student.lastSolved}
+                  (${student.daysInactive}
+                  days inactive)
+                </li>
+              `
+            )
+            .join("");
 
-                if (!groupedByMentor[mentor.email]) {
-                    groupedByMentor[mentor.email] = {
-                        mentorName: mentor.name || "Mentor",
-                        sevenDaysPlus: [],
-                        oneToSixDays: [],
-                        missingProfile: [],
-                    };
-                }
-
-                if (daysInactive === null || daysInactive >= 7) {
-                    groupedByMentor[mentor.email].sevenDaysPlus.push(student);
-                } else {
-                    groupedByMentor[mentor.email].oneToSixDays.push(student);
-                }
-            });
-        });
-
-        // Group Missing Profile Students
-        missingProfileStudents.forEach((studentProfile) => {
-            const mentorUserIds = studentToMentorsMap[studentProfile.user_id] || [];
-            if (mentorUserIds.length === 0) return;
-
-            const student = {
-                name: studentProfile.name || "Unknown Student",
-                email: studentProfile.kalvium_email || "No Email",
-            };
-
-            mentorUserIds.forEach((mentorUserId) => {
-                const mentor = mentorDataMap[mentorUserId];
-                if (!mentor || !mentor.email) return;
-
-                if (!groupedByMentor[mentor.email]) {
-                    groupedByMentor[mentor.email] = {
-                        mentorName: mentor.name || "Mentor",
-                        sevenDaysPlus: [],
-                        oneToSixDays: [],
-                        missingProfile: [],
-                    };
-                }
-
-                groupedByMentor[mentor.email].missingProfile.push(student);
-            });
-        });
-
-        // Step 8: Send categorized email reports via Brevo REST API
-        for (const [mentorEmail, data] of Object.entries(groupedByMentor)) {
-            const recipientEmail = testemail && testemail.trim() !== "" ? testemail : mentorEmail;
-
-      const renderList = (
-        students
-      ) =>
-        students
-          .map(
-            (student) => `
-              <li>
-                <strong>
-                  ${student.name}
-                </strong>
-                (${student.email})
-                — Last active:
-                ${student.lastSolved}
-                (${student.daysInactive}
-                days inactive)
-              </li>
-            `
-          )
-          .join("");
+      const renderMissingList =
+        (students) =>
+          students
+            .map(
+              (student) => `
+                <li>
+                  <strong>
+                    ${student.name}
+                  </strong>
+                  (${student.email})
+                  — <em>
+                    LeetCode profile URL not set
+                  </em>
+                </li>
+              `
+            )
+            .join("");
 
       const sevenDaysHtml =
         data.sevenDaysPlus.length
           ? `<ul>${renderList(
               data.sevenDaysPlus
             )}</ul>`
-          : `
-              <p>
-                <em>
-                  No students inactive
-                  for 7+ days.
-                </em>
-              </p>
-            `;
+          : `<p><em>
+              No students inactive for 7+ days.
+            </em></p>`;
 
       const oneToSixDaysHtml =
         data.oneToSixDays.length
           ? `<ul>${renderList(
               data.oneToSixDays
             )}</ul>`
-          : `
-              <p>
-                <em>
-                  No students inactive
-                  in the 1–6 day window.
-                </em>
-              </p>
-            `;
+          : `<p><em>
+              No students inactive in the 1–6 day window.
+            </em></p>`;
+
+      const missingProfileHtml =
+        data.missingProfile.length
+          ? `<ul>${renderMissingList(
+              data.missingProfile
+            )}</ul>`
+          : `<p><em>
+              All assigned squad members have configured their LeetCode profiles.
+            </em></p>`;
 
       const totalCount =
-        data.sevenDaysPlus
-          .length +
-        data.oneToSixDays
-          .length;
-            const renderMissingList = (students) =>
-                students
-                    .map((s) => `<li><strong>${s.name}</strong> (${s.email}) — <em>Profile URL not set in portal</em></li>`)
-                    .join("");
+        data.sevenDaysPlus.length +
+        data.oneToSixDays.length +
+        data.missingProfile.length;
 
-            const sevenDaysHtml = data.sevenDaysPlus.length
-                ? `<ul>${renderList(data.sevenDaysPlus)}</ul>`
-                : `<p><em>No students inactive for 7+ days.</em></p>`;
+      if (totalCount === 0) {
+        continue;
+      }
 
-            const oneToSixDaysHtml = data.oneToSixDays.length
-                ? `<ul>${renderList(data.oneToSixDays)}</ul>`
-                : `<p><em>No students inactive in the 1–6 day window.</em></p>`;
+      // Optional testing email.
+      // If TEST_EMAIL exists in .env,
+      // emails will go there instead of mentors.
+      const testEmail =
+        process.env.TEST_EMAIL?.trim();
 
-            const missingProfileHtml = data.missingProfile.length
-                ? `<ul>${renderMissingList(data.missingProfile)}</ul>`
-                : `<p><em>All assigned squad members have configured their LeetCode profiles.</em></p>`;
+      const recipientEmail =
+        testEmail ||
+        mentorEmail;
 
-            const totalCount =
-                data.sevenDaysPlus.length + data.oneToSixDays.length + data.missingProfile.length;
-
-            if (totalCount === 0) continue;
+      console.log(
+        `[EMAIL SYSTEM] Sending report to ${recipientEmail}`
+      );
 
       const response =
         await fetch(
@@ -1550,8 +1548,7 @@ async function notifyMentorsAboutInactiveStudents() {
                 "application/json",
 
               "api-key":
-                process.env
-                  .BREVO_API_KEY,
+                process.env.BREVO_API_KEY,
             },
 
             body: JSON.stringify({
@@ -1574,7 +1571,7 @@ async function notifyMentorsAboutInactiveStudents() {
               ],
 
               subject:
-                "[KPM Report] - Daily Report: Squad(s) LeetCode Inactivity Summary",
+                "[KPM Report] - Daily Report: Squad(s) LeetCode Inactivity & Setup Summary",
 
               htmlContent: `
                 <h3>
@@ -1582,58 +1579,43 @@ async function notifyMentorsAboutInactiveStudents() {
                 </h3>
 
                 <p>
-                  Here is the daily
-                  LeetCode inactivity
-                  report for your
-                  squad(s):
+                  Here is the daily LeetCode
+                  inactivity & profile setup
+                  report for your squad(s):
                 </p>
 
                 <h4>
-                  High Priority:
+                  🚨 High Priority:
                   Inactive for 7+ Days
                   (${data.sevenDaysPlus.length})
                 </h4>
 
                 ${sevenDaysHtml}
-            const response = await fetch("https://api.brevo.com/v3/smtp/email", {
-                method: "POST",
-                headers: {
-                    accept: "application/json",
-                    "content-type": "application/json",
-                    "api-key": process.env.BREVO_API_KEY,
-                },
-                body: JSON.stringify({
-                    sender: {
-                        name: "Kalvium Portfolio Management",
-                        email: "kpm-squad@googlegroups.com",
-                    },
-                    to: [{ email: recipientEmail, name: data.mentorName }],
-                    subject: `[KPM Report] - Daily Report: Squad(s) LeetCode Inactivity & Setup Summary`,
-                    htmlContent: `
-                        <h3>Hello ${data.mentorName},</h3>
-                        <p>Here is the daily LeetCode inactivity & profile setup report for your squad(s):</p>
-                        
-                        <h4 style="color: #d9534f;">🚨 High Priority: Inactive for 7+ Days (${data.sevenDaysPlus.length})</h4>
-                        ${sevenDaysHtml}
 
                 <h4>
-                  Warning:
+                  ⚠️ Warning:
                   Inactive for 1–6 Days
                   (${data.oneToSixDays.length})
                 </h4>
 
                 ${oneToSixDaysHtml}
-                        <h4 style="color: #f0ad4e;">⚠️ Warning: Inactive for 1–6 Days (${data.oneToSixDays.length})</h4>
-                        ${oneToSixDaysHtml}
 
-                        <h4 style="color: #6c757d;">📝 Action Required: LeetCode Profile Not Set (${data.missingProfile.length})</h4>
-                        ${missingProfileHtml}
+                <h4>
+                  📝 Action Required:
+                  LeetCode Profile Not Set
+                  (${data.missingProfile.length})
+                </h4>
+
+                ${missingProfileHtml}
 
                 <p>
-                  Please reach out
-                  to your squad
-                  members to keep
-                  them on track.
+                  Please reach out to your squad
+                  members to keep them on track.
+                </p>
+
+                <p>
+                  Regards,<br>
+                  Kalvium Portfolio Management
                 </p>
               `,
             }),
@@ -1641,26 +1623,26 @@ async function notifyMentorsAboutInactiveStudents() {
         );
 
       if (!response.ok) {
-        const errorData =
-          await response.json();
+        let errorData;
+
+        try {
+          errorData =
+            await response.json();
+        } catch {
+          errorData =
+            await response.text();
+        }
 
         console.error(
-          `[EMAIL ERROR] ${recipientEmail}`,
+          `[EMAIL ERROR] Brevo API failed for ${recipientEmail}:`,
           errorData
         );
       } else {
         console.log(
-          `[EMAIL SENT] ${data.mentorName} | ${recipientEmail} | ${totalCount} students`
+          `[EMAIL SENT] ${recipientEmail} | ${totalCount} student updates`
         );
       }
     }
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error(`[EMAIL ERROR] Brevo API failed for ${recipientEmail}:`, errorData);
-            } else {
-                console.log(`[EMAIL SENT] Notified mentor ${data.mentorName} (Recipient: ${recipientEmail}) about ${totalCount} student updates.`);
-            }
-        }
 
     console.log(
       "[EMAIL SYSTEM] Finished notifications."
@@ -1668,13 +1650,9 @@ async function notifyMentorsAboutInactiveStudents() {
   } catch (error) {
     console.error(
       "[EMAIL SYSTEM ERROR]",
-      error.message
+      error
     );
   }
-        console.log("[EMAIL SYSTEM] Finished sending mentor notifications.");
-    } catch (err) {
-        console.error("[EMAIL SYSTEM ERROR] Failed to send mentor notifications:", err.message);
-    }
 }
 
 // ============================================================
@@ -1725,7 +1703,7 @@ async function syncSingleLeetCodeProfile(
   );
 
   // ========================================================
-  // VALIDATE USERNAME
+  // VALIDATE
   // ========================================================
 
   if (
@@ -1754,7 +1732,7 @@ async function syncSingleLeetCodeProfile(
   }
 
   // ========================================================
-  // GRAPHQL QUERY
+  // GRAPHQL
   // ========================================================
 
   const query = `
@@ -1792,7 +1770,7 @@ async function syncSingleLeetCodeProfile(
   `;
 
   // ========================================================
-  // RETRY LOOP
+  // RETRIES
   // ========================================================
 
   for (
@@ -1898,9 +1876,7 @@ async function syncSingleLeetCodeProfile(
             (error) =>
               error.message
                 ?.toLowerCase()
-                .includes(
-                  "rate"
-                ) ||
+                .includes("rate") ||
               error.message
                 ?.toLowerCase()
                 .includes(
@@ -2140,24 +2116,6 @@ async function syncSingleLeetCodeProfile(
               ).getTime() <=
             ONE_DAY_MS
           : false;
-                if (existingError) {
-                    logSupabaseError(`Existing leaderboard lookup failed`, existingError, { profileId, username });
-                }
-                lastSolvedAt = existingData?.last_solved_at || null;
-            }
-
-            // --------------------------------------------------------
-            // ACTIVE STATUS
-            // --------------------------------------------------------
-
-            const hasSolvedProblems = Number(totalSolved) > 0;
-            const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-
-            const normalizedLastSolvedAt = hasSolvedProblems ? lastSolvedAt : null;
-            const isLeetCodeActive =
-                hasSolvedProblems && normalizedLastSolvedAt
-                    ? Date.now() - new Date(normalizedLastSolvedAt).getTime() <= SEVEN_DAYS_MS
-                    : false;
 
       // ====================================================
       // LEADERBOARD UPSERT
@@ -2198,20 +2156,6 @@ async function syncSingleLeetCodeProfile(
         is_leetcode_active:
           isLeetCodeActive,
       };
-            const upsertPayload = {
-                profile_id: profileId,
-                user_id: userId,
-                leetcode_username: matchedUser.username,
-                easy_solved: easySolved,
-                medium_solved: mediumSolved,
-                hard_solved: hardSolved,
-                total_solved: totalSolved,
-                ranking,
-                score,
-                updated_at: new Date().toISOString(),
-                last_solved_at: normalizedLastSolvedAt,
-                is_leetcode_active: isLeetCodeActive,
-            };
 
       console.log(
         `[DB UPSERT] ${username} | Updating leetcode_leaderboard...`
@@ -2269,6 +2213,12 @@ async function syncSingleLeetCodeProfile(
 
       console.log(
         `[DB SUCCESS] ${username} | Score: ${score}`
+      );
+
+      // Check and update leaderboard suspension status
+      await updateLeaderboardSuspensionStatus(
+        userId,
+        profileId
       );
 
       return {
@@ -2407,7 +2357,6 @@ router.post(
 
         if (!error) {
           users = data;
-
           break;
         }
 

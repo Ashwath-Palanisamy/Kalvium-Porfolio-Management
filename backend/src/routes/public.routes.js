@@ -418,35 +418,7 @@ router.get("/leetcode-leaderboard", async (req, res) => {
     try {
 
         // ------------------------------------------
-        // 1. Find users who have pending reviews
-        // ------------------------------------------
-
-        const {
-            data: pendingSubmissions,
-            error: pendingError
-        } = await supabase
-            .from("leetcode_submissions")
-            .select("user_id")
-            .eq("review_status", "pending");
-
-        if (pendingError) {
-            console.error("Pending submission error:", pendingError);
-
-            return res.status(400).json({
-                error: pendingError.message
-            });
-        }
-
-        // Get unique user IDs
-        const pendingUserIds = [
-            ...new Set(
-                (pendingSubmissions || [])
-                    .map(row => row.user_id)
-            )
-        ];
-
-        // ------------------------------------------
-        // 2. Fetch leaderboard
+        // 1. Fetch leaderboard with safe select
         // ------------------------------------------
 
         const {
@@ -467,35 +439,74 @@ router.get("/leetcode-leaderboard", async (req, res) => {
                 score,
                 updated_at,
                 last_solved_at,
-                is_leetcode_active,
-                profiles!inner (
-                    name,
-                    squad_id,
-                    avatar_url
-                )
+                is_leetcode_active
             `)
-            .order("score", { ascending: false })
-            .order("total_solved", { ascending: false });
+            .order("score", { ascending: false });
 
         if (error) {
+            console.error("Leaderboard query error:", error);
             return res.status(400).json({
                 error: error.message
             });
         }
 
+        if (!data || data.length === 0) {
+            return res.status(200).json([]);
+        }
+
         // ------------------------------------------
-        // 3. Remove students with pending reviews
+        // 2. Get unique user IDs and fetch profiles
         // ------------------------------------------
 
-        const filteredLeaderboard = (data || []).filter(
-            student => !pendingUserIds.includes(student.user_id)
+        const userIds = data.map(row => row.user_id).filter(Boolean);
+
+        const { data: profileData, error: profileError } = await supabase
+            .from("profiles")
+            .select("user_id, name, squad_id, avatar_url")
+            .in("user_id", userIds);
+
+        if (profileError) {
+            console.error("Profile fetch error:", profileError);
+            // Continue without profile data
+        }
+
+        const profileMap = {};
+        (profileData || []).forEach(profile => {
+            profileMap[profile.user_id] = profile;
+        });
+
+        // ------------------------------------------
+        // 3. Filter out students with pending reviews
+        // ------------------------------------------
+
+        const {
+            data: pendingSubmissions,
+        } = await supabase
+            .from("leetcode_submissions")
+            .select("user_id")
+            .eq("review_status", "pending");
+
+        const pendingUserIds = new Set(
+            (pendingSubmissions || [])
+                .map(row => row.user_id)
         );
 
         // ------------------------------------------
-        // 4. Return clean leaderboard
+        // 4. Merge leaderboard with profile data
         // ------------------------------------------
 
-        return res.status(200).json(filteredLeaderboard);
+        const leaderboardWithProfiles = data
+            .map(entry => ({
+                ...entry,
+                profiles: profileMap[entry.user_id] || {}
+            }))
+            .filter(student => !pendingUserIds.has(student.user_id));
+
+        // ------------------------------------------
+        // 5. Return clean leaderboard
+        // ------------------------------------------
+
+        return res.status(200).json(leaderboardWithProfiles);
 
     } catch (err) {
 

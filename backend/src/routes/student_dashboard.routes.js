@@ -336,7 +336,7 @@ router.get("/pending-review", authRouteLimiter, requireAuth, async (req, res) =>
         // Get profile info for display
         const { data: profile, error: profileError } = await req.authedSupabase
             .from("profiles")
-            .select("name, leetcode_username")
+            .select("name")
             .eq("user_id", userId)
             .maybeSingle();
 
@@ -345,13 +345,25 @@ router.get("/pending-review", authRouteLimiter, requireAuth, async (req, res) =>
             return res.status(400).json({ error: profileError.message });
         }
 
+        // Get leetcode info from leaderboard
+        const { data: leaderboardData } = await req.authedSupabase
+            .from("leetcode_leaderboard")
+            .select("leetcode_username, total_solved, is_suspended")
+            .eq("user_id", userId)
+            .maybeSingle();
+
         const hasPendingReview = (pendingSubmissions || []).length > 0;
 
         return res.status(200).json({
             hasPendingReview,
             pendingReviewCount: pendingSubmissions?.length || 0,
             submissions: pendingSubmissions || [],
-            profile: profile || {}
+            profile: {
+                ...profile,
+                leetcode_username: leaderboardData?.leetcode_username || null,
+                total_solved: leaderboardData?.total_solved || 0,
+                is_suspended: leaderboardData?.is_suspended || false,
+            }
         });
 
     } catch (err) {

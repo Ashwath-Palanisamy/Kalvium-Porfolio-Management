@@ -20,7 +20,7 @@ Fixed the Mentor Review feature for LeetCode rapid-solve detection to ensure com
 .select(`
     id,
     user_id,
-    leetcode_username,
+    leetcode,
     submission_id,
     title_slug,
     submitted_at,
@@ -34,7 +34,7 @@ Fixed the Mentor Review feature for LeetCode rapid-solve detection to ensure com
 .select(`
     id,
     user_id,
-    leetcode_username,
+    leetcode,
     submission_id,
     title_slug,
     difficulty,
@@ -133,7 +133,7 @@ The updated response now looks like:
       "name": "Navya",
       "avatar_url": "https://...",
       "squad_id": 12,
-      "leetcode_username": "navya_d16",
+      "leetcode_username": "nhfgfd_785",
       
       "easy_solved": 50,
       "medium_solved": 30,

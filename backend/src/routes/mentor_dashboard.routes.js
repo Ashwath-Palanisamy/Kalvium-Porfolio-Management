@@ -12,6 +12,15 @@ const saveSquadLimiter = rateLimit({
     legacyHeaders: false,
 });
 
+// ==========================================
+// HELPER: FILTER OUT SUSPENDED STUDENTS
+// ==========================================
+const filterSuspendedStudents = (students) => {
+    return students.filter(
+        (student) => !student.is_suspended
+    );
+};
+
 const requireAuth = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
@@ -93,6 +102,8 @@ const normalizeStudentActivity = (profile = {}) => {
         leetcode: profile.leetcode || profile.leetcode_username || profile.leetcode_handle || null,
         github: profile.github || profile.github_username || profile.github_handle || null,
         linkedin: profile.linkedin || profile.linkedin_url || null,
+        is_suspended: profile.is_suspended || false,
+        suspension_reason: profile.suspension_reason || null,
     };
 };
 
@@ -469,7 +480,7 @@ router.get("/leetcode-review/queue", requireAuth, async (req, res) => {
             .select(`
                 id,
                 user_id,
-                leetcode_username,
+                leetcode,
                 submission_id,
                 title_slug,
                 difficulty,
@@ -540,7 +551,7 @@ router.get("/leetcode-review/queue", requireAuth, async (req, res) => {
             .from("leetcode_leaderboard")
             .select(`
                 user_id,
-                leetcode_username,
+                leetcode,
                 easy_solved,
                 medium_solved,
                 hard_solved,
@@ -728,6 +739,41 @@ router.patch(
                 });
             }
 
+            // Get the student profile to update leaderboard suspension status
+            const { data: profile, error: profileError } = await db
+                .from("profiles")
+                .select("id")
+                .eq("user_id", studentUserId)
+                .single();
+
+            if (!profileError && profile) {
+                // Check if there are still any pending submissions
+                const { data: stillPending } = await db
+                    .from("leetcode_submissions")
+                    .select("id")
+                    .eq("user_id", studentUserId)
+                    .eq("review_status", "pending")
+                    .limit(1);
+
+                const hasPendingReviews = stillPending && stillPending.length > 0;
+
+                // Update leaderboard suspension status
+                await db
+                    .from("leetcode_leaderboard")
+                    .update({
+                        is_suspended: hasPendingReviews,
+                        suspension_reason: hasPendingReviews
+                            ? "Pending mentor review for suspicious submission patterns"
+                            : null,
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq("profile_id", profile.id);
+
+                console.log(
+                    `[APPROVAL] User ${studentUserId} | Suspension lifted - ready for leaderboard`
+                );
+            }
+
             return res.status(200).json({
                 success: true,
                 message: "Review approved successfully",
@@ -802,9 +848,31 @@ router.patch(
                 });
             }
 
+            // Keep student suspended as they were caught cheating
+            const { data: profile, error: profileError } = await db
+                .from("profiles")
+                .select("id")
+                .eq("user_id", studentUserId)
+                .single();
+
+            if (!profileError && profile) {
+                await db
+                    .from("leetcode_leaderboard")
+                    .update({
+                        is_suspended: true,
+                        suspension_reason: "Rejected for suspicious submission patterns - Academic integrity violation",
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq("profile_id", profile.id);
+
+                console.log(
+                    `[REJECTION] User ${studentUserId} | Permanently suspended for academic integrity violation`
+                );
+            }
+
             return res.status(200).json({
                 success: true,
-                message: "Suspicious submissions rejected",
+                message: "Suspicious submissions rejected - Student suspended from leaderboard",
                 updated: data,
             });
 
