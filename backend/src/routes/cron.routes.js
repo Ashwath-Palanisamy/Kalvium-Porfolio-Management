@@ -278,13 +278,13 @@ async function notifyMentorsAboutInactiveStudents() {
                         <h3>Hello ${data.mentorName},</h3>
                         <p>Here is the daily LeetCode inactivity & profile setup report for your squad(s):</p>
                         
-                        <h4 style="color: #d9534f;">🚨 High Priority: Inactive for 7+ Days (${data.sevenDaysPlus.length})</h4>
+                        <h4 style="color: #d9534f;">High Priority: Inactive for 7+ Days (${data.sevenDaysPlus.length})</h4>
                         ${sevenDaysHtml}
 
-                        <h4 style="color: #f0ad4e;">⚠️ Warning: Inactive for 1–6 Days (${data.oneToSixDays.length})</h4>
+                        <h4 style="color: #f0ad4e;">Warning: Inactive for 1–6 Days (${data.oneToSixDays.length})</h4>
                         ${oneToSixDaysHtml}
 
-                        <h4 style="color: #6c757d;">📝 Action Required: LeetCode Profile Not Set (${data.missingProfile.length})</h4>
+                        <h4 style="color: #6c757d;">Action Required: LeetCode Profile Not Set (${data.missingProfile.length})</h4>
                         ${missingProfileHtml}
 
                         <p>Please reach out to your squad members to keep them on track.</p>
