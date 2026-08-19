@@ -1078,7 +1078,7 @@ async function notifyMentorsAboutInactiveStudents() {
         last_solved_at,
         profiles!inner (
           name,
-          kalvium_email
+          email
         )
       `)
       .eq(
@@ -1179,7 +1179,7 @@ async function notifyMentorsAboutInactiveStudents() {
     } = await supabaseAdmin
       .from("profiles")
       .select(
-        "user_id, name, kalvium_email, leetcode"
+        "user_id, name, email, leetcode"
       )
       .in(
         "user_id",
@@ -1259,38 +1259,43 @@ async function notifyMentorsAboutInactiveStudents() {
     }
 
     // ========================================================
-    // 6. GET MENTOR PROFILES
+    // 6. GET MENTOR DETAILS FROM SUPABASE AUTH
     // ========================================================
-
-    const {
-      data: mentorProfiles,
-      error: mentorError,
-    } = await supabaseAdmin
-      .from("profiles")
-      .select(
-        "user_id, name, kalvium_email"
-      )
-      .in(
-        "user_id",
-        Array.from(
-          mentorIdsToNotify
-        )
-      );
-
-    if (mentorError) {
-      throw mentorError;
-    }
 
     const mentorDataMap = {};
 
-    for (
-      const mentor of
-        mentorProfiles || []
-    ) {
-      mentorDataMap[
-        mentor.user_id
-      ] = mentor;
-    }
+    await Promise.all(
+      Array.from(mentorIdsToNotify).map(async (mentorId) => {
+        try {
+          const { data, error } =
+            await supabaseAdmin.auth.admin.getUserById(mentorId);
+
+          if (error) {
+            console.error(
+              `[EMAIL ERROR] Failed to fetch auth user for mentor ID ${mentorId}:`,
+              error.message
+            );
+            return;
+          }
+
+          if (data?.user) {
+            mentorDataMap[mentorId] = {
+              user_id: mentorId,
+              name:
+                data.user.user_metadata?.name ||
+                data.user.user_metadata?.full_name ||
+                "Mentor",
+              email: data.user.email,
+            };
+          }
+        } catch (err) {
+          console.error(
+            `[EMAIL ERROR] Exception fetching mentor ID ${mentorId}:`,
+            err.message
+          );
+        }
+      })
+    );
 
     // ========================================================
     // 7. GROUP DATA BY MENTOR
@@ -1345,8 +1350,7 @@ async function notifyMentorsAboutInactiveStudents() {
           "Student",
 
         email:
-          record.profiles
-            ?.kalvium_email ||
+          record.profiles?.email ||
           "Unknown",
 
         lastSolved:
@@ -1374,7 +1378,7 @@ async function notifyMentorsAboutInactiveStudents() {
         }
 
         const mentorEmail =
-          mentor.kalvium_email;
+          mentor.email;
 
         if (!mentorEmail) {
           continue;
@@ -1449,7 +1453,7 @@ async function notifyMentorsAboutInactiveStudents() {
         }
 
         const mentorEmail =
-          mentor.kalvium_email;
+          mentor.email;
 
         if (!mentorEmail) {
           continue;
@@ -1499,7 +1503,7 @@ async function notifyMentorsAboutInactiveStudents() {
               "Student",
 
             email:
-              student.kalvium_email ||
+              student.email ||
               "Unknown",
           });
         }
@@ -2039,10 +2043,6 @@ async function syncSingleLeetCodeProfile(
       const ranking =
         matchedUser.profile
           ?.ranking || 0;
-
-      // Easy = 1
-      // Medium = 1.5
-      // Hard = 2
 
       const score =
         easySolved +
