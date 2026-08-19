@@ -1078,7 +1078,7 @@ async function notifyMentorsAboutInactiveStudents() {
         last_solved_at,
         profiles!inner (
           name,
-          email
+          kalvium_email
         )
       `)
       .eq(
@@ -1179,7 +1179,7 @@ async function notifyMentorsAboutInactiveStudents() {
     } = await supabaseAdmin
       .from("profiles")
       .select(
-        "user_id, name, email, leetcode"
+        "user_id, name, kalvium_email, leetcode"
       )
       .in(
         "user_id",
@@ -1350,7 +1350,7 @@ async function notifyMentorsAboutInactiveStudents() {
           "Student",
 
         email:
-          record.profiles?.email ||
+          record.profiles?.kalvium_email ||
           "Unknown",
 
         lastSolved:
@@ -1503,7 +1503,7 @@ async function notifyMentorsAboutInactiveStudents() {
               "Student",
 
             email:
-              student.email ||
+              student.kalvium_email ||
               "Unknown",
           });
         }
