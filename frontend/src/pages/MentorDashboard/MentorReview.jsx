@@ -5,7 +5,7 @@ import {
     approveMentorReview,
     rejectMentorReview,
 } from "../../api/routes/Mentor/review";
-import "./mentorReview.css";
+import "./MentorReview.css";
 
 const MentorReview = () => {
     const [reviews, setReviews] = useState([]);
