@@ -47,28 +47,65 @@ function Leaderboard() {
           const easySolved = entry?.easy_solved ?? 0;
           const mediumSolved = entry?.medium_solved ?? 0;
           const hardSolved = entry?.hard_solved ?? 0;
-          
-          // Anti-cheat / Mentor review attributes
-          const pendingReviewCount = entry?.pending_review_count ?? entry?.pending_solves ?? 0;
-          const isUnderReview = entry?.is_under_review ?? pendingReviewCount > 0;
+
+          // ============================================================
+          // ANTI-CHEAT / MENTOR REVIEW STATUS
+          // ============================================================
+
+          const pendingReviewCount =
+            Number(entry?.pending_review_count ?? 0);
+
+          const isSuspended =
+            entry?.is_suspended === true;
+
+          const isUnderReview =
+            isSuspended ||
+            entry?.is_under_review === true ||
+            pendingReviewCount > 0;
 
           return {
-            user_id: entry?.user_id || entry?.profile_id || entry?.id,
-            name: profile?.name || entry?.leetcode_username || "Unknown Student",
-            username: entry?.leetcode_username || "",
+            user_id:
+              entry?.user_id ||
+              entry?.profile_id ||
+              entry?.id,
+
+            name:
+              profile?.name ||
+              entry?.leetcode_username ||
+              "Unknown Student",
+
+            username:
+              entry?.leetcode_username || "",
+
             avatar:
-              profile?.avatar_url && profile.avatar_url.trim() !== ""
+              profile?.avatar_url &&
+                profile.avatar_url.trim() !== ""
                 ? profile.avatar_url
                 : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                    profile?.name || entry?.leetcode_username || "Student"
-                  )}&background=ffdddd&color=d71920&size=256`,
+                  profile?.name ||
+                  entry?.leetcode_username ||
+                  "Student"
+                )}&background=ffdddd&color=d71920&size=256`,
+
             easySolved,
             mediumSolved,
             hardSolved,
-            total: entry?.total_solved ?? easySolved + mediumSolved + hardSolved,
-            score: entry?.score ?? 0,
-            ranking: entry?.ranking ?? null,
+
+            total:
+              entry?.total_solved ??
+              easySolved +
+              mediumSolved +
+              hardSolved,
+
+            score:
+              entry?.score ?? 0,
+
+            ranking:
+              entry?.ranking ?? null,
+
+            // Anti-cheat
             pendingReviewCount,
+            isSuspended,
             isUnderReview,
           };
         });
@@ -159,7 +196,7 @@ function Leaderboard() {
           <h1>Leaderboard</h1>
         </div>
         <p>
-          Ranked by verified LeetCode problems solved & total points scored. 
+          Ranked by verified LeetCode problems solved & total points scored.
           Rapid consecutive solves (under 2 mins) are automatically held in <strong>Mentor Evaluation Queue</strong> before point allocation.
         </p>
 
