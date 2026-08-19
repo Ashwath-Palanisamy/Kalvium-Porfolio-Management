@@ -727,6 +727,10 @@ async function saveLeetCodeSubmissions(
     `[SUBMISSIONS] ${username} | Found ${recentSubmissions.length} accepted submissions`
   );
 
+  // ==========================================================
+  // 1. VALID SUBMISSIONS
+  // ==========================================================
+
   const validSubmissions =
     recentSubmissions
       .filter(
@@ -740,6 +744,18 @@ async function saveLeetCodeSubmissions(
           Number(b.timestamp)
       );
 
+  if (validSubmissions.length === 0) {
+    console.log(
+      `[SUBMISSIONS] ${username} | No valid submissions`
+    );
+
+    return;
+  }
+
+  // ==========================================================
+  // 2. DETECT RAPID SUBMISSIONS
+  // ==========================================================
+
   const rapidSubmissionIds =
     findRapidSubmissionIds(
       validSubmissions
@@ -748,6 +764,10 @@ async function saveLeetCodeSubmissions(
   console.log(
     `[RAPID CHECK] ${username} | ${rapidSubmissionIds.size} submissions flagged`
   );
+
+  // ==========================================================
+  // 3. GET EXISTING DATABASE RECORDS
+  // ==========================================================
 
   const submissionIds =
     validSubmissions.map(
@@ -783,6 +803,10 @@ async function saveLeetCodeSubmissions(
     return;
   }
 
+  // ==========================================================
+  // 4. CREATE EXISTING SUBMISSION MAP
+  // ==========================================================
+
   const existingMap = {};
 
   for (
@@ -795,6 +819,10 @@ async function saveLeetCodeSubmissions(
       )
     ] = record;
   }
+
+  // ==========================================================
+  // 5. BUILD DATABASE RECORDS
+  // ==========================================================
 
   const submissionRecords =
     validSubmissions.map(
@@ -818,44 +846,12 @@ async function saveLeetCodeSubmissions(
         let status;
         let flagReason;
 
-        if (
-          existing?.review_status ===
-          "approved"
-        ) {
-          reviewStatus =
-            "approved";
+        // ====================================================
+        // IMPORTANT:
+        // RAPID DETECTION MUST HAVE HIGHEST PRIORITY
+        // ====================================================
 
-          status =
-            "APPROVED";
-
-          flagReason = null;
-        } else if (
-          existing?.review_status ===
-          "rejected"
-        ) {
-          reviewStatus =
-            "rejected";
-
-          status =
-            "REJECTED";
-
-          flagReason =
-            existing.flag_reason ||
-            "Rejected by mentor";
-        } else if (
-          existing?.review_status ===
-          "pending"
-        ) {
-          reviewStatus =
-            "pending";
-
-          status =
-            "PENDING";
-
-          flagReason =
-            existing.flag_reason ||
-            "Rapid consecutive solve (< 2 minutes)";
-        } else if (isRapid) {
+        if (isRapid) {
           reviewStatus =
             "pending";
 
@@ -868,18 +864,82 @@ async function saveLeetCodeSubmissions(
           console.log(
             `[MENTOR REVIEW FLAG] ${username} | ${submissionId} | ${flagReason}`
           );
-        } else {
+        }
+
+        // ====================================================
+        // REJECTED SUBMISSIONS
+        // ====================================================
+
+        else if (
+          existing?.review_status ===
+          "rejected"
+        ) {
+          reviewStatus =
+            "rejected";
+
+          status =
+            "REJECTED";
+
+          flagReason =
+            existing.flag_reason ||
+            "Rejected by mentor";
+        }
+
+        // ====================================================
+        // PENDING SUBMISSIONS
+        // ====================================================
+
+        else if (
+          existing?.review_status ===
+          "pending"
+        ) {
+          reviewStatus =
+            "pending";
+
+          status =
+            "PENDING";
+
+          flagReason =
+            existing.flag_reason ||
+            "Pending mentor review";
+        }
+
+        // ====================================================
+        // APPROVED SUBMISSIONS
+        // ====================================================
+
+        else if (
+          existing?.review_status ===
+          "approved"
+        ) {
           reviewStatus =
             "approved";
 
           status =
             "APPROVED";
 
-          flagReason = null;
+          flagReason =
+            null;
+        }
+
+        // ====================================================
+        // NEW NORMAL SUBMISSION
+        // ====================================================
+
+        else {
+          reviewStatus =
+            "approved";
+
+          status =
+            "APPROVED";
+
+          flagReason =
+            null;
         }
 
         return {
-          user_id: userId,
+          user_id:
+            userId,
 
           leetcode_username:
             username,
@@ -910,6 +970,10 @@ async function saveLeetCodeSubmissions(
         };
       }
     );
+
+  // ==========================================================
+  // 6. UPSERT
+  // ==========================================================
 
   const {
     data,
@@ -942,6 +1006,10 @@ async function saveLeetCodeSubmissions(
 
     return;
   }
+
+  // ==========================================================
+  // 7. COUNTS
+  // ==========================================================
 
   const pendingCount =
     submissionRecords.filter(
@@ -2046,193 +2114,476 @@ async function syncSingleLeetCodeProfile(
         }
       }
 
-      // ====================================================
-      // SAVE SUBMISSIONS
-      // ====================================================
+      // ============================================================
+// SAVE SUBMISSIONS
+// ============================================================
 
-      await saveLeetCodeSubmissions(
-        userId,
-        matchedUser.username,
-        recentSubmissions
-      );
+await saveLeetCodeSubmissions(
+  userId,
+  matchedUser.username,
+  recentSubmissions
+);
 
-      // ====================================================
-      // FALLBACK LAST SOLVED
-      // ====================================================
+// ============================================================
+// FALLBACK LAST SOLVED
+// ============================================================
 
-      if (!lastSolvedAt) {
-        console.log(
-          `[DB LOOKUP] Checking existing last_solved_at for ${username}`
-        );
+if (!lastSolvedAt) {
+  console.log(
+    `[DB LOOKUP] Checking existing last_solved_at for ${username}`
+  );
 
-        const {
-          data: existingData,
-          error: existingError,
-        } = await supabaseAdmin
-          .from(
-            "leetcode_leaderboard"
-          )
-          .select(
-            "last_solved_at"
-          )
-          .eq(
-            "profile_id",
-            profileId
-          )
-          .maybeSingle();
+  const {
+    data: existingData,
+    error: existingError,
+  } = await supabaseAdmin
+    .from("leetcode_leaderboard")
+    .select("last_solved_at")
+    .eq("profile_id", profileId)
+    .maybeSingle();
 
-        if (existingError) {
-          logSupabaseError(
-            "Existing leaderboard lookup failed",
-            existingError,
-            {
-              profileId,
-              username,
-            }
-          );
-        }
-
-        lastSolvedAt =
-          existingData
-            ?.last_solved_at ||
-          null;
+  if (existingError) {
+    logSupabaseError(
+      "Existing leaderboard lookup failed",
+      existingError,
+      {
+        profileId,
+        username,
       }
+    );
+  }
 
-      // ====================================================
-      // ACTIVE STATUS
-      // ====================================================
+  lastSolvedAt =
+    existingData?.last_solved_at || null;
+}
 
-      const ONE_DAY_MS =
-        24 *
-        60 *
-        60 *
-        1000;
+// ============================================================
+// ACTIVE STATUS
+// ============================================================
 
-      const isLeetCodeActive =
-        lastSolvedAt
-          ? Date.now() -
-              new Date(
-                lastSolvedAt
-              ).getTime() <=
-            ONE_DAY_MS
-          : false;
+const ONE_DAY_MS =
+  24 * 60 * 60 * 1000;
 
-      // ====================================================
-      // LEADERBOARD UPSERT
-      // ====================================================
+const isLeetCodeActive =
+  lastSolvedAt
+    ? Date.now() -
+        new Date(lastSolvedAt).getTime() <=
+      ONE_DAY_MS
+    : false;
 
-      const upsertPayload = {
-        profile_id:
-          profileId,
+// ============================================================
+// CHECK PENDING CHEAT REVIEWS
+// ============================================================
 
-        user_id:
-          userId,
+console.log(
+  `[SUSPENSION CHECK] ${username} | Checking pending reviews...`
+);
 
-        leetcode_username:
-          matchedUser.username,
+const {
+  data: pendingReviews,
+  error: pendingReviewError,
+} = await supabaseAdmin
+  .from("leetcode_submissions")
+  .select("id")
+  .eq("user_id", userId)
+  .eq("review_status", "pending")
+  .limit(1);
 
-        easy_solved:
-          easySolved,
+if (pendingReviewError) {
+  logSupabaseError(
+    "Checking pending reviews",
+    pendingReviewError,
+    {
+      userId,
+      profileId,
+      username,
+    }
+  );
 
-        medium_solved:
-          mediumSolved,
+  // IMPORTANT:
+  // Do not accidentally unsuspend a student if the
+  // suspension check itself failed.
+  return {
+    status: "DB_ERROR",
+    username,
+    error: pendingReviewError.message,
+  };
+}
 
-        hard_solved:
-          hardSolved,
+const hasPendingReviews =
+  Array.isArray(pendingReviews) &&
+  pendingReviews.length > 0;
 
-        total_solved:
-          totalSolved,
+// ============================================================
+// SUSPENSION STATUS
+// ============================================================
 
-        ranking,
+const isSuspended = hasPendingReviews;
 
-        score,
+const suspensionReason = isSuspended
+  ? "Pending mentor review for suspicious submission patterns"
+  : null;
 
-        updated_at:
-          new Date().toISOString(),
+console.log(
+  `[LEADERBOARD STATUS] ${username} | ` +
+    `pending reviews: ${hasPendingReviews} | ` +
+    `suspended: ${isSuspended}`
+);
 
-        last_solved_at:
-          lastSolvedAt,
+// ============================================================
+// LEADERBOARD UPSERT
+// ============================================================
 
-        is_leetcode_active:
-          isLeetCodeActive,
-      };
+const upsertPayload = {
+  profile_id: profileId,
 
-      console.log(
-        `[DB UPSERT] ${username} | Updating leetcode_leaderboard...`
-      );
+  user_id: userId,
 
-      const {
-        data: savedData,
-        error: dbError,
-      } = await supabaseAdmin
-        .from(
-          "leetcode_leaderboard"
-        )
-        .upsert(
-          upsertPayload,
-          {
-            onConflict:
-              "profile_id",
-          }
-        )
-        .select()
-        .single();
+  leetcode_username:
+    matchedUser.username,
 
-      if (dbError) {
-        logSupabaseError(
-          "Leaderboard upsert failed",
-          dbError,
-          {
-            profileId,
-            userId,
-            username,
-          }
-        );
+  easy_solved:
+    easySolved,
 
-        if (
-          attempt <
-          maxRetries
-        ) {
-          await delay(
-            2000
-          );
+  medium_solved:
+    mediumSolved,
 
-          continue;
-        }
+  hard_solved:
+    hardSolved,
 
-        return {
-          status:
-            "DB_ERROR",
+  total_solved:
+    totalSolved,
 
-          username,
+  ranking,
 
-          error:
-            dbError.message,
-        };
-      }
+  score,
 
-      console.log(
-        `[DB SUCCESS] ${username} | Score: ${score}`
-      );
+  updated_at:
+    new Date().toISOString(),
 
-      // Check and update leaderboard suspension status
-      await updateLeaderboardSuspensionStatus(
-        userId,
-        profileId
-      );
+  last_solved_at:
+    lastSolvedAt,
 
-      return {
-        status:
-          "SUCCESS",
+  is_leetcode_active:
+    isLeetCodeActive,
 
-        username:
-          matchedUser.username,
+  // ==========================================================
+  // CHEAT / MENTOR REVIEW STATUS
+  // ==========================================================
 
-        isActive:
-          isLeetCodeActive,
+  is_suspended:
+    isSuspended,
 
-        score,
-      };
+  suspension_reason:
+    suspensionReason,
+};
+
+console.log(
+  `[DB UPSERT] ${username} | Updating leetcode_leaderboard...`
+);
+
+console.log(
+  `[DB UPSERT STATUS] ${username} | ` +
+    `is_suspended=${isSuspended} | ` +
+    `reason=${suspensionReason || "none"}`
+);
+
+const {
+  data: savedData,
+  error: dbError,
+} = await supabaseAdmin
+  .from("leetcode_leaderboard")
+  .upsert(
+    upsertPayload,
+    {
+      onConflict: "profile_id",
+    }
+  )
+  .select()
+  .single();
+
+if (dbError) {
+  logSupabaseError(
+    "Leaderboard upsert failed",
+    dbError,
+    {
+      profileId,
+      userId,
+      username,
+      isSuspended,
+      suspensionReason,
+    }
+  );
+
+  if (attempt < maxRetries) {
+    console.log(
+      `[DB RETRY] ${username} | ` +
+        `Retrying leaderboard upsert...`
+    );
+
+    await delay(2000);
+
+    continue;
+  }
+
+  return {
+    status: "DB_ERROR",
+
+    username,
+
+    error:
+      dbError.message,
+  };
+}
+// ============================================================
+// CHECK SUSPENSION STATUS
+// ============================================================
+
+const {
+  data: pendingReviews,
+  error: pendingReviewError,
+} = await supabaseAdmin
+  .from("leetcode_submissions")
+  .select("id")
+  .eq("user_id", userId)
+  .eq("review_status", "pending")
+  .limit(1);
+
+if (pendingReviewError) {
+  logSupabaseError(
+    "Checking pending reviews",
+    pendingReviewError,
+    {
+      userId,
+      profileId,
+      username,
+    }
+  );
+
+  return {
+    status: "DB_ERROR",
+    username,
+    error: pendingReviewError.message,
+  };
+}
+
+const hasPendingReviews =
+  Array.isArray(pendingReviews) &&
+  pendingReviews.length > 0;
+
+const suspensionReason = hasPendingReviews
+  ? "Pending mentor review for suspicious submission patterns"
+  : null;
+
+console.log(
+  `[LEADERBOARD STATUS] ${username} | ` +
+  `pending=${hasPendingReviews} | ` +
+  `suspended=${hasPendingReviews}`
+);
+
+// ============================================================
+// LEADERBOARD UPSERT
+// ============================================================
+
+const upsertPayload = {
+  profile_id: profileId,
+  user_id: userId,
+  leetcode_username: matchedUser.username,
+
+  easy_solved: easySolved,
+  medium_solved: mediumSolved,
+  hard_solved: hardSolved,
+  total_solved: totalSolved,
+
+  ranking,
+  score,
+
+  updated_at: new Date().toISOString(),
+  last_solved_at: lastSolvedAt,
+
+  is_leetcode_active: isLeetCodeActive,
+
+  // IMPORTANT
+  is_suspended: hasPendingReviews,
+
+  suspension_reason: suspensionReason,
+};
+
+console.log(
+  `[DB UPSERT] ${username} | Updating leetcode_leaderboard...`
+);
+
+console.log(
+  `[DB UPSERT STATUS] ${username} | ` +
+  `is_suspended=${hasPendingReviews} | ` +
+  `reason=${suspensionReason || "none"}`
+);
+
+const {
+  data: savedData,
+  error: dbError,
+} = await supabaseAdmin
+  .from("leetcode_leaderboard")
+  .upsert(
+    upsertPayload,
+    {
+      onConflict: "profile_id",
+    }
+  )
+  .select()
+  .single();
+
+if (dbError) {
+  logSupabaseError(
+    "Leaderboard upsert failed",
+    dbError,
+    {
+      profileId,
+      userId,
+      username,
+      isSuspended: hasPendingReviews,
+      suspensionReason,
+    }
+  );
+
+  if (attempt < maxRetries) {
+    console.log(
+      `[DB RETRY] ${username} | Retrying...`
+    );
+
+    await delay(2000);
+
+    continue;
+  }
+
+  return {
+    status: "DB_ERROR",
+    username,
+    error: dbError.message,
+  };
+}
+
+// ============================================================
+// VERIFY
+// ============================================================
+
+const {
+  data: verifiedLeaderboard,
+  error: verifyError,
+} = await supabaseAdmin
+  .from("leetcode_leaderboard")
+  .select(`
+    profile_id,
+    user_id,
+    leetcode_username,
+    score,
+    is_suspended,
+    suspension_reason
+  `)
+  .eq("profile_id", profileId)
+  .maybeSingle();
+
+if (verifyError) {
+  logSupabaseError(
+    "Leaderboard verification failed",
+    verifyError,
+    {
+      profileId,
+      username,
+    }
+  );
+} else {
+  console.log(
+    `[DB VERIFY] ${username} | ` +
+    `score=${verifiedLeaderboard?.score} | ` +
+    `is_suspended=${verifiedLeaderboard?.is_suspended} | ` +
+    `reason=${
+      verifiedLeaderboard?.suspension_reason || "none"
+    }`
+  );
+}
+
+console.log(
+  `[DB SUCCESS] ${username} | ` +
+  `Score: ${score} | ` +
+  `Suspended: ${hasPendingReviews}`
+);
+
+return {
+  status: "SUCCESS",
+  username: matchedUser.username,
+  isActive: isLeetCodeActive,
+  score,
+  isSuspended: hasPendingReviews,
+  suspensionReason,
+};
+// ============================================================
+// VERIFY THE DATABASE UPDATE
+// ============================================================
+
+const {
+  data: verifiedLeaderboard,
+  error: verifyError,
+} = await supabaseAdmin
+  .from("leetcode_leaderboard")
+  .select(`
+    profile_id,
+    user_id,
+    leetcode_username,
+    score,
+    is_suspended,
+    suspension_reason
+  `)
+  .eq("profile_id", profileId)
+  .maybeSingle();
+
+if (verifyError) {
+  logSupabaseError(
+    "Leaderboard verification failed",
+    verifyError,
+    {
+      profileId,
+      username,
+    }
+  );
+} else {
+  console.log(
+    `[DB VERIFY] ${username} | ` +
+      `score=${verifiedLeaderboard?.score} | ` +
+      `is_suspended=${verifiedLeaderboard?.is_suspended} | ` +
+      `reason=${
+        verifiedLeaderboard?.suspension_reason ||
+        "none"
+      }`
+  );
+}
+
+// ============================================================
+// SUCCESS
+// ============================================================
+
+console.log(
+  `[DB SUCCESS] ${username} | ` +
+    `Score: ${score} | ` +
+    `Suspended: ${isSuspended}`
+);
+
+return {
+  status: "SUCCESS",
+
+  username:
+    matchedUser.username,
+
+  isActive:
+    isLeetCodeActive,
+
+  score,
+
+  isSuspended,
+
+  suspensionReason,
+};
+
     } catch (error) {
       console.error(
         `[SYNC EXCEPTION] ${username}`,
@@ -2268,17 +2619,6 @@ async function syncSingleLeetCodeProfile(
 router.post(
   "/update-leetcode",
   async (req, res) => {
-    console.log(
-      "\n============================================================"
-    );
-
-    console.log(
-      "LEETCODE LEADERBOARD UPDATE STARTED"
-    );
-
-    console.log(
-      "============================================================"
-    );
 
     // ========================================================
     // AUTH
