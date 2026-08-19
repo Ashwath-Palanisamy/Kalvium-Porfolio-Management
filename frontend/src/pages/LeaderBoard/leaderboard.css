@@ -2,6 +2,15 @@
    1. PAGE CONTAINER & BASE STYLES
 ========================================= */
 
+#notice{
+  background-color: #FEF3C7;
+  color: #92400E;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  border-bottom: 2px solid #FDE68A;
+}
+
 .leaderboard-page {
   min-height: 100vh;
   background: #f8fafc;

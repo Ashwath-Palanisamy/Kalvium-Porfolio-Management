@@ -188,258 +188,261 @@ function Leaderboard() {
   };
 
   return (
-    <div className="leaderboard-page">
-      {/* PAGE HEADER */}
-      <title>Kalvium Portfolio | Leaderboard</title>
-      <div className="leaderboard-title">
-        <div className="title-header-row">
-          <h1>Leaderboard</h1>
-        </div>
-        <p>
-          Ranked by verified LeetCode problems solved & total points scored.
-          Rapid consecutive solves (under 2 mins) are automatically held in <strong>Mentor Evaluation Queue</strong> before point allocation.
-        </p>
-
-        {/* POINTS & AUDIT BADGES */}
-        <div className="points-legend">
-          <span className="point-badge easy">Easy: {POINTS.easy} pt</span>
-          <span className="point-badge medium">Medium: {POINTS.medium} pts</span>
-          <span className="point-badge hard">Hard: {POINTS.hard} pts</span>
-          <span className="point-badge review-info">🕒 Flagged Solves = Held for Review</span>
-        </div>
-      </div>
-
-      {/* PENDING REVIEW NOTICE - If current user has pending reviews */}
-      {userPendingReview.hasPendingReview && (
-        <div className="leaderboard-pending-notice">
-          <div className="pending-notice-content">
-            <span className="pending-icon">⏳</span>
-            <div>
-              <strong>Your submissions are under mentor review</strong>
-              <p>
-                You have {userPendingReview.pendingReviewCount} rapid submission
-                {userPendingReview.pendingReviewCount !== 1 ? "s" : ""} awaiting verification.
-                Once approved, you'll appear on the leaderboard.
-              </p>
-            </div>
+    <div>
+      <p id="notice">We are upgrading this page for faster load times. New updates may take over 24 hours to appear.</p>
+      <div className="leaderboard-page">
+        {/* PAGE HEADER */}
+        <title>Kalvium Portfolio | Leaderboard</title>
+        <div className="leaderboard-title">
+          <div className="title-header-row">
+            <h1>Leaderboard</h1>
           </div>
-          <button
-            className="pending-notice-button"
-            onClick={() => navigate("/profile")}
-          >
-            View Status
-          </button>
+          <p>
+            Ranked by verified LeetCode problems solved & total points scored.
+            Rapid consecutive solves (under 2 mins) are automatically held in <strong>Mentor Evaluation Queue</strong> before point allocation.
+          </p>
+
+          {/* POINTS & AUDIT BADGES */}
+          <div className="points-legend">
+            <span className="point-badge easy">Easy: {POINTS.easy} pt</span>
+            <span className="point-badge medium">Medium: {POINTS.medium} pts</span>
+            <span className="point-badge hard">Hard: {POINTS.hard} pts</span>
+            <span className="point-badge review-info">🕒 Flagged Solves = Held for Review</span>
+          </div>
         </div>
-      )}
 
-      {error && <div className="leaderboard-error">{error}</div>}
-
-      {/* LOADING */}
-      {isLoading ? (
-        <div className="leaderboard-loading">Loading leaderboard...</div>
-      ) : rankings.length === 0 ? (
-        <div className="leaderboard-empty">
-          No students with a LeetCode profile yet.
-        </div>
-      ) : (
-        <>
-          {/* TOP 3 PODIUM */}
-          {topThree.length > 0 && (
-            <div className="podium">
-              {/* SECOND PLACE */}
-              {topThree[1] && (
-                <div
-                  className="podium-card second-place"
-                  onClick={() => handleStudentClick(topThree[1])}
-                >
-                  <img
-                    src={getAvatar(topThree[1])}
-                    alt={topThree[1].name}
-                    className="podium-avatar"
-                  />
-
-                  <h2>{topThree[1].name}</h2>
-
-                  <p className="podium-username">
-                    @{cleanUsername(topThree[1].username)}
-                  </p>
-
-                  <div className="podium-points-badge">
-                    <strong>{topThree[1].score}</strong> pts
-                  </div>
-
-                  {topThree[1].pendingReviewCount > 0 && (
-                    <div className="pending-badge" title="Pending mentor review for fast consecutive solves">
-                      ⏳ {topThree[1].pendingReviewCount} in Review
-                    </div>
-                  )}
-
-                  <div className="problem-stats">
-                    <div>
-                      <strong className="easy-text">{topThree[1].easySolved}</strong>
-                      <span>Easy</span>
-                    </div>
-                    <div>
-                      <strong className="medium-text">{topThree[1].mediumSolved}</strong>
-                      <span>Medium</span>
-                    </div>
-                    <div>
-                      <strong className="hard-text">{topThree[1].hardSolved}</strong>
-                      <span>Hard</span>
-                    </div>
-                  </div>
-
-                  <div className="podium-rank">2</div>
-                </div>
-              )}
-
-              {/* FIRST PLACE */}
-              {topThree[0] && (
-                <div
-                  className="podium-card first-place"
-                  onClick={() => handleStudentClick(topThree[0])}
-                >
-                  <img
-                    src={getAvatar(topThree[0])}
-                    alt={topThree[0].name}
-                    className="podium-avatar"
-                  />
-
-                  <h2>{topThree[0].name}</h2>
-
-                  <p className="podium-username">
-                    @{cleanUsername(topThree[0].username)}
-                  </p>
-
-                  <div className="podium-points-badge highlight">
-                    <strong>{topThree[0].score}</strong> pts
-                  </div>
-
-                  {topThree[0].pendingReviewCount > 0 && (
-                    <div className="pending-badge" title="Pending mentor review for fast consecutive solves">
-                      ⏳ {topThree[0].pendingReviewCount} in Review
-                    </div>
-                  )}
-
-                  <div className="problem-stats">
-                    <div>
-                      <strong className="easy-text">{topThree[0].easySolved}</strong>
-                      <span>Easy</span>
-                    </div>
-                    <div>
-                      <strong className="medium-text">{topThree[0].mediumSolved}</strong>
-                      <span>Medium</span>
-                    </div>
-                    <div>
-                      <strong className="hard-text">{topThree[0].hardSolved}</strong>
-                      <span>Hard</span>
-                    </div>
-                  </div>
-
-                  <div className="podium-rank first-rank">1</div>
-                </div>
-              )}
-
-              {/* THIRD PLACE */}
-              {topThree[2] && (
-                <div
-                  className="podium-card third-place"
-                  onClick={() => handleStudentClick(topThree[2])}
-                >
-                  <img
-                    src={getAvatar(topThree[2])}
-                    alt={topThree[2].name}
-                    className="podium-avatar"
-                  />
-
-                  <h2>{topThree[2].name}</h2>
-
-                  <p className="podium-username">
-                    @{cleanUsername(topThree[2].username)}
-                  </p>
-
-                  <div className="podium-points-badge">
-                    <strong>{topThree[2].score}</strong> pts
-                  </div>
-
-                  {topThree[2].pendingReviewCount > 0 && (
-                    <div className="pending-badge" title="Pending mentor review for fast consecutive solves">
-                      ⏳ {topThree[2].pendingReviewCount} in Review
-                    </div>
-                  )}
-
-                  <div className="problem-stats">
-                    <div>
-                      <strong className="easy-text">{topThree[2].easySolved}</strong>
-                      <span>Easy</span>
-                    </div>
-                    <div>
-                      <strong className="medium-text">{topThree[2].mediumSolved}</strong>
-                      <span>Medium</span>
-                    </div>
-                    <div>
-                      <strong className="hard-text">{topThree[2].hardSolved}</strong>
-                      <span>Hard</span>
-                    </div>
-                  </div>
-
-                  <div className="podium-rank">3</div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* TABLE */}
-          {remainingStudents.length > 0 && (
-            <div className="leaderboard-table">
-              <div className="table-header">
-                <span>RANK</span>
-                <span>STUDENT</span>
-                <span>EASY</span>
-                <span>MEDIUM</span>
-                <span>HARD</span>
-                <span>TOTAL</span>
-                <span>POINTS</span>
+        {/* PENDING REVIEW NOTICE - If current user has pending reviews */}
+        {userPendingReview.hasPendingReview && (
+          <div className="leaderboard-pending-notice">
+            <div className="pending-notice-content">
+              <span className="pending-icon">⏳</span>
+              <div>
+                <strong>Your submissions are under mentor review</strong>
+                <p>
+                  You have {userPendingReview.pendingReviewCount} rapid submission
+                  {userPendingReview.pendingReviewCount !== 1 ? "s" : ""} awaiting verification.
+                  Once approved, you'll appear on the leaderboard.
+                </p>
               </div>
+            </div>
+            <button
+              className="pending-notice-button"
+              onClick={() => navigate("/profile")}
+            >
+              View Status
+            </button>
+          </div>
+        )}
 
-              {remainingStudents.map((student, index) => {
-                const rank = index + 4;
+        {error && <div className="leaderboard-error">{error}</div>}
 
-                return (
+        {/* LOADING */}
+        {isLoading ? (
+          <div className="leaderboard-loading">Loading leaderboard...</div>
+        ) : rankings.length === 0 ? (
+          <div className="leaderboard-empty">
+            No students with a LeetCode profile yet.
+          </div>
+        ) : (
+          <>
+            {/* TOP 3 PODIUM */}
+            {topThree.length > 0 && (
+              <div className="podium">
+                {/* SECOND PLACE */}
+                {topThree[1] && (
                   <div
-                    className="table-row"
-                    key={student.user_id}
-                    onClick={() => handleStudentClick(student)}
+                    className="podium-card second-place"
+                    onClick={() => handleStudentClick(topThree[1])}
                   >
-                    <div className="table-rank">#{rank}</div>
+                    <img
+                      src={getAvatar(topThree[1])}
+                      alt={topThree[1].name}
+                      className="podium-avatar"
+                    />
 
-                    <div className="table-student">
-                      <img src={getAvatar(student)} alt={student.name} />
+                    <h2>{topThree[1].name}</h2>
 
+                    <p className="podium-username">
+                      @{cleanUsername(topThree[1].username)}
+                    </p>
+
+                    <div className="podium-points-badge">
+                      <strong>{topThree[1].score}</strong> pts
+                    </div>
+
+                    {topThree[1].pendingReviewCount > 0 && (
+                      <div className="pending-badge" title="Pending mentor review for fast consecutive solves">
+                        ⏳ {topThree[1].pendingReviewCount} in Review
+                      </div>
+                    )}
+
+                    <div className="problem-stats">
                       <div>
-                        <strong>{student.name}</strong>
-                        <span>@{cleanUsername(student.username)}</span>
+                        <strong className="easy-text">{topThree[1].easySolved}</strong>
+                        <span>Easy</span>
+                      </div>
+                      <div>
+                        <strong className="medium-text">{topThree[1].mediumSolved}</strong>
+                        <span>Medium</span>
+                      </div>
+                      <div>
+                        <strong className="hard-text">{topThree[1].hardSolved}</strong>
+                        <span>Hard</span>
+                      </div>
+                    </div>
+
+                    <div className="podium-rank">2</div>
+                  </div>
+                )}
+
+                {/* FIRST PLACE */}
+                {topThree[0] && (
+                  <div
+                    className="podium-card first-place"
+                    onClick={() => handleStudentClick(topThree[0])}
+                  >
+                    <img
+                      src={getAvatar(topThree[0])}
+                      alt={topThree[0].name}
+                      className="podium-avatar"
+                    />
+
+                    <h2>{topThree[0].name}</h2>
+
+                    <p className="podium-username">
+                      @{cleanUsername(topThree[0].username)}
+                    </p>
+
+                    <div className="podium-points-badge highlight">
+                      <strong>{topThree[0].score}</strong> pts
+                    </div>
+
+                    {topThree[0].pendingReviewCount > 0 && (
+                      <div className="pending-badge" title="Pending mentor review for fast consecutive solves">
+                        ⏳ {topThree[0].pendingReviewCount} in Review
+                      </div>
+                    )}
+
+                    <div className="problem-stats">
+                      <div>
+                        <strong className="easy-text">{topThree[0].easySolved}</strong>
+                        <span>Easy</span>
+                      </div>
+                      <div>
+                        <strong className="medium-text">{topThree[0].mediumSolved}</strong>
+                        <span>Medium</span>
+                      </div>
+                      <div>
+                        <strong className="hard-text">{topThree[0].hardSolved}</strong>
+                        <span>Hard</span>
+                      </div>
+                    </div>
+
+                    <div className="podium-rank first-rank">1</div>
+                  </div>
+                )}
+
+                {/* THIRD PLACE */}
+                {topThree[2] && (
+                  <div
+                    className="podium-card third-place"
+                    onClick={() => handleStudentClick(topThree[2])}
+                  >
+                    <img
+                      src={getAvatar(topThree[2])}
+                      alt={topThree[2].name}
+                      className="podium-avatar"
+                    />
+
+                    <h2>{topThree[2].name}</h2>
+
+                    <p className="podium-username">
+                      @{cleanUsername(topThree[2].username)}
+                    </p>
+
+                    <div className="podium-points-badge">
+                      <strong>{topThree[2].score}</strong> pts
+                    </div>
+
+                    {topThree[2].pendingReviewCount > 0 && (
+                      <div className="pending-badge" title="Pending mentor review for fast consecutive solves">
+                        ⏳ {topThree[2].pendingReviewCount} in Review
+                      </div>
+                    )}
+
+                    <div className="problem-stats">
+                      <div>
+                        <strong className="easy-text">{topThree[2].easySolved}</strong>
+                        <span>Easy</span>
+                      </div>
+                      <div>
+                        <strong className="medium-text">{topThree[2].mediumSolved}</strong>
+                        <span>Medium</span>
+                      </div>
+                      <div>
+                        <strong className="hard-text">{topThree[2].hardSolved}</strong>
+                        <span>Hard</span>
+                      </div>
+                    </div>
+
+                    <div className="podium-rank">3</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TABLE */}
+            {remainingStudents.length > 0 && (
+              <div className="leaderboard-table">
+                <div className="table-header">
+                  <span>RANK</span>
+                  <span>STUDENT</span>
+                  <span>EASY</span>
+                  <span>MEDIUM</span>
+                  <span>HARD</span>
+                  <span>TOTAL</span>
+                  <span>POINTS</span>
+                </div>
+
+                {remainingStudents.map((student, index) => {
+                  const rank = index + 4;
+
+                  return (
+                    <div
+                      className="table-row"
+                      key={student.user_id}
+                      onClick={() => handleStudentClick(student)}
+                    >
+                      <div className="table-rank">#{rank}</div>
+
+                      <div className="table-student">
+                        <img src={getAvatar(student)} alt={student.name} />
+
+                        <div>
+                          <strong>{student.name}</strong>
+                          <span>@{cleanUsername(student.username)}</span>
+                        </div>
+
+                        {student.pendingReviewCount > 0 && (
+                          <span className="table-pending-pill" title="Solves under mentor evaluation">
+                            ⏳ {student.pendingReviewCount} review
+                          </span>
+                        )}
                       </div>
 
-                      {student.pendingReviewCount > 0 && (
-                        <span className="table-pending-pill" title="Solves under mentor evaluation">
-                          ⏳ {student.pendingReviewCount} review
-                        </span>
-                      )}
+                      <div className="easy-number">{student.easySolved}</div>
+                      <div className="medium-number">{student.mediumSolved}</div>
+                      <div className="hard-number">{student.hardSolved}</div>
+                      <div className="total-number">{student.total}</div>
+                      <div className="points-number">{student.score}</div>
                     </div>
-
-                    <div className="easy-number">{student.easySolved}</div>
-                    <div className="medium-number">{student.mediumSolved}</div>
-                    <div className="hard-number">{student.hardSolved}</div>
-                    <div className="total-number">{student.total}</div>
-                    <div className="points-number">{student.score}</div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </>
-      )}
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
