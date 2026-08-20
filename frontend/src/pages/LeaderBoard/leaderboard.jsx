@@ -10,13 +10,17 @@ const POINTS = {
   hard: 2,
 };
 
+const STUDENTS_PER_PAGE = 10;
+
 // Helper to extract clean username if full URL is stored in database
 function cleanUsername(username) {
   if (!username) return "";
+
   if (username.includes("leetcode.com")) {
     const parts = username.replace(/\/$/, "").split("/");
     return parts[parts.length - 1];
   }
+
   return username;
 }
 
@@ -26,10 +30,16 @@ function Leaderboard() {
   const [rankings, setRankings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+
   const [userPendingReview, setUserPendingReview] = useState({
     hasPendingReview: false,
     pendingReviewCount: 0,
   });
+
+  // ============================================================
+  // FETCH LEADERBOARD
+  // ============================================================
 
   useEffect(() => {
     let isMounted = true;
@@ -40,20 +50,25 @@ function Leaderboard() {
 
       try {
         const leaderboardData = await getLeaderboardData();
-        const rows = Array.isArray(leaderboardData) ? leaderboardData : [];
+
+        const rows = Array.isArray(leaderboardData)
+          ? leaderboardData
+          : [];
 
         const results = rows.map((entry) => {
           const profile = entry?.profiles || {};
-          const easySolved = entry?.easy_solved ?? 0;
-          const mediumSolved = entry?.medium_solved ?? 0;
-          const hardSolved = entry?.hard_solved ?? 0;
+
+          const easySolved = Number(entry?.easy_solved ?? 0);
+          const mediumSolved = Number(entry?.medium_solved ?? 0);
+          const hardSolved = Number(entry?.hard_solved ?? 0);
 
           // ============================================================
           // ANTI-CHEAT / MENTOR REVIEW STATUS
           // ============================================================
 
-          const pendingReviewCount =
-            Number(entry?.pending_review_count ?? 0);
+          const pendingReviewCount = Number(
+            entry?.pending_review_count ?? 0
+          );
 
           const isSuspended =
             entry?.is_suspended === true;
@@ -79,13 +94,13 @@ function Leaderboard() {
 
             avatar:
               profile?.avatar_url &&
-                profile.avatar_url.trim() !== ""
+              profile.avatar_url.trim() !== ""
                 ? profile.avatar_url
                 : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                  profile?.name ||
-                  entry?.leetcode_username ||
-                  "Student"
-                )}&background=ffdddd&color=d71920&size=256`,
+                    profile?.name ||
+                      entry?.leetcode_username ||
+                      "Student"
+                  )}&background=ffdddd&color=d71920&size=256`,
 
             easySolved,
             mediumSolved,
@@ -93,17 +108,12 @@ function Leaderboard() {
 
             total:
               entry?.total_solved ??
-              easySolved +
-              mediumSolved +
-              hardSolved,
+              easySolved + mediumSolved + hardSolved,
 
-            score:
-              entry?.score ?? 0,
+            score: Number(entry?.score ?? 0),
 
-            ranking:
-              entry?.ranking ?? null,
+            ranking: entry?.ranking ?? null,
 
-            // Anti-cheat
             pendingReviewCount,
             isSuspended,
             isUnderReview,
@@ -112,22 +122,31 @@ function Leaderboard() {
 
         if (!isMounted) return;
 
-        // Students with pending reviews should not appear in the ranked leaderboard
-        const verifiedStudents = results.filter(
-          (student) => !student.isUnderReview
-        );
+        // ============================================================
+        // SORT
+        // ============================================================
 
-        // Sort only verified students by score
-        const sorted = verifiedStudents.sort(
-          (a, b) => b.score - a.score
-        );
+        const sorted = results.sort((a, b) => {
+          // Verified students first
+          if (a.isUnderReview !== b.isUnderReview) {
+            return a.isUnderReview ? 1 : -1;
+          }
+
+          // Higher score first
+          return b.score - a.score;
+        });
 
         setRankings(sorted);
+
+        // Reset pagination whenever leaderboard refreshes
+        setCurrentPage(1);
       } catch (err) {
         console.error("Error fetching leaderboard:", err);
 
         if (isMounted) {
-          setError("Couldn't load the leaderboard. Please try again.");
+          setError(
+            "Couldn't load the leaderboard. Please try again."
+          );
         }
       } finally {
         if (isMounted) {
@@ -143,21 +162,31 @@ function Leaderboard() {
     };
   }, []);
 
-  // Check if current user has pending reviews
+  // ============================================================
+  // CHECK PENDING REVIEW
+  // ============================================================
+
   useEffect(() => {
     let isMounted = true;
 
     const checkPendingReview = async () => {
       try {
         const status = await getPendingReviewStatus();
+
         if (isMounted) {
           setUserPendingReview({
-            hasPendingReview: status.hasPendingReview || false,
-            pendingReviewCount: status.pendingReviewCount || 0,
+            hasPendingReview:
+              status?.hasPendingReview || false,
+
+            pendingReviewCount:
+              status?.pendingReviewCount || 0,
           });
         }
       } catch (error) {
-        console.error("Failed to check pending review status:", error);
+        console.error(
+          "Failed to check pending review status:",
+          error
+        );
       }
     };
 
@@ -168,8 +197,35 @@ function Leaderboard() {
     };
   }, []);
 
+  // ============================================================
+  // PODIUM
+  // ============================================================
+
   const topThree = rankings.slice(0, 3);
-  const remainingStudents = rankings.slice(3);
+
+  // ============================================================
+  // PAGINATION
+  // ============================================================
+
+  // Students after top 3
+  const allRemainingStudents = rankings.slice(3);
+
+  const totalPages = Math.ceil(
+    allRemainingStudents.length / STUDENTS_PER_PAGE
+  );
+
+  const startIndex =
+    (currentPage - 1) * STUDENTS_PER_PAGE;
+
+  const remainingStudents =
+    allRemainingStudents.slice(
+      startIndex,
+      startIndex + STUDENTS_PER_PAGE
+    );
+
+  // ============================================================
+  // AVATAR
+  // ============================================================
 
   const getAvatar = (student) => {
     if (student?.avatar) {
@@ -181,48 +237,99 @@ function Leaderboard() {
     )}&background=ffdddd&color=d71920&size=256`;
   };
 
+  // ============================================================
+  // STUDENT CLICK
+  // ============================================================
+
   const handleStudentClick = (student) => {
     if (student?.user_id) {
       navigate(`/portfolio/${student.user_id}`);
     }
   };
 
+  // ============================================================
+  // PAGINATION HANDLERS
+  // ============================================================
+
+  const goToPreviousPage = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
+
+  const goToNextPage = () => {
+    setCurrentPage((prev) =>
+      Math.min(prev + 1, totalPages)
+    );
+  };
+
+  const goToPage = (page) => {
+    setCurrentPage(page);
+  };
+
+  // ============================================================
+  // RENDER
+  // ============================================================
+
   return (
     <div className="leaderboard-page">
+
       {/* PAGE HEADER */}
-      <title>Kalvium Portfolio | Leaderboard</title>
       <div className="leaderboard-title">
         <div className="title-header-row">
           <h1>Leaderboard</h1>
         </div>
+
         <p>
-          Ranked by verified LeetCode problems solved & total points scored.
-          Rapid consecutive solves (under 2 mins) are automatically held in <strong>Mentor Evaluation Queue</strong> before point allocation.
+          Ranked by verified LeetCode problems solved &
+          total points scored. Rapid consecutive solves
+          (under 2 mins) are automatically held in{" "}
+          <strong>Mentor Evaluation Queue</strong> before
+          point allocation.
         </p>
 
-        {/* POINTS & AUDIT BADGES */}
+        {/* POINTS LEGEND */}
         <div className="points-legend">
-          <span className="point-badge easy">Easy: {POINTS.easy} pt</span>
-          <span className="point-badge medium">Medium: {POINTS.medium} pts</span>
-          <span className="point-badge hard">Hard: {POINTS.hard} pts</span>
-          <span className="point-badge review-info">🕒 Flagged Solves = Held for Review</span>
+          <span className="point-badge easy">
+            Easy: {POINTS.easy} pt
+          </span>
+
+          <span className="point-badge medium">
+            Medium: {POINTS.medium} pts
+          </span>
+
+          <span className="point-badge hard">
+            Hard: {POINTS.hard} pts
+          </span>
+
+          <span className="point-badge review-info">
+            🕒 Flagged Solves = Held for Review
+          </span>
         </div>
       </div>
 
-      {/* PENDING REVIEW NOTICE - If current user has pending reviews */}
+      {/* PENDING REVIEW NOTICE */}
       {userPendingReview.hasPendingReview && (
         <div className="leaderboard-pending-notice">
           <div className="pending-notice-content">
             <span className="pending-icon">⏳</span>
+
             <div>
-              <strong>Your submissions are under mentor review</strong>
+              <strong>
+                Your submissions are under mentor review
+              </strong>
+
               <p>
-                You have {userPendingReview.pendingReviewCount} rapid submission
-                {userPendingReview.pendingReviewCount !== 1 ? "s" : ""} awaiting verification.
-                Once approved, you'll appear on the leaderboard.
+                You have{" "}
+                {userPendingReview.pendingReviewCount}{" "}
+                rapid submission
+                {userPendingReview.pendingReviewCount !== 1
+                  ? "s"
+                  : ""}{" "}
+                awaiting verification. Once approved,
+                you'll appear on the leaderboard.
               </p>
             </div>
           </div>
+
           <button
             className="pending-notice-button"
             onClick={() => navigate("/profile")}
@@ -232,25 +339,38 @@ function Leaderboard() {
         </div>
       )}
 
-      {error && <div className="leaderboard-error">{error}</div>}
+      {/* ERROR */}
+      {error && (
+        <div className="leaderboard-error">
+          {error}
+        </div>
+      )}
 
       {/* LOADING */}
       {isLoading ? (
-        <div className="leaderboard-loading">Loading leaderboard...</div>
+        <div className="leaderboard-loading">
+          Loading leaderboard...
+        </div>
       ) : rankings.length === 0 ? (
         <div className="leaderboard-empty">
           No students with a LeetCode profile yet.
         </div>
       ) : (
         <>
-          {/* TOP 3 PODIUM */}
+          {/* ============================================================
+              TOP 3 PODIUM
+          ============================================================ */}
+
           {topThree.length > 0 && (
             <div className="podium">
+
               {/* SECOND PLACE */}
               {topThree[1] && (
                 <div
                   className="podium-card second-place"
-                  onClick={() => handleStudentClick(topThree[1])}
+                  onClick={() =>
+                    handleStudentClick(topThree[1])
+                  }
                 >
                   <img
                     src={getAvatar(topThree[1])}
@@ -265,31 +385,48 @@ function Leaderboard() {
                   </p>
 
                   <div className="podium-points-badge">
-                    <strong>{topThree[1].score}</strong> pts
+                    <strong>
+                      {topThree[1].score}
+                    </strong>{" "}
+                    pts
                   </div>
 
                   {topThree[1].pendingReviewCount > 0 && (
-                    <div className="pending-badge" title="Pending mentor review for fast consecutive solves">
-                      ⏳ {topThree[1].pendingReviewCount} in Review
+                    <div
+                      className="pending-badge"
+                      title="Pending mentor review"
+                    >
+                      ⏳ {topThree[1].pendingReviewCount}{" "}
+                      in Review
                     </div>
                   )}
 
                   <div className="problem-stats">
                     <div>
-                      <strong className="easy-text">{topThree[1].easySolved}</strong>
+                      <strong className="easy-text">
+                        {topThree[1].easySolved}
+                      </strong>
                       <span>Easy</span>
                     </div>
+
                     <div>
-                      <strong className="medium-text">{topThree[1].mediumSolved}</strong>
+                      <strong className="medium-text">
+                        {topThree[1].mediumSolved}
+                      </strong>
                       <span>Medium</span>
                     </div>
+
                     <div>
-                      <strong className="hard-text">{topThree[1].hardSolved}</strong>
+                      <strong className="hard-text">
+                        {topThree[1].hardSolved}
+                      </strong>
                       <span>Hard</span>
                     </div>
                   </div>
 
-                  <div className="podium-rank">2</div>
+                  <div className="podium-rank">
+                    2
+                  </div>
                 </div>
               )}
 
@@ -297,7 +434,9 @@ function Leaderboard() {
               {topThree[0] && (
                 <div
                   className="podium-card first-place"
-                  onClick={() => handleStudentClick(topThree[0])}
+                  onClick={() =>
+                    handleStudentClick(topThree[0])
+                  }
                 >
                   <img
                     src={getAvatar(topThree[0])}
@@ -312,31 +451,48 @@ function Leaderboard() {
                   </p>
 
                   <div className="podium-points-badge highlight">
-                    <strong>{topThree[0].score}</strong> pts
+                    <strong>
+                      {topThree[0].score}
+                    </strong>{" "}
+                    pts
                   </div>
 
                   {topThree[0].pendingReviewCount > 0 && (
-                    <div className="pending-badge" title="Pending mentor review for fast consecutive solves">
-                      ⏳ {topThree[0].pendingReviewCount} in Review
+                    <div
+                      className="pending-badge"
+                      title="Pending mentor review"
+                    >
+                      ⏳ {topThree[0].pendingReviewCount}{" "}
+                      in Review
                     </div>
                   )}
 
                   <div className="problem-stats">
                     <div>
-                      <strong className="easy-text">{topThree[0].easySolved}</strong>
+                      <strong className="easy-text">
+                        {topThree[0].easySolved}
+                      </strong>
                       <span>Easy</span>
                     </div>
+
                     <div>
-                      <strong className="medium-text">{topThree[0].mediumSolved}</strong>
+                      <strong className="medium-text">
+                        {topThree[0].mediumSolved}
+                      </strong>
                       <span>Medium</span>
                     </div>
+
                     <div>
-                      <strong className="hard-text">{topThree[0].hardSolved}</strong>
+                      <strong className="hard-text">
+                        {topThree[0].hardSolved}
+                      </strong>
                       <span>Hard</span>
                     </div>
                   </div>
 
-                  <div className="podium-rank first-rank">1</div>
+                  <div className="podium-rank first-rank">
+                    1
+                  </div>
                 </div>
               )}
 
@@ -344,7 +500,9 @@ function Leaderboard() {
               {topThree[2] && (
                 <div
                   className="podium-card third-place"
-                  onClick={() => handleStudentClick(topThree[2])}
+                  onClick={() =>
+                    handleStudentClick(topThree[2])
+                  }
                 >
                   <img
                     src={getAvatar(topThree[2])}
@@ -359,39 +517,61 @@ function Leaderboard() {
                   </p>
 
                   <div className="podium-points-badge">
-                    <strong>{topThree[2].score}</strong> pts
+                    <strong>
+                      {topThree[2].score}
+                    </strong>{" "}
+                    pts
                   </div>
 
                   {topThree[2].pendingReviewCount > 0 && (
-                    <div className="pending-badge" title="Pending mentor review for fast consecutive solves">
-                      ⏳ {topThree[2].pendingReviewCount} in Review
+                    <div
+                      className="pending-badge"
+                      title="Pending mentor review"
+                    >
+                      ⏳ {topThree[2].pendingReviewCount}{" "}
+                      in Review
                     </div>
                   )}
 
                   <div className="problem-stats">
                     <div>
-                      <strong className="easy-text">{topThree[2].easySolved}</strong>
+                      <strong className="easy-text">
+                        {topThree[2].easySolved}
+                      </strong>
                       <span>Easy</span>
                     </div>
+
                     <div>
-                      <strong className="medium-text">{topThree[2].mediumSolved}</strong>
+                      <strong className="medium-text">
+                        {topThree[2].mediumSolved}
+                      </strong>
                       <span>Medium</span>
                     </div>
+
                     <div>
-                      <strong className="hard-text">{topThree[2].hardSolved}</strong>
+                      <strong className="hard-text">
+                        {topThree[2].hardSolved}
+                      </strong>
                       <span>Hard</span>
                     </div>
                   </div>
 
-                  <div className="podium-rank">3</div>
+                  <div className="podium-rank">
+                    3
+                  </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* TABLE */}
+          {/* ============================================================
+              TABLE
+          ============================================================ */}
+
           {remainingStudents.length > 0 && (
             <div className="leaderboard-table">
+
+              {/* TABLE HEADER */}
               <div className="table-header">
                 <span>RANK</span>
                 <span>STUDENT</span>
@@ -402,40 +582,140 @@ function Leaderboard() {
                 <span>POINTS</span>
               </div>
 
+              {/* TABLE ROWS */}
               {remainingStudents.map((student, index) => {
-                const rank = index + 4;
+                const rank =
+                  startIndex + index + 4;
 
                 return (
                   <div
                     className="table-row"
-                    key={student.user_id}
-                    onClick={() => handleStudentClick(student)}
+                    key={
+                      student.user_id ||
+                      student.username ||
+                      index
+                    }
+                    onClick={() =>
+                      handleStudentClick(student)
+                    }
                   >
-                    <div className="table-rank">#{rank}</div>
+                    <div className="table-rank">
+                      #{rank}
+                    </div>
 
                     <div className="table-student">
-                      <img src={getAvatar(student)} alt={student.name} />
+                      <img
+                        src={getAvatar(student)}
+                        alt={student.name}
+                      />
 
                       <div>
-                        <strong>{student.name}</strong>
-                        <span>@{cleanUsername(student.username)}</span>
+                        <strong>
+                          {student.name}
+                        </strong>
+
+                        <span>
+                          @{cleanUsername(
+                            student.username
+                          )}
+                        </span>
                       </div>
 
                       {student.pendingReviewCount > 0 && (
-                        <span className="table-pending-pill" title="Solves under mentor evaluation">
-                          ⏳ {student.pendingReviewCount} review
+                        <span
+                          className="table-pending-pill"
+                          title="Solves under mentor evaluation"
+                        >
+                          ⏳{" "}
+                          {student.pendingReviewCount}{" "}
+                          review
                         </span>
                       )}
                     </div>
 
-                    <div className="easy-number">{student.easySolved}</div>
-                    <div className="medium-number">{student.mediumSolved}</div>
-                    <div className="hard-number">{student.hardSolved}</div>
-                    <div className="total-number">{student.total}</div>
-                    <div className="points-number">{student.score}</div>
+                    <div className="easy-number">
+                      {student.easySolved}
+                    </div>
+
+                    <div className="medium-number">
+                      {student.mediumSolved}
+                    </div>
+
+                    <div className="hard-number">
+                      {student.hardSolved}
+                    </div>
+
+                    <div className="total-number">
+                      {student.total}
+                    </div>
+
+                    <div className="points-number">
+                      {student.score}
+                    </div>
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* ============================================================
+              PAGINATION
+          ============================================================ */}
+
+          {totalPages > 1 && (
+            <div className="leaderboard-pagination">
+
+              {/* PREVIOUS */}
+              <button
+                className="pagination-button"
+                disabled={currentPage === 1}
+                onClick={goToPreviousPage}
+              >
+                ← Previous
+              </button>
+
+              {/* PAGE NUMBERS */}
+              <div className="pagination-pages">
+                {Array.from(
+                  { length: totalPages },
+                  (_, index) => index + 1
+                ).map((page) => (
+                  <button
+                    key={page}
+                    className={`pagination-number ${
+                      currentPage === page
+                        ? "active"
+                        : ""
+                    }`}
+                    onClick={() =>
+                      goToPage(page)
+                    }
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+
+              {/* NEXT */}
+              <button
+                className="pagination-button"
+                disabled={
+                  currentPage === totalPages
+                }
+                onClick={goToNextPage}
+              >
+                Next →
+              </button>
+            </div>
+          )}
+
+          {/* PAGE INFO */}
+          {totalPages > 1 && (
+            <div className="pagination-info">
+              Page {currentPage} of {totalPages}
+              {" • "}
+              Showing{" "}
+              {remainingStudents.length} students
             </div>
           )}
         </>
