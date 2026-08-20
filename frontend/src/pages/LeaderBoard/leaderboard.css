@@ -2,6 +2,15 @@
    1. PAGE CONTAINER & BASE STYLES
 ========================================= */
 
+#notice{
+  background-color: #FEF3C7;
+  color: #92400E;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  border-bottom: 2px solid #FDE68A;
+}
+
 .leaderboard-page {
   min-height: 100vh;
   background: #f8fafc;
@@ -331,7 +340,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  margin-top: auto; /* Keeps stats pushed down above rank banner */
+  margin-top: auto;
   width: 100%;
   max-width: 320px;
 }
@@ -521,7 +530,7 @@
 }
 
 /* =========================================
-   9. PENDING REVIEW NOTICE
+   10. PENDING REVIEW NOTICE & PAGINATION
 ========================================= */
 
 .leaderboard-pending-notice {
@@ -593,8 +602,70 @@
   box-shadow: 0 2px 6px rgba(255, 107, 107, 0.2);
 }
 
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 32px;
+  flex-wrap: wrap;
+}
+
+.pagination-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background-color: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagination-numbers {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.pagination-num {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.pagination-num:hover {
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.pagination-num.active {
+  background-color: #d71920;
+  color: #ffffff;
+  border-color: #d71920;
+  box-shadow: 0 2px 6px rgba(215, 25, 32, 0.25);
+}
+
 /* =========================================
-   10. RESPONSIVE DESIGN
+   11. RESPONSIVE DESIGN & MOBILE STACKED CARDS
 ========================================= */
 
 @media (max-width: 900px) {
@@ -618,18 +689,146 @@
     gap: 20px;
   }
 
-  /* Order first place to top on mobile */
   .first-place { order: 1; }
   .second-place { order: 2; }
   .third-place { order: 3; }
+}
 
+@media (max-width: 767px) {
+  /* Prevent horizontal scrolling container on mobile */
   .leaderboard-table {
-    overflow-x: auto;
+    margin-top: 30px;
+    overflow-x: visible;
   }
 
-  .table-header,
+  /* Hide the table header row */
+  .table-header {
+    display: none;
+  }
+
+  /* Turn each row into a stacked card */
   .table-row {
-    min-width: 880px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    min-width: 0;
+    min-height: auto;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .table-row-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .table-rank {
+    font-size: 18px;
+  }
+
+  .table-student {
+    min-width: 0;
+  }
+
+  .table-student img {
+    width: 40px;
+    height: 40px;
+  }
+
+  .table-student strong {
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Container for score numbers below name */
+  .table-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    margin-top: 12px;
+  }
+
+  .easy-number,
+  .medium-number,
+  .hard-number,
+  .total-number,
+  .points-number {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 6px 2px;
+    font-size: 14px;
+    font-weight: 800;
+  }
+
+  /* Dynamic CSS Labels above each stat value */
+  .easy-number::before {
+    content: "EASY";
+    font-size: 9px;
+    color: #16a34a;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    margin-bottom: 2px;
+  }
+
+  .medium-number::before {
+    content: "MED";
+    font-size: 9px;
+    color: #d97706;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    margin-bottom: 2px;
+  }
+
+  .hard-number::before {
+    content: "HARD";
+    font-size: 9px;
+    color: #dc2626;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    margin-bottom: 2px;
+  }
+
+  .total-number::before {
+    content: "TOTAL";
+    font-size: 9px;
+    color: #64748b;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    margin-bottom: 2px;
+  }
+
+  .points-number::before {
+    content: "PTS";
+    font-size: 9px;
+    color: #d71920;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    margin-bottom: 2px;
+  }
+
+  /* Mobile Pagination Adjustment */
+  .pagination-controls {
+    gap: 8px;
+    margin-top: 24px;
+    padding: 0 4px;
+  }
+
+  .pagination-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .pagination-num {
+    padding: 6px 10px;
+    font-size: 13px;
   }
 }
 

@@ -12,7 +12,10 @@ const POINTS = {
 
 const STUDENTS_PER_PAGE = 10;
 
-// Helper to extract clean username if full URL is stored in database
+// ============================================================
+// HELPER: CLEAN LEETCODE USERNAME
+// ============================================================
+
 function cleanUsername(username) {
   if (!username) return "";
 
@@ -23,6 +26,10 @@ function cleanUsername(username) {
 
   return username;
 }
+
+// ============================================================
+// LEADERBOARD COMPONENT
+// ============================================================
 
 function Leaderboard() {
   const navigate = useNavigate();
@@ -70,52 +77,72 @@ function Leaderboard() {
             entry?.pending_review_count ?? 0
           );
 
-          const isSuspended =
-            entry?.is_suspended === true;
+          const isSuspended = entry?.is_suspended === true;
 
           const isUnderReview =
             isSuspended ||
             entry?.is_under_review === true ||
             pendingReviewCount > 0;
 
+          // ============================================================
+          // AVATAR
+          // ============================================================
+
+          const studentName =
+            profile?.name ||
+            entry?.leetcode_username ||
+            "Student";
+
+          const avatar =
+            profile?.avatar_url &&
+            profile.avatar_url.trim() !== ""
+              ? profile.avatar_url
+              : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                  studentName
+                )}&background=ffdddd&color=d71920&size=256`;
+
+          // ============================================================
+          // TOTAL SOLVED
+          // ============================================================
+
+          const totalSolved =
+            entry?.total_solved != null
+              ? Number(entry.total_solved)
+              : easySolved + mediumSolved + hardSolved;
+
+          // ============================================================
+          // SCORE
+          // ============================================================
+
+          const score = Number(entry?.score ?? 0);
+
           return {
             user_id:
               entry?.user_id ||
               entry?.profile_id ||
-              entry?.id,
+              entry?.id ||
+              null,
 
-            name:
-              profile?.name ||
-              entry?.leetcode_username ||
-              "Unknown Student",
+            name: studentName,
 
-            username:
-              entry?.leetcode_username || "",
+            username: entry?.leetcode_username || "",
 
-            avatar:
-              profile?.avatar_url &&
-              profile.avatar_url.trim() !== ""
-                ? profile.avatar_url
-                : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                    profile?.name ||
-                      entry?.leetcode_username ||
-                      "Student"
-                  )}&background=ffdddd&color=d71920&size=256`,
+            avatar,
 
             easySolved,
             mediumSolved,
             hardSolved,
 
-            total:
-              entry?.total_solved ??
-              easySolved + mediumSolved + hardSolved,
+            total: totalSolved,
 
-            score: Number(entry?.score ?? 0),
+            score,
 
             ranking: entry?.ranking ?? null,
 
             pendingReviewCount,
+
             isSuspended,
+
             isUnderReview,
           };
         });
@@ -127,13 +154,31 @@ function Leaderboard() {
         // ============================================================
 
         const sorted = results.sort((a, b) => {
-          // Verified students first
+          // Students without review first
           if (a.isUnderReview !== b.isUnderReview) {
             return a.isUnderReview ? 1 : -1;
           }
 
           // Higher score first
-          return b.score - a.score;
+          if (b.score !== a.score) {
+            return b.score - a.score;
+          }
+
+          // If score is same, higher total solved first
+          if (b.total !== a.total) {
+            return b.total - a.total;
+          }
+
+          // If still same, use LeetCode ranking
+          if (
+            a.ranking != null &&
+            b.ranking != null &&
+            a.ranking !== b.ranking
+          ) {
+            return a.ranking - b.ranking;
+          }
+
+          return 0;
         });
 
         setRankings(sorted);
@@ -179,7 +224,7 @@ function Leaderboard() {
               status?.hasPendingReview || false,
 
             pendingReviewCount:
-              status?.pendingReviewCount || 0,
+              Number(status?.pendingReviewCount) || 0,
           });
         }
       } catch (error) {
@@ -217,11 +262,10 @@ function Leaderboard() {
   const startIndex =
     (currentPage - 1) * STUDENTS_PER_PAGE;
 
-  const remainingStudents =
-    allRemainingStudents.slice(
-      startIndex,
-      startIndex + STUDENTS_PER_PAGE
-    );
+  const remainingStudents = allRemainingStudents.slice(
+    startIndex,
+    startIndex + STUDENTS_PER_PAGE
+  );
 
   // ============================================================
   // AVATAR
@@ -271,8 +315,10 @@ function Leaderboard() {
 
   return (
     <div className="leaderboard-page">
+      {/* ============================================================
+          PAGE HEADER
+      ============================================================ */}
 
-      {/* PAGE HEADER */}
       <div className="leaderboard-title">
         <div className="title-header-row">
           <h1>Leaderboard</h1>
@@ -287,6 +333,7 @@ function Leaderboard() {
         </p>
 
         {/* POINTS LEGEND */}
+
         <div className="points-legend">
           <span className="point-badge easy">
             Easy: {POINTS.easy} pt
@@ -306,7 +353,10 @@ function Leaderboard() {
         </div>
       </div>
 
-      {/* PENDING REVIEW NOTICE */}
+      {/* ============================================================
+          PENDING REVIEW NOTICE
+      ============================================================ */}
+
       {userPendingReview.hasPendingReview && (
         <div className="leaderboard-pending-notice">
           <div className="pending-notice-content">
@@ -339,14 +389,20 @@ function Leaderboard() {
         </div>
       )}
 
-      {/* ERROR */}
+      {/* ============================================================
+          ERROR
+      ============================================================ */}
+
       {error && (
         <div className="leaderboard-error">
           {error}
         </div>
       )}
 
-      {/* LOADING */}
+      {/* ============================================================
+          LOADING / EMPTY / CONTENT
+      ============================================================ */}
+
       {isLoading ? (
         <div className="leaderboard-loading">
           Loading leaderboard...
@@ -357,14 +413,16 @@ function Leaderboard() {
         </div>
       ) : (
         <>
-          {/* ============================================================
+          {/* ========================================================
               TOP 3 PODIUM
-          ============================================================ */}
+          ======================================================== */}
 
           {topThree.length > 0 && (
             <div className="podium">
+              {/* ======================================================
+                  SECOND PLACE
+              ====================================================== */}
 
-              {/* SECOND PLACE */}
               {topThree[1] && (
                 <div
                   className="podium-card second-place"
@@ -430,7 +488,10 @@ function Leaderboard() {
                 </div>
               )}
 
-              {/* FIRST PLACE */}
+              {/* ======================================================
+                  FIRST PLACE
+              ====================================================== */}
+
               {topThree[0] && (
                 <div
                   className="podium-card first-place"
@@ -496,7 +557,10 @@ function Leaderboard() {
                 </div>
               )}
 
-              {/* THIRD PLACE */}
+              {/* ======================================================
+                  THIRD PLACE
+              ====================================================== */}
+
               {topThree[2] && (
                 <div
                   className="podium-card third-place"
@@ -564,14 +628,14 @@ function Leaderboard() {
             </div>
           )}
 
-          {/* ============================================================
+          {/* ========================================================
               TABLE
-          ============================================================ */}
+          ======================================================== */}
 
           {remainingStudents.length > 0 && (
             <div className="leaderboard-table">
-
               {/* TABLE HEADER */}
+
               <div className="table-header">
                 <span>RANK</span>
                 <span>STUDENT</span>
@@ -583,9 +647,9 @@ function Leaderboard() {
               </div>
 
               {/* TABLE ROWS */}
+
               {remainingStudents.map((student, index) => {
-                const rank =
-                  startIndex + index + 4;
+                const rank = startIndex + index + 4;
 
                 return (
                   <div
@@ -658,14 +722,14 @@ function Leaderboard() {
             </div>
           )}
 
-          {/* ============================================================
+          {/* ========================================================
               PAGINATION
-          ============================================================ */}
+          ======================================================== */}
 
           {totalPages > 1 && (
             <div className="leaderboard-pagination">
-
               {/* PREVIOUS */}
+
               <button
                 className="pagination-button"
                 disabled={currentPage === 1}
@@ -675,6 +739,7 @@ function Leaderboard() {
               </button>
 
               {/* PAGE NUMBERS */}
+
               <div className="pagination-pages">
                 {Array.from(
                   { length: totalPages },
@@ -697,6 +762,7 @@ function Leaderboard() {
               </div>
 
               {/* NEXT */}
+
               <button
                 className="pagination-button"
                 disabled={
@@ -709,13 +775,15 @@ function Leaderboard() {
             </div>
           )}
 
-          {/* PAGE INFO */}
+          {/* ========================================================
+              PAGE INFO
+          ======================================================== */}
+
           {totalPages > 1 && (
             <div className="pagination-info">
               Page {currentPage} of {totalPages}
               {" • "}
-              Showing{" "}
-              {remainingStudents.length} students
+              Showing {remainingStudents.length} students
             </div>
           )}
         </>
