@@ -602,6 +602,49 @@
   box-shadow: 0 2px 6px rgba(255, 107, 107, 0.2);
 }
 
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.pagination-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background-color: #ffffff;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-numbers {
+  display: flex;
+  gap: 6px;
+}
+
+.pagination-num {
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+  cursor: pointer;
+}
+
+.pagination-num.active {
+  background-color: #d71920;
+  color: #ffffff;
+  border-color: #d71920;
+  font-weight: bold;
+}
+
 /* =========================================
    10. RESPONSIVE DESIGN
 ========================================= */
@@ -653,5 +696,154 @@
 
   .first-place {
     min-height: 430px;
+  }
+}
+/* =========================================
+   11. MOBILE TABLE STACKED RESPONSIVE LAYOUT
+========================================= */
+
+@media (max-width: 767px) {
+  /* Prevent horizontal scrolling container on mobile */
+  .leaderboard-table {
+    margin-top: 30px;
+    overflow-x: visible;
+  }
+
+  /* Hide the table header row */
+  .table-header {
+    display: none;
+  }
+
+  /* Turn each row into a stacked card */
+  .table-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "rank student"
+      "stats stats";
+    row-gap: 16px;
+    column-gap: 12px;
+    min-width: 0;
+    min-height: auto;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .table-rank {
+    grid-area: rank;
+    font-size: 18px;
+    align-self: center;
+  }
+
+  .table-student {
+    grid-area: student;
+    min-width: 0;
+  }
+
+  .table-student img {
+    width: 40px;
+    height: 40px;
+  }
+
+  .table-student strong {
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Wrapper container for score statistics below the name */
+  .easy-number,
+  .medium-number,
+  .hard-number,
+  .total-number,
+  .points-number {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 6px 2px;
+    font-size: 14px;
+    font-weight: 800;
+  }
+
+  /* Auto-group all 5 stat columns into a single 5-column grid under the student info */
+  .table-row > :nth-child(n + 3) {
+    grid-area: stats;
+  }
+
+  .table-row {
+    grid-template-columns: auto 1fr;
+  }
+
+  /* Target stats grid layout */
+  .table-row {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* Header row with Rank + Student Name */
+  .table-row-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* Container for score numbers below name */
+  .table-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    margin-top: 12px;
+  }
+
+  /* Dynamic CSS Labels above each stat value */
+  .easy-number::before {
+    content: "EASY";
+    font-size: 9px;
+    color: #16a34a;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    margin-bottom: 2px;
+  }
+
+  .medium-number::before {
+    content: "MED";
+    font-size: 9px;
+    color: #d97706;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    margin-bottom: 2px;
+  }
+
+  .hard-number::before {
+    content: "HARD";
+    font-size: 9px;
+    color: #dc2626;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    margin-bottom: 2px;
+  }
+
+  .total-number::before {
+    content: "TOTAL";
+    font-size: 9px;
+    color: #64748b;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    margin-bottom: 2px;
+  }
+
+  .points-number::before {
+    content: "PTS";
+    font-size: 9px;
+    color: #d71920;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    margin-bottom: 2px;
   }
 }

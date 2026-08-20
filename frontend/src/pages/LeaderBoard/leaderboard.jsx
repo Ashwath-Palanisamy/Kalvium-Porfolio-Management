@@ -10,6 +10,8 @@ const POINTS = {
   hard: 2,
 };
 
+const ITEMS_PER_PAGE = 10;
+
 // Helper to extract clean username if full URL is stored in database
 function cleanUsername(username) {
   if (!username) return "";
@@ -26,6 +28,7 @@ function Leaderboard() {
   const [rankings, setRankings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [userPendingReview, setUserPendingReview] = useState({
     hasPendingReview: false,
     pendingReviewCount: 0,
@@ -48,62 +51,30 @@ function Leaderboard() {
           const mediumSolved = entry?.medium_solved ?? 0;
           const hardSolved = entry?.hard_solved ?? 0;
 
-          // ============================================================
-          // ANTI-CHEAT / MENTOR REVIEW STATUS
-          // ============================================================
-
-          const pendingReviewCount =
-            Number(entry?.pending_review_count ?? 0);
-
-          const isSuspended =
-            entry?.is_suspended === true;
-
+          const pendingReviewCount = Number(entry?.pending_review_count ?? 0);
+          const isSuspended = entry?.is_suspended === true;
           const isUnderReview =
             isSuspended ||
             entry?.is_under_review === true ||
             pendingReviewCount > 0;
 
           return {
-            user_id:
-              entry?.user_id ||
-              entry?.profile_id ||
-              entry?.id,
-
-            name:
-              profile?.name ||
-              entry?.leetcode_username ||
-              "Unknown Student",
-
-            username:
-              entry?.leetcode_username || "",
-
+            user_id: entry?.user_id || entry?.profile_id || entry?.id,
+            name: profile?.name || entry?.leetcode_username || "Unknown Student",
+            username: entry?.leetcode_username || "",
             avatar:
-              profile?.avatar_url &&
-                profile.avatar_url.trim() !== ""
+              profile?.avatar_url && profile.avatar_url.trim() !== ""
                 ? profile.avatar_url
                 : `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                  profile?.name ||
-                  entry?.leetcode_username ||
-                  "Student"
-                )}&background=ffdddd&color=d71920&size=256`,
-
+                    profile?.name || entry?.leetcode_username || "Student"
+                  )}&background=ffdddd&color=d71920&size=256`,
             easySolved,
             mediumSolved,
             hardSolved,
-
             total:
-              entry?.total_solved ??
-              easySolved +
-              mediumSolved +
-              hardSolved,
-
-            score:
-              entry?.score ?? 0,
-
-            ranking:
-              entry?.ranking ?? null,
-
-            // Anti-cheat
+              entry?.total_solved ?? easySolved + mediumSolved + hardSolved,
+            score: entry?.score ?? 0,
+            ranking: entry?.ranking ?? null,
             pendingReviewCount,
             isSuspended,
             isUnderReview,
@@ -118,14 +89,11 @@ function Leaderboard() {
         );
 
         // Sort only verified students by score
-        const sorted = verifiedStudents.sort(
-          (a, b) => b.score - a.score
-        );
+        const sorted = verifiedStudents.sort((a, b) => b.score - a.score);
 
         setRankings(sorted);
       } catch (err) {
         console.error("Error fetching leaderboard:", err);
-
         if (isMounted) {
           setError("Couldn't load the leaderboard. Please try again.");
         }
@@ -171,11 +139,19 @@ function Leaderboard() {
   const topThree = rankings.slice(0, 3);
   const remainingStudents = rankings.slice(3);
 
+  // Pagination Calculations
+  const totalPages = Math.ceil(remainingStudents.length / ITEMS_PER_PAGE);
+  const indexOfLastItem = currentPage * ITEMS_PER_PAGE;
+  const indexOfFirstItem = indexOfLastItem - ITEMS_PER_PAGE;
+  const currentRemainingStudents = remainingStudents.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
+
   const getAvatar = (student) => {
     if (student?.avatar) {
       return student.avatar;
     }
-
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(
       student?.name || "Student"
     )}&background=ffdddd&color=d71920&size=256`;
@@ -184,6 +160,12 @@ function Leaderboard() {
   const handleStudentClick = (student) => {
     if (student?.user_id) {
       navigate(`/portfolio/${student.user_id}`);
+    }
+  };
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
     }
   };
 
@@ -384,6 +366,9 @@ function Leaderboard() {
                         <span>Hard</span>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
 
                     <div className="podium-rank">3</div>
                   </div>
