@@ -583,62 +583,66 @@ function Leaderboard() {
                             handleStudentClick(student)
                           }
                         >
-                          <div className="table-rank">
-                            #{rank}
-                          </div>
-
-                          <div className="table-student">
-                            <img
-                              src={getAvatar(student)}
-                              alt={student.name}
-                            />
-
-                            <div>
-                              <strong>
-                                {student.name}
-                              </strong>
-
-                              <span>
-                                @
-                                {cleanUsername(
-                                  student.username
-                                )}
-                              </span>
+                          <div className="table-row-header" style={{ display: 'contents' }}>
+                            <div className="table-rank">
+                              #{rank}
                             </div>
 
-                            {student.pendingReviewCount >
-                              0 && (
-                              <span
-                                className="table-pending-pill"
-                                title="Solves under mentor evaluation"
-                              >
-                                ⏳{" "}
-                                {
-                                  student.pendingReviewCount
-                                }{" "}
-                                review
-                              </span>
-                            )}
+                            <div className="table-student">
+                              <img
+                                src={getAvatar(student)}
+                                alt={student.name}
+                              />
+
+                              <div>
+                                <strong>
+                                  {student.name}
+                                </strong>
+
+                                <span>
+                                  @
+                                  {cleanUsername(
+                                    student.username
+                                  )}
+                                </span>
+                              </div>
+
+                              {student.pendingReviewCount >
+                                0 && (
+                                <span
+                                  className="table-pending-pill"
+                                  title="Solves under mentor evaluation"
+                                >
+                                  ⏳{" "}
+                                  {
+                                    student.pendingReviewCount
+                                  }{" "}
+                                  review
+                                </span>
+                              )}
+                            </div>
                           </div>
 
-                          <div className="easy-number">
-                            {student.easySolved}
-                          </div>
+                          <div className="table-stats-grid" style={{ display: 'contents' }}>
+                            <div className="easy-number">
+                              {student.easySolved}
+                            </div>
 
-                          <div className="medium-number">
-                            {student.mediumSolved}
-                          </div>
+                            <div className="medium-number">
+                              {student.mediumSolved}
+                            </div>
 
-                          <div className="hard-number">
-                            {student.hardSolved}
-                          </div>
+                            <div className="hard-number">
+                              {student.hardSolved}
+                            </div>
 
-                          <div className="total-number">
-                            {student.total}
-                          </div>
+                            <div className="total-number">
+                              {student.total}
+                            </div>
 
-                          <div className="points-number">
-                            {student.score}
+                            <div className="points-number">
+                              {student.score}
+                            </div>
                           </div>
                         </div>
                       );
@@ -650,10 +654,11 @@ function Leaderboard() {
                     PAGINATION
                 ========================== */}
                 {totalPages > 1 && (
-                  <div className="leaderboard-pagination">
+                  <div className="pagination-controls">
 
                     <button
                       type="button"
+                      className="pagination-btn"
                       disabled={currentPage === 1}
                       onClick={() =>
                         handlePageChange(
@@ -664,7 +669,7 @@ function Leaderboard() {
                       ← Previous
                     </button>
 
-                    <div className="pagination-pages">
+                    <div className="pagination-numbers">
                       {Array.from(
                         { length: totalPages },
                         (_, index) => index + 1
@@ -672,11 +677,11 @@ function Leaderboard() {
                         <button
                           type="button"
                           key={page}
-                          className={
+                          className={`pagination-num ${
                             currentPage === page
                               ? "active"
                               : ""
-                          }
+                          }`}
                           onClick={() =>
                             handlePageChange(page)
                           }
@@ -688,6 +693,7 @@ function Leaderboard() {
 
                     <button
                       type="button"
+                      className="pagination-btn"
                       disabled={
                         currentPage === totalPages
                       }
