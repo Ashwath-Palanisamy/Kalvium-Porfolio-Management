@@ -64,9 +64,11 @@ const requireAuth = async (req, res, next) => {
 };
 
 // Role guard: student-only routes reject mentors (and role-less accounts)
-// with 403. Mirrors the frontend AuthGate allowedRoles check.
+// with 403. Mirrors the frontend AuthGate allowedRoles check. Only
+// app_metadata is trusted: user_metadata is self-writable by the user and
+// must never decide authorization (privilege-escalation risk).
 const requireRole = (...allowedRoles) => (req, res, next) => {
-    const role = req.user?.user_metadata?.role ?? req.user?.app_metadata?.role ?? null;
+  const role = req.user?.app_metadata?.role ?? null;
     if (!role || !allowedRoles.includes(role)) {
         return res.status(403).json({ error: "Forbidden: insufficient role" });
     }
