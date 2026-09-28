@@ -48,10 +48,13 @@ const requireAuth = async (req, res, next) => {
 };
 
 // Role guard: mentor-only routes reject students (and role-less accounts)
-// with 403 instead of leaking data. Role lives in user_metadata.role with
-// app_metadata.role as fallback (same source the frontend AuthGate uses).
+// with 403 instead of leaking data. Role is provisioned server-side into
+// app_metadata.role (domain-based SQL/auth function) — only app_metadata is
+// trusted here. user_metadata is self-writable by any authenticated user
+// (supabase.auth.updateUser), so reading it first would allow any student
+// to self-promote to mentor (verified by live test 2026-09-28).
 const requireRole = (...allowedRoles) => (req, res, next) => {
-  const role = req.user?.user_metadata?.role ?? req.user?.app_metadata?.role ?? null;
+  const role = req.user?.app_metadata?.role ?? null;
   if (!role || !allowedRoles.includes(role)) {
     return res.status(403).json({ error: "Forbidden: insufficient role" });
   }

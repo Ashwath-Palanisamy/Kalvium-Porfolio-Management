@@ -3,10 +3,12 @@ import { supabase } from "../lib/supabase";
 
 /**
  * Single source of truth for the authenticated user's role.
- * Reads from user_metadata.role first, then app_metadata.role.
+ * Reads role from app_metadata only — user_metadata is self-writable by the
+ * user and must never decide what UI a session gets (server checks
+ * app_metadata too, so this stays consistent with requireRole).
  */
 export function getUserRole(user) {
-    return user?.user_metadata?.role ?? user?.app_metadata?.role ?? null;
+    return user?.app_metadata?.role ?? null;
 }
 
 export function useUserRole() {
