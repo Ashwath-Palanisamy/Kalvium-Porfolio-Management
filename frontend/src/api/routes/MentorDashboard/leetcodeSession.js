@@ -11,7 +11,9 @@ export async function getLeetcodeSession() {
         return response.data;
     } catch (error) {
         console.error("Error fetching session:", error);
-        return { active: false, session: null, students: [] };
+        // fetchFailed marks a transport error (not a confirmed "no session"
+        // answer) so the panel can keep its localStorage snapshot.
+        return { active: false, session: null, students: [], fetchFailed: true };
     }
 }
 
