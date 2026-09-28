@@ -93,6 +93,41 @@ const formatSubmissionTitles = (submissions, max = 3) => {
 //   completed -> a new unique problem was accepted
 //   attempted -> an already solved problem was submitted again (no new solve),
 //                flagged as a warning so the mentor can verify the improvement
+// ---------------------------------------------------------------------------
+// Active-session snapshot persisted in localStorage. The live payload
+// (session + students + summary) is restored synchronously on mount so a
+// page refresh doesn't blank the panel, rewritten after every successful
+// server update, and removed when the session ends or a new one starts.
+const SESSION_CACHE_KEY = "kalvium.leetcodeSession.active.v1";
+
+const readSessionCache = () => {
+  try {
+    const raw = window.localStorage.getItem(SESSION_CACHE_KEY);
+    if (!raw) return null;
+    const cached = JSON.parse(raw);
+    return cached && cached.active && cached.session ? cached : null;
+  } catch {
+    // Corrupted JSON / storage unavailable — treat as no snapshot.
+    return null;
+  }
+};
+
+const writeSessionCache = (data) => {
+  try {
+    window.localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(data));
+  } catch {
+    // Quota exceeded / private mode — persistence is best-effort only.
+  }
+};
+
+const clearSessionCache = () => {
+  try {
+    window.localStorage.removeItem(SESSION_CACHE_KEY);
+  } catch {
+    // Storage unavailable — nothing to clear.
+  }
+};
+
 function SessionStudentRow({ student, status }) {
   const activityStatus = status || getActivityStatus(student);
   const completed = activityStatus === ACTIVITY_STATUS.COMPLETED;
@@ -787,10 +822,17 @@ function ActivityTimelineChart({ activityData, totalCount }) {
     gridLines.push({ value, y: toY(value) });
   }
 
-  const formatTick = (point) =>
-    point.time instanceof Date
-      ? point.time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      : "";
+  const formatTick = (point) => {
+    // `time` is a Date in-session but an ISO string after a localStorage
+    // round-trip — accept both so a restored chart keeps its tick labels.
+    if (point.time === null || point.time === undefined || point.time === "") {
+      return "";
+    }
+    const time = point.time instanceof Date ? point.time : new Date(point.time);
+    return Number.isNaN(time.getTime())
+      ? ""
+      : time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
 
   const firstTime = formatTick(points[0]);
   const midTime = formatTick(points[Math.floor((points.length - 1) / 2)]);
@@ -931,7 +973,9 @@ export default function LeetCodeSessionPanel({ squads, assignedStudents, onStude
   const RETRY_DELAY_SECONDS = 10;
   const MANUAL_COOLDOWN_SECONDS = 5;
 
-  const [session, setSession] = useState(null);
+  // Seed synchronously from the localStorage snapshot (if any) so a refresh
+  // keeps the live session on screen while the server fetch is in flight.
+  const [session, setSession] = useState(() => readSessionCache());
   const [isStarting, setIsStarting] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState(null);
@@ -964,12 +1008,28 @@ export default function LeetCodeSessionPanel({ squads, assignedStudents, onStude
 
   // History of session snapshots (completed vs not completed over time) that
   // feeds the "Activity Over Time" timeline chart
-  const [activityData, setActivityData] = useState([]);
+  // Restore the timeline history from the same localStorage snapshot so the
+  // chart survives a refresh mid-session (points arrive as ISO strings after
+  // the JSON round-trip — the chart accepts both forms).
+  const [activityData, setActivityData] = useState(() => {
+    const cached = readSessionCache();
+    return Array.isArray(cached?.activityData) ? cached.activityData : [];
+  });
 
   // Snapshot of the session summary kept after the session ends, so the
   // mentor can still download the Excel report once the live view is gone
   const [lastReport, setLastReport] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Persist the live snapshot (session payload + activity history) whenever
+  // either changes, so a refresh restores both the student table and the
+  // timeline chart. Inactive sessions are never written here: the end /
+  // start / server-confirmed-ended paths clear the snapshot explicitly.
+  useEffect(() => {
+    if (session?.active && session?.session) {
+      writeSessionCache({ ...session, activityData });
+    }
+  }, [session, activityData]);
 
   // Flattens the live session payload into plain rows Excel can consume
   const buildSessionReport = (sessionData) => {
@@ -1148,6 +1208,7 @@ export default function LeetCodeSessionPanel({ squads, assignedStudents, onStude
     }
     // Session ended server-side: drop the live view, no retry.
     prevStudentsRef.current = null;
+    clearSessionCache();
     setSession({ active: false, session: null, students: [] });
     return { ok: false, retryable: false, ended: true };
   }, []);
@@ -1341,35 +1402,49 @@ export default function LeetCodeSessionPanel({ squads, assignedStudents, onStude
     async function fetchSession() {
       try {
         const sessionData = await getLeetcodeSession();
-        if (isMounted) {
-          setSession(sessionData);
+        if (!isMounted) return;
+        // A transport error isn't a "no active session" answer — fall back to
+        // the localStorage snapshot so a refresh doesn't blank the panel.
+        const effective = sessionData?.fetchFailed
+          ? (readSessionCache() ?? { active: false, session: null, students: [] })
+          : sessionData;
+        setSession(effective);
+        if (effective.active && effective.session) {
           // Seed the refresh-diff baseline so the first auto-refresh can tell
           // a NEW re-submit apart from state that already existed on load.
-          prevStudentsRef.current = sessionData.active
-            ? (sessionData.students || [])
-            : null;
-          if (sessionData.active && sessionData.session) {
-            setLastUpdated(new Date());
-            // Seed the timeline chart with the current snapshot so mentors who
-            // reopen the tab mid-session still see a starting data point
-            setActivityData([
-              {
-                time: new Date(),
-                completed:
-                  sessionData.summary?.completedToday ??
-                  sessionData.summary?.completed ??
-                  0,
-                attempted:
-                  sessionData.summary?.attemptedToday ??
-                  sessionData.summary?.attempted ??
-                  0,
-                notCompleted:
-                  sessionData.summary?.notCompletedToday ??
-                  sessionData.summary?.not_completed ??
-                  0,
-              },
-            ]);
-          }
+          prevStudentsRef.current = effective.students || [];
+          setLastUpdated(new Date());
+          // Seed the timeline chart with the current snapshot so mentors who
+          // reopen the tab mid-session still see a starting data point
+          // Keep the restored timeline history; only seed a starting point
+          // when there is nothing cached (first open mid-session).
+          setActivityData((prev) =>
+            prev.length > 0
+              ? prev
+              : [
+                  {
+                    time: new Date(),
+                    completed:
+                      effective.summary?.completedToday ??
+                      effective.summary?.completed ??
+                      0,
+                    attempted:
+                      effective.summary?.attemptedToday ??
+                      effective.summary?.attempted ??
+                      0,
+                    notCompleted:
+                      effective.summary?.notCompletedToday ??
+                      effective.summary?.not_completed ??
+                      0,
+                  },
+                ]
+          );
+        } else {
+          prevStudentsRef.current = null;
+          // Server confirmed there is no active session (or the snapshot was
+          // unusable) — drop it so stale data can't resurface later.
+          clearSessionCache();
+          setActivityData([]);
         }
       } catch (err) {
         console.error("Error fetching session:", err);
@@ -1470,19 +1545,24 @@ export default function LeetCodeSessionPanel({ squads, assignedStudents, onStude
         return;
       }
 
+      // Every start begins from a clean slate: never inherit a previous
+      // session's snapshot in localStorage.
+      clearSessionCache();
+
       const result = await startLeetcodeSession(squadIds);
 
       if (result && result.success) {
         // The start route returns the full live payload (session + students +
         // summary), so use it directly instead of the stale prop list.
         const startStudents = result.students || assignedStudents || [];
-        setSession({
+        const startPayload = {
           active: true,
           session: result.session,
           students: startStudents,
           summary: result.summary || null,
           lastUpdated: result.lastUpdated || new Date().toISOString(),
-        });
+        };
+        setSession(startPayload);
         prevStudentsRef.current = startStudents;
         setLastUpdated(new Date());
         // Auto-refresh ON by default: (re)arm 45s countdown (ticker picks it up)
@@ -1522,6 +1602,8 @@ export default function LeetCodeSessionPanel({ squads, assignedStudents, onStude
       if (result && result.success) {
         // Fall back to the pre-end snapshot if session state was empty
         setLastReport((prev) => prev || buildSessionReport(session));
+        // Mentor ended the session — the localStorage snapshot goes too.
+        clearSessionCache();
         setSession({ active: false, session: null, students: [] });
         prevStudentsRef.current = null;
         setActivityData([]);
