@@ -1035,11 +1035,60 @@
   max-width: 100%;
 }
 
+/* Re-submitted titles get an amber pill + icon so they stand out from the
+   plain green solved titles while keeping the same compact sizing. */
+.ls-student-solved-titles.ls-student-resubmitted-titles {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border: 1px solid var(--accent-amber-border);
+  border-radius: 999px;
+  background: var(--accent-amber-bg);
+  color: var(--accent-amber-text);
+  font-weight: 600;
+}
+
 .ls-status-line {
   display: flex;
   align-items: center;
   gap: 6px;
   white-space: nowrap;
+}
+
+/* The whole student card links to the student's LeetCode profile (new tab);
+   the hover highlight makes it obvious the row is clickable. */
+a.ls-student-card {
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+}
+
+a.ls-student-card:hover {
+  background: #ffffff;
+  border-color: var(--kalvium-border);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
+  transform: translateY(-2px);
+}
+
+a.ls-student-card:focus-visible {
+  outline: 2px solid var(--accent-blue, #2563eb);
+  outline-offset: 2px;
+}
+
+/* Fades in on hover as an "opens externally" affordance. */
+.ls-card-open-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+a.ls-student-card:hover .ls-card-open-icon {
+  opacity: 1;
+  color: var(--accent-blue, #2563eb);
 }
 
 .ls-btn-review {

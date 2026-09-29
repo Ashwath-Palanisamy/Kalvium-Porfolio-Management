@@ -275,30 +275,6 @@ function Leaderboard() {
   return (
     <div className="leaderboard-page">
       {/* ============================================================
-          WORK IN PROGRESS / MAINTENANCE NOTICE
-      ============================================================ */}
-      <div 
-        className="leaderboard-wip-notice"
-        style={{
-          backgroundColor: "#fff3cd",
-          color: "#856404",
-          border: "1px solid #ffeeba",
-          borderRadius: "8px",
-          padding: "12px 16px",
-          marginBottom: "20px",
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
-          fontWeight: "500"
-        }}
-      >
-        <span style={{ fontSize: "1.2rem" }}>🚧</span>
-        <div>
-          <strong>Under Maintenance:</strong> We are currently working on improving this page. Recent updates or profile changes may take up to 24 hours to reflect on the leaderboard.
-        </div>
-      </div>
-
-      {/* ============================================================
           PAGE HEADER
       ============================================================ */}
 
@@ -308,10 +284,8 @@ function Leaderboard() {
         </div>
 
         <p>
-          Rapid or suspicious consecutive solves are automatically 
-          flagged by AI and held in the
-          <strong> Mentor Evaluation Queue</strong> before
-          point allocation.
+          Earn points for every problem you solve and climb the ranks.
+          Your position is based on your <strong>total score</strong>.
         </p>
 
         {/* POINTS LEGEND */}
@@ -327,10 +301,6 @@ function Leaderboard() {
 
           <span className="point-badge hard">
             Hard: {POINTS.hard} pts
-          </span>
-
-          <span className="point-badge review-info">
-            🕒 Flagged Solves = Held for Review
           </span>
         </div>
       </div>
