@@ -3,7 +3,7 @@ import * as XLSX from "xlsx";
 import {
   Play, Square, Clock, CheckCircle2, UserX,
   AlertCircle, AlertTriangle, RefreshCw, Activity, Download, Users,
-  FileText, ChevronDown, History, Pause, Timer, X
+  FileText, ChevronDown, History, Pause, Timer, X, ExternalLink
 } from "lucide-react";
 import {
   getLeetcodeSession,
@@ -46,6 +46,16 @@ const getActivityStatus = (student) => {
   return student?.completed_during_session
     ? ACTIVITY_STATUS.COMPLETED
     : ACTIVITY_STATUS.NOT_COMPLETED;
+};
+
+// Builds the student's LeetCode profile URL. Rows usually store a bare
+// handle, but older records can hold a full leetcode.com URL.
+const getLeetcodeProfileUrl = (username) => {
+  const raw = (username || "").trim().replace(/^@/, "");
+  if (!raw) return null;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (raw.includes("leetcode.com")) return `https://${raw.replace(/^\/+/, "")}`;
+  return `https://leetcode.com/u/${raw}`;
 };
 
 // Diffs two consecutive refresh payloads and returns the students who have
@@ -133,6 +143,8 @@ function SessionStudentRow({ student, status }) {
   const completed = activityStatus === ACTIVITY_STATUS.COMPLETED;
   const attempted = activityStatus === ACTIVITY_STATUS.ATTEMPTED;
   const hasLeetcode = student.has_leetcode ?? Boolean(student.leetcode_username);
+  // LeetCode profile URL backing the card-level link (null when unconfigured).
+  const leetcodeProfileUrl = getLeetcodeProfileUrl(student.leetcode_username);
   const solvedDuringSession =
     student.solved_during_session ?? student.solved_today ?? 0;
   const newSubmissions = student.new_submissions || [];
@@ -152,8 +164,20 @@ function SessionStudentRow({ student, status }) {
       : "";
   const lastActivity = formatClock(student.last_activity);
 
+  // The whole card is the link to the student's LeetCode profile, so a click
+  // anywhere on the row (avatar, name, status) opens it in a new tab.
+  const CardTag = leetcodeProfileUrl ? "a" : "div";
+  const cardLinkProps = leetcodeProfileUrl
+    ? {
+        href: leetcodeProfileUrl,
+        target: "_blank",
+        rel: "noopener noreferrer",
+        title: `Open ${student.name || "this student"} on LeetCode (opens in a new tab)`,
+      }
+    : {};
+
   return (
-    <div
+    <CardTag
       className={`ls-student-card ${
         completed
           ? "ls-student-completed"
@@ -161,6 +185,7 @@ function SessionStudentRow({ student, status }) {
             ? "ls-student-attempted"
             : "ls-student-not-completed"
       }`}
+      {...cardLinkProps}
     >
       <div className="ls-student-avatar">
         {student.avatar_url ? (
@@ -189,7 +214,8 @@ function SessionStudentRow({ student, status }) {
           </span>
         )}
         {reattemptTitles && (
-          <span className="ls-student-attempted-titles">
+          <span className="ls-student-solved-titles ls-student-resubmitted-titles">
+            <RefreshCw size={11} aria-hidden="true" />
             Also re-submitted: {reattemptTitles}
           </span>
         )}
@@ -252,7 +278,11 @@ function SessionStudentRow({ student, status }) {
           </div>
         )}
       </div>
-    </div>
+
+      {leetcodeProfileUrl && (
+        <ExternalLink size={14} className="ls-card-open-icon" aria-hidden="true" />
+      )}
+    </CardTag>
   );
 }
 
