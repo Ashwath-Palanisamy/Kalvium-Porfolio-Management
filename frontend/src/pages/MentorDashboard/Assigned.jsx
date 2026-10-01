@@ -34,6 +34,10 @@ import {
 } from "../../api/routes/MentorDashboard/main.js";
 
 import { getGithubStats, getLeetcodeStats } from "../../api/routes/Public/StudentInfo.js";
+import {
+  isRecentlyActive as isStudentActive,
+  isOneToSixDaysInactive as is1DayInactiveStudent,
+} from "../../utils/activity";
 
 import "./assigned.css";
 import LeetCodeSessionPanel from "./LeetCodeSessionPanel.jsx";
@@ -80,60 +84,9 @@ const LinkedinIcon = ({ size = 16, className = "" }) => (
 // ACTIVITY & DATE HELPER FUNCTIONS
 // ==========================================
 
-const isStudentActive = (student) => {
-  if (!student) return false;
-
-  const totalSolved = Number(
-    student.total_solved ??
-      student.totalSolved ??
-      student.leetcode_total_solved ??
-      student.total ??
-      0
-  );
-
-  if (totalSolved <= 0) return false;
-
-  const isActiveFlag =
-    student.is_leetcode_active === true ||
-    student.is_leetcode_active === 1 ||
-    student.is_leetcode_active === "true" ||
-    student.is_leetcode_active === "1";
-
-  if (isActiveFlag) return true;
-
-  if (student.last_solved_at) {
-    const lastSolved = new Date(student.last_solved_at);
-    if (!isNaN(lastSolved.getTime())) {
-      const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-      return lastSolved.getTime() >= sevenDaysAgo;
-    }
-  }
-
-  return false;
-};
-
-const is1DayInactiveStudent = (student) => {
-  if (!student || !student.last_solved_at) return false;
-
-  const totalSolved = Number(
-    student.total_solved ??
-      student.totalSolved ??
-      student.leetcode_total_solved ??
-      student.total ??
-      0
-  );
-
-  if (totalSolved <= 0) return false;
-
-  const lastSolved = new Date(student.last_solved_at);
-  if (isNaN(lastSolved.getTime())) return false;
-
-  const diffInMs = Date.now() - lastSolved.getTime();
-  const twentyFourHoursMs = 24 * 60 * 60 * 1000;
-  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-
-  return diffInMs > twentyFourHoursMs && diffInMs <= sevenDaysMs;
-};
+// isStudentActive / is1DayInactiveStudent are shared with the student
+// dashboard via ../../utils/activity so both use one activity rule
+// (last_solved_at within 7 days).
 
 const formatDateTime = (rawTime) => {
   if (!rawTime) return { dateStr: "N/A", timeStr: "N/A", fullStr: "N/A" };

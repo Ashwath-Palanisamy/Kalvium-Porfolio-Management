@@ -1,6 +1,10 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
-import { createAuthedSupabaseClient, supabase } from "../config/supabase.js";
+import {
+  createAuthedSupabaseClient,
+  supabase,
+  supabaseAdmin,
+} from "../config/supabase.js";
 
 const router = express.Router();
 
@@ -67,12 +71,9 @@ const requireMentor = requireRole("mentor");
 // HELPER: NORMALIZE STUDENT ACTIVITY FIELDS
 // ==========================================
 const normalizeStudentActivity = (profile = {}) => {
-  const rawActive =
-    profile.is_leetcode_active ??
-    profile.leetcode_active ??
-    profile.is_active ??
-    profile.active;
-
+  // Activity is derived from last_solved_at only. The stored is_leetcode_active
+  // flag uses a 24h window (cron), but the dashboard shows a 7-day "recently
+  // active" view, so the flag is intentionally not used here.
   const rawLastSolved =
     profile.last_solved_at ??
     profile.leetcode_last_solved_at ??
@@ -1110,6 +1111,10 @@ async function getSessionStudents(db, squadIds = []) {
       leetcode_username: extractLeetcodeHandle(
         profile.leetcode || profile.leetcode_url || leaderboard?.leetcode_username
       ),
+      // profile_id is the leetcode_leaderboard conflict key; has_leaderboard_row
+      // guards the session-end activity write so we never insert a partial row.
+      profile_id: profile.id || null,
+      has_leaderboard_row: Boolean(leaderboard),
       db_total_solved: Number(leaderboard?.total_solved) || 0,
       db_last_solved_at: leaderboard?.last_solved_at || null,
       is_suspended: Boolean(leaderboard?.is_suspended),
@@ -1170,6 +1175,72 @@ async function attachLiveStats(students = [], mode = "full", { forceFresh = fals
   await Promise.all(workers);
 
   return enriched;
+}
+
+// Persist the fresh activity snapshot captured at session end back into
+// leetcode_leaderboard, so the mentor's Assigned/Overview lists reflect it
+// immediately. A student who solved in the morning but not during the session
+// must still read as active afterwards.
+//
+// Activity-only: last_solved_at + is_leetcode_active (+ updated_at). Solved
+// counts, score, ranking and suspension remain owned by the daily cron. Uses
+// the service-role client because mentors have no write access to this table
+// under RLS. Never throws - a failed write must not break ending a session.
+async function persistSessionActivity(students = []) {
+  if (!supabaseAdmin) {
+    console.warn(
+      "[SESSION ACTIVITY PERSIST] Skipped - SUPABASE_SERVICE_KEY not configured"
+    );
+    return;
+  }
+
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+  const nowMs = Date.now();
+
+  const rows = students
+    .filter(
+      (student) =>
+        student.has_leetcode &&
+        !student.fetch_failed &&
+        student.profile_id &&
+        student.has_leaderboard_row &&
+        student.last_activity
+    )
+    .map((student) => {
+      const lastSolvedMs = new Date(student.last_activity).getTime();
+      return {
+        profile_id: student.profile_id,
+        user_id: student.user_id,
+        last_solved_at: student.last_activity,
+        // Same 24h rule the daily cron uses, so the inactivity email stays
+        // consistent with what the dashboard shows.
+        is_leetcode_active:
+          Number.isFinite(lastSolvedMs) && nowMs - lastSolvedMs <= ONE_DAY_MS,
+        updated_at: new Date().toISOString(),
+      };
+    });
+
+  if (rows.length === 0) return;
+
+  try {
+    const { error } = await supabaseAdmin
+      .from("leetcode_leaderboard")
+      .upsert(rows, { onConflict: "profile_id" });
+
+    if (error) {
+      console.warn("[SESSION ACTIVITY PERSIST] Failed:", error.message);
+      return;
+    }
+
+    console.log(
+      `[SESSION ACTIVITY PERSIST] Updated ${rows.length} student(s)`
+    );
+  } catch (err) {
+    console.warn(
+      "[SESSION ACTIVITY PERSIST] Exception:",
+      err?.message || err
+    );
+  }
 }
 
 // GET /mentor/dashboard/leetcode-session
@@ -1351,10 +1422,11 @@ router.post("/leetcode-session/end", requireAuth, requireMentor, async (req, res
 
     let reportSnapshot = null;
     const endedAt = new Date().toISOString();
+    let finalStudents = null;
     try {
       const baseStudents = await getSessionStudents(db, session.squad_ids || []);
       const liveStudents = await attachLiveStats(baseStudents, "full");
-      const finalStudents = withSessionActivity(liveStudents, session);
+      finalStudents = withSessionActivity(liveStudents, session);
       reportSnapshot = buildSessionReportSnapshot(
         { ...session, ended_at: endedAt },
         finalStudents
@@ -1365,6 +1437,11 @@ router.post("/leetcode-session/end", requireAuth, requireMentor, async (req, res
         snapshotError?.message || snapshotError
       );
     }
+
+    // Refresh the stored activity for the students in this session so the
+    // mentor's Assigned/Overview lists show up-to-date status right away, even
+    // for students who solved before the session started.
+    await persistSessionActivity(finalStudents || []);
 
     const updatePayload = {
       status: "ended",
