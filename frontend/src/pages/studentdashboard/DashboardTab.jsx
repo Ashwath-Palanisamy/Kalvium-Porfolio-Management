@@ -16,6 +16,10 @@ import {
 } from "lucide-react";
 import { getGitHubStats, getLeetCodeStats } from "../../api/routes/StudentDashboard/dashboard";
 import { getLeaderboardData } from "../../api/routes/Public/leaderboard";
+import {
+  isRecentlyActive,
+  lastSolvedFromLeetcodeStats,
+} from "../../utils/activity";
 import "./DashboardTab.css";
 
 // ----------------------------------------------------------------------
@@ -160,7 +164,24 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
   }, [profile, websiteLeaderboard]);
 
   const currentLeaderboardEntry = leaderboardRows.find((entry) => entry.isCurrentUser);
-  const isCurrentUserActive = currentLeaderboardEntry?.is_leetcode_active ?? profile?.is_leetcode_active ?? false;
+
+  // Activity comes from the most recent accepted submission so a student who
+  // solved earlier today still reads as active, even before the daily cron's
+  // is_leetcode_active flag catches up. Prefer the live LeetCode payload (already
+  // fetched for this page), then fall back to the cached leaderboard value.
+  const isCurrentUserActive = useMemo(
+    () =>
+      isRecentlyActive({
+        total_solved:
+          currentLeaderboardEntry?.total_solved ??
+          leetcodeData?.totalSolved ??
+          profile?.total_solved,
+        last_solved_at:
+          lastSolvedFromLeetcodeStats(leetcodeData) ??
+          currentLeaderboardEntry?.last_solved_at,
+      }),
+    [currentLeaderboardEntry, leetcodeData, profile]
+  );
 
   if (isLoading) {
     return (

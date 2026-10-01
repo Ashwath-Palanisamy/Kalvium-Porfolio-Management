@@ -8,6 +8,10 @@ import {
 
 import { getsquadsOverview } from "../../api/routes/MentorDashboard/main.js";
 import { getGithubStats, getLeetcodeStats, getAllStudents } from "../../api/routes/Public/StudentInfo.js";
+import {
+  isRecentlyActive as isStudentActive,
+  isOneToSixDaysInactive as is1DayInactiveStudent,
+} from "../../utils/activity";
 
 import "./overview.css";
 
@@ -76,34 +80,9 @@ const formatProfileUrl = (value, baseUrl) => {
   return baseUrl ? `${baseUrl.replace(/\/+$/, "")}/${val.replace(/^@/, "")}` : val;
 };
 
-const isStudentActive = (student) => {
-  if (!student) return false;
-  const totalSolved = Number(student.total_solved ?? student.totalSolved ?? 0);
-  if (totalSolved <= 0) return false;
-
-  if (student.is_leetcode_active) return true;
-
-  if (student.last_solved_at) {
-    const lastSolved = new Date(student.last_solved_at);
-    if (!isNaN(lastSolved.getTime())) {
-      const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-      return lastSolved.getTime() >= sevenDaysAgo;
-    }
-  }
-  return false;
-};
-
-const is1DayInactiveStudent = (student) => {
-  if (!student?.last_solved_at) return false;
-  const totalSolved = Number(student.total_solved ?? student.totalSolved ?? 0);
-  if (totalSolved <= 0) return false;
-
-  const lastSolved = new Date(student.last_solved_at);
-  if (isNaN(lastSolved.getTime())) return false;
-
-  const diffInMs = Date.now() - lastSolved.getTime();
-  return diffInMs > 24 * 60 * 60 * 1000 && diffInMs <= 7 * 24 * 60 * 60 * 1000;
-};
+// isStudentActive / is1DayInactiveStudent are shared with the student
+// dashboard via ../../utils/activity so both use one activity rule
+// (last_solved_at within 7 days).
 
 const formatDateTime = (rawTime) => {
   if (!rawTime) return { dateStr: "N/A", timeStr: "N/A", fullStr: "N/A" };
