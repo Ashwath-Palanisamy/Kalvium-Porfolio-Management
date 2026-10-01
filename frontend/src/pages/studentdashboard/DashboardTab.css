@@ -211,6 +211,227 @@
 .leetcode-btn { background: #f59e0b !important; color: #ffffff !important; }
 .leetcode-btn:hover { background: #d97706 !important; }
 
+/* Student leaderboard preview */
+.dt-dashboard-lower {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.dt-dashboard-bottom-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 24px;
+  width: 100%;
+}
+
+.dt-leaderboard-section {
+  width: 100%;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.dt-leaderboard-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 16px 18px;
+}
+
+.dt-section-eyebrow {
+  display: block;
+  margin-bottom: 4px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dt-leaderboard-header h3 {
+  margin: 0;
+  color: #1e293b;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.dt-leaderboard-caption {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dt-leaderboard-columns,
+.dt-leaderboard-row {
+  display: grid;
+  grid-template-columns: 60px minmax(160px, 1fr) repeat(3, 100px) 100px;
+  align-items: center;
+  column-gap: 16px;
+}
+
+.dt-leaderboard-columns {
+  min-height: 52px;
+  padding: 0 20px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border-bottom: 2px solid #e5e7eb;
+  background: #f9fafb;
+  box-sizing: border-box;
+}
+
+.dt-leaderboard-columns span:not(:nth-child(2)),
+.dt-leaderboard-row > .dt-leaderboard-number {
+  text-align: center;
+}
+
+.dt-leaderboard-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.dt-leaderboard-row {
+  min-height: 72px;
+  padding: 16px 20px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: #ffffff;
+  border-color: #e5e7eb;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+.dt-leaderboard-row:hover {
+  transform: translateY(-2px);
+  border-color: #cbd5e1;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08);
+}
+
+.dt-leaderboard-row.is-current {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+}
+
+.dt-leaderboard-rank {
+  color: #64748b;
+  font-size: 16px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.dt-leaderboard-student {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dt-leaderboard-student strong {
+  overflow: hidden;
+  color: #1e293b;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dt-leaderboard-student span {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #c2410c;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dt-leaderboard-number {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.dt-leaderboard-empty {
+  margin: 0;
+  padding: 24px;
+  border-radius: 18px;
+  background: #ffffff;
+  color: #64748b;
+  text-align: center;
+}
+
+.dt-resume-status {
+  display: block;
+  margin-top: 4px;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dt-resume-status.is-linked {
+  color: #16a34a;
+}
+
+.dt-activity-card {
+  min-height: 160px;
+  height: 100%;
+  padding: 24px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.dt-activity-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dt-activity-card h3 {
+  margin: 0;
+  color: #1e293b;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.dt-activity-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.dt-activity-value {
+  margin: 24px 0 6px;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.dt-activity-value.is-active {
+  color: #16a34a;
+}
+
+.dt-activity-value.is-inactive {
+  color: #dc2626;
+}
+
+.dt-activity-description {
+  color: #64748b;
+  font-size: 13px;
+}
+
 /* Status & Resume Section */
 .dt-status-section {
   background: #ffffff;
@@ -270,7 +491,8 @@
   border-radius: 12px;
   padding: 20px;
   border: 1px solid #e2e8f0;
-  margin-top: 20px;
+  margin-top: 0;
+  height: 100%;
   width: 100%; /* Forces full width row */
   box-sizing: border-box;
 }
@@ -365,6 +587,40 @@
   .resume-download-btn {
     justify-content: center;
     width: 100%;
+  }
+
+  .dt-leaderboard-section {
+    padding: 0;
+  }
+
+  .dt-leaderboard-header {
+    align-items: flex-start;
+    flex-direction: column;
+    margin: 0 8px 14px;
+  }
+
+  .dt-leaderboard-columns {
+    display: none;
+  }
+
+  .dt-leaderboard-row {
+    grid-template-columns: 36px minmax(0, 1fr) repeat(3, 1fr);
+    gap: 8px 12px;
+    padding: 16px;
+  }
+
+  .dt-leaderboard-row > .dt-leaderboard-number {
+    grid-row: 2;
+  }
+
+  .dt-leaderboard-row > .points-number {
+    grid-column: 2 / -1;
+    grid-row: 3;
+    text-align: left;
+  }
+
+  .dt-dashboard-bottom-grid {
+    grid-template-columns: 1fr;
   }
 }
 

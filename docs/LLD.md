@@ -71,6 +71,8 @@ Student tabs:
 - achievements
 - settings
 
+The student dashboard overview in [frontend/src/pages/studentdashboard/DashboardTab.jsx](../frontend/src/pages/studentdashboard/DashboardTab.jsx) combines platform stat cards with a public leaderboard preview. It fetches leaderboard data through [frontend/src/api/routes/Public/leaderboard.js](../frontend/src/api/routes/Public/leaderboard.js), applies the website ordering by score, total solved count, and LeetCode ranking, and renders the current student with adjacent ranked students. The current activity state is shown in a separate LeetCode status card, while the resume card shows linked/unlinked state and view/download actions.
+
 The base route such as `/mentor/dashboard` and `/student/dashboard` is the canonical default home for each role. Unknown or redundant tabs are redirected back to the base route.
 
 ## 4. Backend responsibilities
@@ -83,6 +85,7 @@ The base route such as `/mentor/dashboard` and `/student/dashboard` is the canon
 - public projects
 - public achievements
 - leaderboard-adjacent profile formatting
+- `/public/leetcode-leaderboard`, which supplies leaderboard rows for the public leaderboard and student dashboard preview
 
 These routes use the Supabase public client and are intentionally limited in the fields they expose.
 

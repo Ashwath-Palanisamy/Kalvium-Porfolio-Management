@@ -17,6 +17,7 @@ The current implementation includes:
 - Mentor dashboard workflows with squads and overview views
 - LeetCode and GitHub stat integration
 - Leaderboard visibility and anti-cheating suspension logic
+- Student dashboard leaderboard preview, activity status, and resume access
 - Role-based access enforcement for student and mentor areas
 
 ## Related implementation notes

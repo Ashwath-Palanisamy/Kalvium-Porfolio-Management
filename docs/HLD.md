@@ -47,6 +47,8 @@ The frontend focuses on portfolio browsing, auth routing, and role-based dashboa
 4. The app requests profile data from /student/dashboard/profile.
 5. The backend verifies the bearer token and ensures the account role is student.
 6. The profile, projects, and achievements are loaded into the dashboard or public portfolio.
+7. The dashboard requests the student's GitHub and LeetCode stats plus the public leaderboard dataset.
+8. The frontend derives the current student's nearby leaderboard rows and displays activity status and resume access in separate dashboard cards.
 
 ### Public portfolio flow
 1. A user visits /portfolio/:user_id or /students.

@@ -74,6 +74,9 @@ The product solves this by centralizing student identity, public project and ach
 2. Public profile data includes name, title, social links, GitHub and LeetCode references, and portfolio metadata.
 3. Students can manage project entries and achievement entries from their dashboard.
 4. Student profile rows are created or updated on demand.
+5. The student dashboard shows the resume link status and provides view/download actions when a resume is linked.
+6. The student dashboard shows a compact leaderboard preview centered on the current student, including nearby ranks, solved counts, and points.
+7. The current student's LeetCode activity status is shown in a separate dashboard card.
 
 ### 6.3 Public portfolio experience
 1. Users can browse all students or view a single profile by user ID.
@@ -84,6 +87,7 @@ The product solves this by centralizing student identity, public project and ach
 1. A public leaderboard surfaces students with coding activity.
 2. Students with active or recent LeetCode solves are displayed as active contributors.
 3. Students flagged for suspicious rapid solving are withheld from leaderboard visibility until mentor review is resolved.
+4. The student dashboard uses the public leaderboard ordering of score, total solved count, and LeetCode ranking to display the current student's nearby position.
 
 ### 6.5 Mentor dashboard
 1. Mentors can view overall squad activity and student overview information.

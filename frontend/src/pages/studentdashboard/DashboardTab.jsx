@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   FileText,
   Eye,
@@ -15,6 +15,7 @@ import {
   Target
 } from "lucide-react";
 import { getGitHubStats, getLeetCodeStats } from "../../api/routes/StudentDashboard/dashboard";
+import { getLeaderboardData } from "../../api/routes/Public/leaderboard";
 import "./DashboardTab.css";
 
 // ----------------------------------------------------------------------
@@ -23,6 +24,7 @@ import "./DashboardTab.css";
 function useDashboardStats(githubUrl, leetcodeUrl, profile) {
   const [githubData, setGithubData] = useState(null);
   const [leetcodeData, setLeetcodeData] = useState(null);
+  const [websiteLeaderboard, setWebsiteLeaderboard] = useState([]);
   const [isStatsLoading, setIsStatsLoading] = useState(false);
 
   useEffect(() => {
@@ -32,14 +34,16 @@ function useDashboardStats(githubUrl, leetcodeUrl, profile) {
     async function loadStats() {
       setIsStatsLoading(true);
       try {
-        const [ghStats, lcStats] = await Promise.all([
+        const [ghStats, lcStats, leaderboardData] = await Promise.all([
           githubUrl ? getGitHubStats(githubUrl) : null,
-          leetcodeUrl ? getLeetCodeStats(leetcodeUrl) : null
+          leetcodeUrl ? getLeetCodeStats(leetcodeUrl) : null,
+          getLeaderboardData().catch(() => [])
         ]);
 
         if (isMounted) {
           if (ghStats) setGithubData(ghStats);
           if (lcStats) setLeetcodeData(lcStats);
+          setWebsiteLeaderboard(Array.isArray(leaderboardData) ? leaderboardData : []);
         }
       } catch (err) {
         console.error("Error loading dashboard stats from backend:", err);
@@ -55,7 +59,7 @@ function useDashboardStats(githubUrl, leetcodeUrl, profile) {
     };
   }, [githubUrl, leetcodeUrl, profile]);
 
-  return { githubData, leetcodeData, isStatsLoading };
+  return { githubData, leetcodeData, websiteLeaderboard, isStatsLoading };
 }
 
 // ----------------------------------------------------------------------
@@ -123,11 +127,40 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
   }, [profile]);
 
   // Hook: Fetch GitHub & LeetCode stats
-  const { githubData, leetcodeData, isStatsLoading } = useDashboardStats(
+  const { githubData, leetcodeData, websiteLeaderboard, isStatsLoading } = useDashboardStats(
     githubUrl,
     leetcodeUrl,
     profile
   );
+
+  const leaderboardRows = useMemo(() => {
+    const sortedLeaderboard = [...websiteLeaderboard].sort((left, right) => {
+      const scoreDifference = Number(right?.score ?? 0) - Number(left?.score ?? 0);
+      if (scoreDifference !== 0) return scoreDifference;
+
+      const solvedDifference = Number(right?.total_solved ?? 0) - Number(left?.total_solved ?? 0);
+      if (solvedDifference !== 0) return solvedDifference;
+
+      return Number(left?.ranking ?? Infinity) - Number(right?.ranking ?? Infinity);
+    });
+
+    const currentIndex = sortedLeaderboard.findIndex(
+      (entry) => String(entry?.user_id ?? "") === String(profile?.user_id ?? "")
+    );
+
+    if (currentIndex < 0) return [];
+
+    return sortedLeaderboard
+      .slice(Math.max(0, currentIndex - 1), currentIndex + 2)
+      .map((entry) => ({
+        ...entry,
+        rank: sortedLeaderboard.indexOf(entry) + 1,
+        isCurrentUser: String(entry?.user_id ?? "") === String(profile?.user_id ?? "")
+      }));
+  }, [profile, websiteLeaderboard]);
+
+  const currentLeaderboardEntry = leaderboardRows.find((entry) => entry.isCurrentUser);
+  const isCurrentUserActive = currentLeaderboardEntry?.is_leetcode_active ?? profile?.is_leetcode_active ?? false;
 
   if (isLoading) {
     return (
@@ -348,35 +381,66 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
 
       </div>
 
-      {/* Quick Summary Section */}
-      <div className="dt-status-section">
-        <h3 className="dt-status-heading">Profile Quick Status</h3>
-        <div className="dt-status-grid">
-          <div className="dt-status-item">
-            <span className="dt-status-label">SQUAD</span>
-            <p className="dt-status-value">{profile?.squad_id || profile?.squadId || "Not Assigned"}</p>
+      <div className="dt-dashboard-lower">
+        <section className="dt-leaderboard-section" aria-labelledby="student-leaderboard-heading">
+        <div className="dt-leaderboard-header">
+          <div>
+            <span className="dt-section-eyebrow">Your standing</span>
+            <h3 id="student-leaderboard-heading">Leaderboard</h3>
           </div>
-          <div className="dt-status-item">
-            <span className="dt-status-label">RESUME STATUS</span>
-            <p className={`dt-status-value ${resumeUrl ? "is-success" : ""}`}>
-              {resumeUrl ? "Linked" : "Missing"}
-            </p>
-          </div>
-          <div className="dt-status-item">
-            <span className="dt-status-label">ROLE / TITLE</span>
-            <p className="dt-status-value">{profile?.title || "Not Set"}</p>
-          </div>
+          <span className="dt-leaderboard-caption">Score ranking</span>
         </div>
 
-        {resumeUrl && (
+        <div className="dt-leaderboard-columns" aria-hidden="true">
+          <span>Rank</span>
+          <span>Student</span>
+          <span>Easy</span>
+          <span>Medium</span>
+          <span>Hard</span>
+          <span>Points</span>
+        </div>
+
+        {leaderboardRows.length > 0 ? (
+          <div className="dt-leaderboard-rows">
+            {leaderboardRows.map((entry) => (
+              <div
+                className={`dt-leaderboard-row ${entry.isCurrentUser ? "is-current" : ""}`}
+                key={entry.user_id}
+              >
+                <span className="dt-leaderboard-rank">#{entry.rank}</span>
+                <div className="dt-leaderboard-student">
+                  <strong>
+                    {entry.profiles?.name || entry.leetcode_username || "Student"}
+                  </strong>
+                  {entry.isCurrentUser && <span>You</span>}
+                </div>
+                <span className="dt-leaderboard-number easy-number">{entry.easy_solved ?? 0}</span>
+                <span className="dt-leaderboard-number medium-number">{entry.medium_solved ?? 0}</span>
+                <span className="dt-leaderboard-number hard-number">{entry.hard_solved ?? 0}</span>
+                <span className="dt-leaderboard-number points-number">{entry.score ?? 0}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="dt-leaderboard-empty">Your profile is not ranked yet.</p>
+        )}
+        </section>
+
+        <div className="dt-dashboard-bottom-grid">
           <div className="resume-card">
-            <div className="resume-header">
-              <FileText size={20} color="#3b82f6" />
+          <div className="resume-header">
+            <FileText size={20} color="#3b82f6" />
+            <div>
               <h3>Resume Document</h3>
+              <span className={`dt-resume-status ${resumeUrl ? "is-linked" : ""}`}>
+                {resumeUrl ? "Resume linked" : "Resume not linked"}
+              </span>
             </div>
+          </div>
 
-            <p>{fileName || "Resume Linked"}</p>
+          {resumeUrl && <p>{fileName || "Resume Linked"}</p>}
 
+          {resumeUrl && (
             <div className="resume-actions">
               <a
                 href={resumeUrl}
@@ -397,8 +461,27 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
                 Download
               </a>
             </div>
+          )}
           </div>
-        )}
+
+          <div className="dt-activity-card">
+            <div className="dt-activity-card-header">
+              <div>
+                <span className="dt-section-eyebrow">Your activity</span>
+                <h3>LeetCode Status</h3>
+              </div>
+              <span className="dt-activity-icon"><Flame size={18} /></span>
+            </div>
+            <p className={`dt-activity-value ${isCurrentUserActive ? "is-active" : "is-inactive"}`}>
+              {isCurrentUserActive ? "Active" : "Inactive"}
+            </p>
+            <span className="dt-activity-description">
+              {isCurrentUserActive
+                ? "You are currently active on LeetCode."
+                : "No recent LeetCode activity detected."}
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );
