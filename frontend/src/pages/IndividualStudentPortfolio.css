@@ -1039,9 +1039,25 @@
    All Projects page  (/portfolio/:user_id/projects)
    ========================================================================== */
 .all-projects-page {
+    width: 100%;
+    min-height: calc(100vh - 60px);
     max-width: 1100px;
     margin: 0 auto;
     padding: 60px 5% 80px;
+    box-sizing: border-box;
+}
+
+.all-projects-shell {
+    min-height: calc(100vh - 60px);
+    background-color: #0b0b0d;
+    background-image:
+        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(135deg, rgba(220, 38, 38, 0.18), transparent 34%, rgba(255, 255, 255, 0.025) 68%, transparent 86%),
+        radial-gradient(ellipse at 50% -20%, rgba(220, 38, 38, 0.28), transparent 62%),
+        radial-gradient(ellipse at center, transparent 42%, rgba(0, 0, 0, 0.45) 100%);
+    background-size: 48px 48px, 48px 48px, 100% 100%, 100% 100%, 100% 100%;
+    background-attachment: fixed;
 }
 
 .all-projects-back {
