@@ -1,141 +1,211 @@
 # Low-Level Design (LLD)
 
 ## 1. Purpose
-This document describes the implementation structure of the Kalvium Portfolio Management repository at the module and component level.
 
-## 2. Repository Structure
+This document explains the module structure and implementation patterns used by the current Kalvium Portfolio Management codebase. It focuses on the actual repository layout, route guards, and domain responsibilities that are present in the application today.
+
+## 2. Repository structure
+
 ### Frontend
-- [frontend/src/App.jsx](../frontend/src/App.jsx): top-level route configuration.
-- [frontend/src/pages/Home.jsx](../frontend/src/pages/Home.jsx): landing experience and calls to action.
-- [frontend/src/pages/Students.jsx](../frontend/src/pages/Students.jsx): searchable and paginated student listing.
-- [frontend/src/pages/IndividualStudentPortfolio.jsx](../frontend/src/pages/IndividualStudentPortfolio.jsx): student detail view.
-- [frontend/src/pages/MentorDashboard](../frontend/src/pages/MentorDashboard): mentor interface components.
-- [frontend/src/lib/supabase.js](../frontend/src/lib/supabase.js): frontend Supabase client setup.
+- [frontend/src/App.jsx](../frontend/src/App.jsx): top-level routing and dashboard route guards
+- [frontend/src/components/AuthGate.jsx](../frontend/src/components/AuthGate.jsx): session bootstrap and role gating
+- [frontend/src/hooks/useAuthStatus.js](../frontend/src/hooks/useAuthStatus.js): shared role resolution helper
+- [frontend/src/pages/Home](../frontend/src/pages/Home): landing-page sections and marketing content
+- [frontend/src/pages/Students.jsx](../frontend/src/pages/Students.jsx): public student directory
+- [frontend/src/pages/IndividualStudentPortfolio.jsx](../frontend/src/pages/IndividualStudentPortfolio.jsx): detailed public portfolio page
+- [frontend/src/pages/StudentProjectDetails.jsx](../frontend/src/pages/StudentProjectDetails.jsx): single public project view
+- [frontend/src/pages/studentdashboard](../frontend/src/pages/studentdashboard): student dashboard tabs and profile management
+- [frontend/src/pages/MentorDashboard](../frontend/src/pages/MentorDashboard): mentor dashboard, review queue, and squad management
+- [frontend/src/lib/supabase.js](../frontend/src/lib/supabase.js): frontend Supabase client
 
 ### Backend
-- [backend/src/index.js](../backend/src/index.js): Express app bootstrap and route registration.
-- [backend/src/routes/auth.routes.js](../backend/src/routes/auth.routes.js): basic auth route placeholder.
-- [backend/src/routes/student_dashboard.routes.js](../backend/src/routes/student_dashboard.routes.js): profile management and stats endpoints.
-- [backend/src/config/supabase.js](../backend/src/config/supabase.js): Supabase client creation logic.
+- [backend/src/index.js](../backend/src/index.js): Express bootstrap and route registration
+- [backend/src/config/supabase.js](../backend/src/config/supabase.js): Supabase client creation and admin client setup
+- [backend/src/routes/public.routes.js](../backend/src/routes/public.routes.js): public profile, project, achievement, and leaderboard data
+- [backend/src/routes/student_dashboard.routes.js](../backend/src/routes/student_dashboard.routes.js): student profile, project, achievement, and stat endpoints
+- [backend/src/routes/mentor_dashboard.routes.js](../backend/src/routes/mentor_dashboard.routes.js): mentor overview, squad, and review logic
+- [backend/src/routes/cron.routes.js](../backend/src/routes/cron.routes.js): scheduled review processing and leaderboard suspension handling
 
-## 3. Module Responsibilities
-### Frontend Modules
-- Home: introduces the platform and directs users to login or explore portfolios.
-- Students: displays student cards and supports search/pagination.
-- IndividualStudentPortfolio: renders a detailed portfolio view for one student.
-- MentorDashboard: provides a dashboard-oriented UI for mentor workflows.
+## 3. Frontend responsibilities
 
-### Backend Modules
-- Auth route: exposes a simple health/auth placeholder endpoint.
-- Student dashboard routes:
-  - GET /profile: fetches the current user profile.
-  - PUT /updateprofile: creates or updates the profile row.
-  - POST /github: returns GitHub stats from a public GitHub URL.
-  - POST /leetcode: returns LeetCode stats from a public LeetCode URL.
+### App routing
+The frontend route tree is defined in [frontend/src/App.jsx](../frontend/src/App.jsx). It covers:
 
-## 4. API Design
-### Profile Retrieval
-- Method: GET
-- Path: /student/dashboard/profile
-- Auth: Bearer token required
-- Response: profile JSON object or 404/401 errors
+- `/` → home page
+- `/login` → login experience
+- `/students` → directory of student profiles
+- `/portfolio/:user_id` → public student portfolio
+- `/portfolio/:user_id/projects` → public student project list
+- `/portfolio/:user_id/projects/:project_slug` → project detail
+- `/leaderboard` → leaderboard page
+- `/student/dashboard` and `/mentor/dashboard` → role-based protected dashboards
 
-### Profile Update
-- Method: PUT
-- Path: /student/dashboard/updateprofile
-- Auth: Bearer token required
-- Body: profile fields to update
-- Behavior: merges updates into the user’s profile row and creates a row if it does not exist
+### Auth and role enforcement
+The shared gate is implemented in [frontend/src/components/AuthGate.jsx](../frontend/src/components/AuthGate.jsx). The flow is:
 
-### GitHub Stats
-- Method: POST
-- Path: /student/dashboard/github
-- Auth: Bearer token required
-- Body: { "url": "https://github.com/username" }
-- Response: repository count, follower count, recent repo name
+1. Fetch the current Supabase session.
+2. Validate it before rendering protected content.
+3. Check the role via [frontend/src/hooks/useAuthStatus.js](../frontend/src/hooks/useAuthStatus.js).
+4. Redirect unauthorized users to login or show AccessDenied for wrong-role cases.
 
-### LeetCode Stats
-- Method: POST
-- Path: /student/dashboard/leetcode
-- Auth: Bearer token required
-- Body: { "url": "https://leetcode.com/username" }
-- Response: submission counts and profile ranking
+The role contract is based on app_metadata.role:
+- student
+- mentor
 
-### Role-Based Access Control
-Roles live in Supabase auth metadata (`user_metadata.role`, falling back to `app_metadata.role`).
-`frontend/src/hooks/useAuthStatus.js` exposes `getUserRole(user)` as the single source of truth.
+This is intentionally kept consistent with the backend role checks to avoid UI/server drift.
 
-Frontend routes (`frontend/src/App.jsx`), guarded by `frontend/src/components/AuthGate.jsx`:
-- `/student/dashboard/:tab` — allowedRoles `["student"]`, rendered by `EditProfile`
-- `/mentor/dashboard/:tab` — allowedRoles `["mentor"]`, rendered by `MentorDashboard`
-- `/dashboard` — legacy entry point that redirects each role to its home
+### Dashboard structure
+The dashboard tabs are defined in [frontend/src/pages/MentorDashboard/dashboardRoutes.js](../frontend/src/pages/MentorDashboard/dashboardRoutes.js).
 
-Notes:
-- Tab slugs map to sidebar labels in `frontend/src/pages/MentorDashboard/dashboardRoutes.js`
-  (`dashboard`, `overview`, `assigned`, `review`, `settings` for mentors;
-  `dashboard`, `profile`, `projects`, `achievements`, `settings` for students).
-- The base `/<role>/dashboard` path *is* the default "Dashboard" tab — it renders
-  in place rather than redirecting, so the main dashboard URL stays `/mentor/dashboard`
-  (`STUDENT_HOME` / `MENTOR_HOME` are those base paths).
-- Non-default tabs append the slug: `/mentor/dashboard/review`, `/student/dashboard/projects`, etc.
-- `/<role>/dashboard/dashboard` and any unknown slug are canonicalized back to the bare
-  base path by `TabGuard`.
-- A signed-in user whose role is not allowed for the requested area gets the
-  `AccessDenied` page (`frontend/src/components/AccessDenied.jsx`) instead of the
-  dashboard. It renders the site's own Navbar/Footer and brand styling (the dashboard
-  routes otherwise hide the site chrome) and offers a link to the user's own dashboard;
-  unauthenticated users go to `/login`.
+Mentor tabs:
+- dashboard
+- overview
+- assigned
+- review
+- settings
 
-### Dead-End Screens
-Every "there is nothing here" screen shares one on-brand panel
-(`frontend/src/components/EmptyState.css` — Inter, `#e8342a`, 14px buttons) so an
-error state never drops the visitor onto a browser-default page:
-- `pages/ErrorPage/404page.jsx` — the `path="*"` route. Keeps the site Navbar/Footer,
-  shows the requested path, and offers Back to home plus Go to my dashboard (signed in)
-  or View leaderboard (guest).
-- `src/pages/IndividualStudentPortfolio.jsx` — unknown `:user_id` → "Student not found".
-- `src/pages/StudentProjectDetails.jsx` — unknown `:project_slug` → "Project not found".
-- `components/AuthGate.css` styles the transient session check with the same vocabulary.
+Student tabs:
+- dashboard
+- profile
+- projects
+- achievements
+- settings
 
-Site chrome in `App.jsx` is hidden only *inside* the dashboard areas, matched per path
-segment, so a typo such as `/mentor/dashboardfoo` still renders the 404 with the navbar.
+The student dashboard overview in [frontend/src/pages/studentdashboard/DashboardTab.jsx](../frontend/src/pages/studentdashboard/DashboardTab.jsx) combines platform stat cards with a public leaderboard preview. It fetches leaderboard data through [frontend/src/api/routes/Public/leaderboard.js](../frontend/src/api/routes/Public/leaderboard.js), applies the website ordering by score, total solved count, and LeetCode ranking, and renders the current student with adjacent ranked students. The current activity state is shown in a separate LeetCode status card, while the resume card shows linked/unlinked state and view/download actions.
 
-Backend enforcement (`requireRole` in both dashboard route modules):
-- `requireAuth` validates the bearer token and populates `req.user`; `requireRole`
-  runs after it and rejects a missing or non-matching role.
-- `mentor_dashboard.routes.js` applies `requireMentor` to all 16 authenticated routes.
-- `student_dashboard.routes.js` applies `requireStudent` to all 10 authenticated routes.
+The base route such as `/mentor/dashboard` and `/student/dashboard` is the canonical default home for each role. Unknown or redundant tabs are redirected back to the base route.
 
-## 5. Data Model Notes
-The current implementation expects a Supabase table named profiles with fields such as:
+## 4. Backend responsibilities
+
+### Public routes
+[backend/src/routes/public.routes.js](../backend/src/routes/public.routes.js) handles public access to:
+
+- profiles listing and single profile retrieval
+- featured students
+- public projects
+- public achievements
+- leaderboard-adjacent profile formatting
+- `/public/leetcode-leaderboard`, which supplies leaderboard rows for the public leaderboard and student dashboard preview
+
+These routes use the Supabase public client and are intentionally limited in the fields they expose.
+
+### Student dashboard routes
+[backend/src/routes/student_dashboard.routes.js](../backend/src/routes/student_dashboard.routes.js) implements the authenticated student area. It includes endpoints for:
+
+- GET /student/dashboard/profile
+- PUT /student/dashboard/updateprofile
+- POST /student/dashboard/github
+- POST /student/dashboard/leetcode
+- GET /student/dashboard/projects
+- POST /student/dashboard/projects
+- DELETE /student/dashboard/projects/:id
+- GET /student/dashboard/achievements
+- POST /student/dashboard/achievements
+- DELETE /student/dashboard/achievements/:id
+
+These routes enforce:
+- bearer-token validation
+- student role check
+- request validation
+- rate limiting
+
+### Mentor dashboard routes
+[backend/src/routes/mentor_dashboard.routes.js](../backend/src/routes/mentor_dashboard.routes.js) implements mentor-specific behavior, including:
+
+- squad overview queries
+- mentor squad save/load operations
+- student assignment and overview aggregation
+- LeetCode activity normalization across leaderboard data
+- mentor review queue logic and status updates
+
+This file also includes the normalizer that converts raw activity fields into a consistent student activity shape and filters suspended students out of the public mentor overview data.
+
+## 5. API and data model patterns
+
+### Authentication guard
+The backend uses a reusable auth requirement, which checks the Authorization header and verifies the token using Supabase auth.
+
+If valid, the code stores the user on req.user and attaches an authed Supabase client tied to that session token.
+
+### Role guard
+The role guard in both dashboard route modules checks app_metadata.role and blocks access when the user is not in the required role. This is enforced on both the client and server for consistent security behavior.
+
+### Data model assumptions
+The implementation relies on Supabase tables such as:
+
+- profiles
+- project_details
+- achievements
+- mentor_squads
+- leetcode_leaderboard
+
+Representative fields include:
 - user_id
 - name
 - title
+- kalvium_email
 - personal_email
-- resume_url
 - squad_id
-- github / leetcode / linkedin references depending on the frontend usage
+- github
+- leetcode
+- linkedin
+- avatar_url
+- is_suspended
+- is_leetcode_active
+- total_solved
+- last_solved_at
 
-## 6. Privacy and Resume Handling
-- The application should never expose sensitive private information on public portfolio pages.
-- Any user profile fields that are considered private should be restricted to authenticated contexts or omitted from public rendering.
-- Resume handling should use a URL-based field such as resume_url rather than storing uploaded files in the database or exposing raw file content.
-- If resume links are not provided, the UI should simply omit the resume section rather than displaying placeholder sensitive content.
+## 6. Validation and error handling
 
-## 7. Validation Rules
-- GitHub usernames must match a basic safe regex pattern.
-- LeetCode usernames must match a basic safe regex pattern.
-- Empty update payloads should be rejected with a 400 response.
-- Missing or invalid bearer tokens should be rejected with a 401 response.
-- A valid token whose role does not match the route area must be rejected with a 403 response.
+The backend includes validation for:
+- GitHub URL format and username extraction
+- LeetCode URL format and username extraction
+- empty profile update payloads
+- unauthorized and forbidden requests
+- external API failures for LeetCode and GitHub
 
-## 7. Error Handling Strategy
-- Validation errors return structured JSON with an error field.
-- External API failures return appropriate 4xx/5xx responses.
-- Unexpected server errors are logged and returned as generic internal errors.
+Standard patterns include:
+- 400 for invalid input
+- 401 for missing/invalid bearer tokens
+- 403 for wrong-role access attempts
+- 404 for missing records or profile not found
+- 500 for unexpected backend errors
 
-## 8. Future Extension Points
-- Add resume upload and file storage integration.
-- Introduce admin moderation and approval workflows.
-- Expand the mentor dashboard with analytics and student tagging.
-- Replace hard-coded homepage cards with data-driven content.
+## 7. Leaderboard and anti-cheating behavior
+
+The codebase includes logic for suspicious LeetCode activity detection and pending review enforcement.
+
+Relevant implementation files include:
+- [backend/src/routes/cron.routes.js](../backend/src/routes/cron.routes.js)
+- [backend/ANTI_CHEATING_SYSTEM.md](../backend/ANTI_CHEATING_SYSTEM.md)
+- [MENTOR_REVIEW_FIXES.md](../MENTOR_REVIEW_FIXES.md)
+- [STUDENT_PENDING_REVIEW_FEATURE.md](../STUDENT_PENDING_REVIEW_FEATURE.md)
+
+The current product behavior is:
+- suspicious rapid activity can trigger a pending-review state
+- students may be suspended from public leaderboard visibility
+- mentors can review the queue and resolve the flag
+- the frontend surfaces pending-review status to the student
+
+## 8. Implementation notes
+
+### Rate limiting
+The backend uses express-rate-limit for:
+- profile updates
+- stats endpoints
+- general dashboard activity
+
+### CORS and networking
+The server config in [backend/src/index.js](../backend/src/index.js) allows local development plus configured production origins, including Vercel deployment domains.
+
+### Dead-end UX
+The app intentionally renders custom fallback experiences for missing students, missing projects, and invalid route matches instead of leaving the user on a browser-default page.
+
+## 9. Extension points
+
+The current implementation is ready for further feature growth in areas such as:
+- richer mentor analytics
+- more advanced leaderboard filtering and scoring
+- broader admin oversight
+- additional portfolio metadata and achievements categories
+- better student onboarding and validation for social and coding links
