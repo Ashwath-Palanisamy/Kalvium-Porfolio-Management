@@ -167,12 +167,50 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
       <div className="dt-container">
         <div className="dt-social-grid">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="pm-profile-card dt-card">
-              <div className="skeleton skeleton-text width-40 mb-12" style={{ height: "20px" }}></div>
-              <div className="skeleton skeleton-text width-100 mb-16" style={{ height: "16px" }}></div>
-              <div className="skeleton skeleton-input" style={{ height: "36px" }}></div>
+            <div key={i} className="pm-profile-card dt-card dt-loading-card">
+              <div className="dt-loading-heading">
+                <div className="skeleton dt-loading-icon"></div>
+                <div className="skeleton skeleton-text width-40"></div>
+              </div>
+              <div className="dt-loading-lines">
+                <div className="skeleton skeleton-text width-100"></div>
+                <div className="skeleton skeleton-text width-60"></div>
+              </div>
+              <div className="skeleton dt-loading-button"></div>
             </div>
           ))}
+        </div>
+
+        <div className="dt-dashboard-lower dt-loading-lower">
+          <section className="dt-leaderboard-section">
+            <div className="dt-loading-leaderboard-heading">
+              <div className="skeleton skeleton-text width-40"></div>
+              <div className="skeleton skeleton-text width-60"></div>
+            </div>
+            <div className="dt-loading-leaderboard-columns">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="skeleton skeleton-text"></div>
+              ))}
+            </div>
+            <div className="dt-loading-leaderboard-rows">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="skeleton dt-loading-leaderboard-row"></div>
+              ))}
+            </div>
+          </section>
+
+          <div className="dt-dashboard-bottom-grid">
+            <div className="resume-card dt-loading-panel">
+              <div className="skeleton skeleton-text width-40"></div>
+              <div className="skeleton skeleton-text width-60"></div>
+              <div className="skeleton dt-loading-button"></div>
+            </div>
+            <div className="dt-activity-card dt-loading-panel">
+              <div className="skeleton skeleton-text width-60"></div>
+              <div className="skeleton dt-loading-status"></div>
+              <div className="skeleton skeleton-text width-100"></div>
+            </div>
+          </div>
         </div>
       </div>
     );
