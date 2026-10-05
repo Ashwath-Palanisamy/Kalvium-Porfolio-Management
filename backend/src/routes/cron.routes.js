@@ -1265,6 +1265,214 @@ async function notifyMentorsAboutInactiveStudents() {
 }
 
 // ============================================================
+// NOTIFY INACTIVE STUDENTS DIRECTLY
+// Sends "[KPM] - Leetcode Inactive Report" to inactive students
+// only (is_leetcode_active = false). Active users are skipped.
+// Mentor summary emails are unchanged and still sent separately.
+// ============================================================
+
+async function notifyInactiveStudentsDirectly() {
+  console.log("\n[EMAIL SYSTEM] Starting inactive-student notifications...");
+
+  try {
+    const { data: inactiveRecords, error: inactiveError } = await supabaseAdmin
+      .from("leetcode_leaderboard")
+      .select(
+        `
+        user_id,
+        last_solved_at
+      `,
+      )
+      .eq("is_leetcode_active", false);
+
+    if (inactiveError) {
+      throw inactiveError;
+    }
+
+    if (!inactiveRecords || inactiveRecords.length === 0) {
+      console.log("[EMAIL SYSTEM] No inactive students to notify.");
+
+      return;
+    }
+
+    console.log(
+      `[EMAIL SYSTEM] Inactive students to email: ${inactiveRecords.length}`,
+    );
+
+    const inactiveUserIds = [
+      ...new Set(
+        (inactiveRecords || [])
+          .map((record) => record.user_id)
+          .filter(Boolean),
+      ),
+    ];
+
+    const { data: studentProfiles, error: profilesError } = await supabaseAdmin
+      .from("profiles")
+      .select("user_id, name, kalvium_email")
+      .in("user_id", inactiveUserIds);
+
+    if (profilesError) {
+      throw profilesError;
+    }
+
+    const profileMap = {};
+
+    for (const profile of studentProfiles || []) {
+      if (profile?.user_id) {
+        profileMap[profile.user_id] = profile;
+      }
+    }
+
+    const nowMs = Date.now();
+
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+    const testEmail = process.env.TEST_EMAIL?.trim();
+
+    let sentCount = 0;
+
+    let skippedCount = 0;
+
+    for (const record of inactiveRecords) {
+      const profile = profileMap[record.user_id];
+
+      const studentName = profile?.name?.trim() || "Student";
+
+      let studentEmail = profile?.kalvium_email?.trim() || "";
+
+      // Fallback to auth email when profile email is missing.
+      if (!studentEmail) {
+        try {
+          const { data: authData, error: authError } =
+            await supabaseAdmin.auth.admin.getUserById(record.user_id);
+
+          if (!authError && authData?.user?.email) {
+            studentEmail = authData.user.email;
+          }
+        } catch (err) {
+          console.error(
+            `[EMAIL SYSTEM] Could not fetch auth email for student ${record.user_id}:`,
+            err.message,
+          );
+        }
+      }
+
+      if (!studentEmail) {
+        console.warn(
+          `[EMAIL SYSTEM] Skipping student ${record.user_id} — no email found.`,
+        );
+
+        skippedCount++;
+
+        continue;
+      }
+
+      const lastSolvedDate = record.last_solved_at
+        ? new Date(record.last_solved_at)
+        : null;
+
+      const daysInactive =
+        lastSolvedDate && !Number.isNaN(lastSolvedDate.getTime())
+          ? Math.floor((nowMs - lastSolvedDate.getTime()) / ONE_DAY_MS)
+          : null;
+
+      const daysText =
+        daysInactive === null
+          ? "an extended period (no recorded LeetCode activity)"
+          : `${daysInactive} day${daysInactive === 1 ? "" : "s"}`;
+
+      const lastActiveText = lastSolvedDate
+        ? lastSolvedDate.toLocaleDateString("en-IN", {
+            weekday: "short",
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })
+        : "No recorded activity yet";
+
+      const safeName = String(studentName)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+      const recipientEmail = testEmail || studentEmail;
+
+      console.log(
+        `[EMAIL SYSTEM] Sending inactivity report to ${recipientEmail} (${studentName} | ${daysText})`,
+      );
+
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+
+        headers: {
+          accept: "application/json",
+
+          "content-type": "application/json",
+
+          "api-key": process.env.BREVO_API_KEY,
+        },
+
+        body: JSON.stringify({
+          sender: {
+            name: "Kalvium Portfolio Management",
+
+            email: "kpm-squad@googlegroups.com",
+          },
+
+          to: [
+            {
+              email: recipientEmail,
+
+              name: studentName,
+            },
+          ],
+
+          subject: "[KPM] - Leetcode Inactive Report",
+
+          htmlContent: `
+                <div style="font-family: Arial, Helvetica, sans-serif; color: #333333; font-size: 14px; line-height: 1.6;">
+                  <p>Hi ${safeName},</p>
+                  <p>We noticed that you have been inactive for ${daysText} (last active: ${lastActiveText}).</p>
+                  <p>Due to inactivity your account has been reported to your assigned mentor.</p>
+                  <p>Even solving one problem today on <a href="https://leetcode.com/problemset/">LeetCode</a> will get you back on track.</p>
+                  <p>You can review your activity here:</p>
+                  <p><a href="https://kalvium-portfolio.vercel.app/student/dashboard" style="display: inline-block; background-color: #dc2626; color: #ffffff; text-decoration: none; padding: 10px 20px; border-radius: 6px;">View My Dashboard</a></p>
+                  <p>Best Regards,<br>Kalvium Portfolio Management</p>
+                </div>
+              `,
+        }),
+      });
+
+      if (!response.ok) {
+        let errorData;
+
+        try {
+          errorData = await response.json();
+        } catch {
+          errorData = await response.text();
+        }
+
+        console.error(
+          `[EMAIL ERROR] Brevo API failed for ${recipientEmail}:`,
+          errorData,
+        );
+      } else {
+        sentCount++;
+
+        console.log(`[EMAIL SENT] ${recipientEmail} | ${daysText} inactive`);
+      }
+    }
+
+    console.log(
+      `[EMAIL SYSTEM] Finished student notifications. Sent: ${sentCount} | Skipped: ${skippedCount}`,
+    );
+  } catch (error) {
+    console.error("[EMAIL SYSTEM ERROR] Student notifications failed:", error);
+  }
+}
+
+// ============================================================
 // SYNC ONE LEETCODE PROFILE
 // ============================================================
 
@@ -1798,6 +2006,8 @@ router.post("/update-leetcode", async (req, res) => {
     }
 
     await notifyMentorsAboutInactiveStudents();
+
+    await notifyInactiveStudentsDirectly();
 
     console.log(`\nFinished: ${new Date().toISOString()}`);
 
