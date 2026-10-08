@@ -28,6 +28,7 @@ const NAV_ITEMS = [
   { label: "Assigned", icon: Users },
   { label: "Exception Requests", icon: FileWarning },
   { label: "Settings", icon: Settings },
+  { label: "LeetCode", icon: Activity },
 ];
 
 const Sidebar = ({ activeNav, setActiveNav }) => {
