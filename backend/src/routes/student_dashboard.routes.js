@@ -1,6 +1,6 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
-import { createAuthedSupabaseClient, supabase } from "../config/supabase.js";
+import { createAuthedSupabaseClient, supabase, supabaseAdmin } from "../config/supabase.js";
 
 const router = express.Router();
 
@@ -76,6 +76,11 @@ const requireRole = (...allowedRoles) => (req, res, next) => {
 };
 
 const requireStudent = requireRole("student");
+
+// Monthly quota of LeetCode exception requests per student (calendar month,
+// UTC — same clock the DB's NOW() uses). Shared by the POST route (enforce)
+// and the GET route (report, so the form can disable itself up front).
+const MONTHLY_REQUEST_LIMIT = 2;
 
 // ==========================================
 // 1. GET Student Profile
@@ -535,5 +540,272 @@ router.delete("/achievements/:id", authRouteLimiter, requireAuth, requireStudent
         return res.status(500).json({ error: "Failed to delete achievement: " + err.message });
     }
 });
+
+// ==========================================
+// 12. POST Request a LeetCode exception (student -> assigned mentor)
+// Body: { reason, days }   days = requested duration in days (1-7, default 3)
+// One pending request per student. On submit, the assigned mentor
+// gets an email (Brevo, fire-and-forget).
+// ==========================================
+router.post("/exception-request", authRouteLimiter, requireAuth, requireStudent, async (req, res) => {
+    try {
+        const reason = String(req.body?.reason || "").trim();
+        if (reason.length < 10) {
+            return res.status(400).json({ error: "Please give a reason (at least 10 characters)." });
+        }
+        if (reason.length > 2000) {
+            return res.status(400).json({ error: "Reason is too long (max 2000 characters)." });
+        }
+        // Requested duration in days. Students pick e.g. 3-5 days.
+        const MIN_EXCEPTION_DAYS = 1;
+        const MAX_EXCEPTION_DAYS = 7;
+        const rawDays = Number(req.body?.days ?? req.body?.requestedDays ?? 3);
+        if (!Number.isFinite(rawDays) || !Number.isInteger(rawDays) || rawDays < MIN_EXCEPTION_DAYS || rawDays > MAX_EXCEPTION_DAYS) {
+            return res.status(400).json({ error: `Please choose between ${MIN_EXCEPTION_DAYS} and ${MAX_EXCEPTION_DAYS} days.` });
+        }
+        const requestedDays = rawDays;
+        if (!supabaseAdmin) {
+            return res.status(500).json({ error: "Exception requests are unavailable right now." });
+        }
+
+        const studentUserId = req.user.id;
+
+        const { data: existing, error: existingError } = await supabaseAdmin
+            .from("leetcode_exception_requests")
+            .select("id,status")
+            .eq("student_user_id", studentUserId)
+            .eq("status", "pending")
+            .maybeSingle();
+        if (existingError && existingError.code !== "PGRST116") throw existingError;
+        if (existing) {
+            return res.status(409).json({ error: "You already have a pending exception request.", request: existing });
+        }
+
+        // Monthly quota: at most MONTHLY_REQUEST_LIMIT requests per calendar
+        // month no matter the outcome (pending, approved and rejected all
+        // count). Stacks with the single-pending rule above.
+        const quotaStart = new Date();
+        quotaStart.setUTCDate(1);
+        quotaStart.setUTCHours(0, 0, 0, 0);
+        const { count: monthCount, error: quotaError } = await supabaseAdmin
+            .from("leetcode_exception_requests")
+            .select("id", { count: "exact", head: true })
+            .eq("student_user_id", studentUserId)
+            .gte("created_at", quotaStart.toISOString());
+        if (quotaError) throw quotaError;
+        if ((monthCount ?? 0) >= MONTHLY_REQUEST_LIMIT) {
+            return res.status(429).json({
+                error: `You have already used all ${MONTHLY_REQUEST_LIMIT} exception requests this month. The limit resets on the 1st of next month.`,
+                monthlyUsed: monthCount ?? MONTHLY_REQUEST_LIMIT,
+                monthlyLimit: MONTHLY_REQUEST_LIMIT,
+            });
+        }
+
+        // Find squad + assigned mentor for this student.
+        // Squad ID is REQUIRED — students without a squad cannot request.
+        let squadId = null;
+        let mentorUserId = null;
+        try {
+            const { data: profile } = await supabaseAdmin
+                .from("profiles")
+                .select("squad_id")
+                .eq("user_id", studentUserId)
+                .maybeSingle();
+            squadId = profile?.squad_id ?? null;
+        } catch { /* best effort */ }
+        try {
+            const { data: assignment } = await supabaseAdmin
+                .from("squad_students")
+                .select("mentor_user_id,squad_id")
+                .eq("student_user_id", studentUserId)
+                .maybeSingle();
+            mentorUserId = assignment?.mentor_user_id ?? null;
+            squadId = squadId ?? assignment?.squad_id ?? null;
+        } catch { /* best effort */ }
+
+        if (squadId === null || squadId === undefined || String(squadId).trim() === "") {
+            return res.status(403).json({ error: "You must be assigned to a squad before requesting an exception. Please contact your mentor." });
+        }
+
+        let { data: created, error: insertError } = await supabaseAdmin
+            .from("leetcode_exception_requests")
+            .insert([{
+                student_user_id: studentUserId,
+                mentor_user_id: mentorUserId,
+                squad_id: squadId ? String(squadId) : null,
+                reason,
+                requested_days: requestedDays,
+                status: "pending",
+            }])
+            .select()
+            .single();
+        // If the requested_days migration hasn't run yet, retry without the
+        // column so requests still work (tag then falls back to 30 days).
+        if (insertError && String(insertError.message || "").includes("requested_days")) {
+            ({ data: created, error: insertError } = await supabaseAdmin
+                .from("leetcode_exception_requests")
+                .insert([{
+                    student_user_id: studentUserId,
+                    mentor_user_id: mentorUserId,
+                    squad_id: squadId ? String(squadId) : null,
+                    reason,
+                    status: "pending",
+                }])
+                .select()
+                .single());
+        }
+        if (insertError) throw insertError;
+
+        // Email the assigned mentor (fire-and-forget, never blocks submit).
+        notifyMentorOfExceptionRequest({ mentorUserId, studentUserId, reason, days: requestedDays, requestId: created?.id }).catch(() => {});
+
+        return res.status(201).json({ success: true, request: created });
+    } catch (err) {
+        if (String(err?.message || "").includes("leetcode_exception_requests")) {
+            return res.status(500).json({ error: "Exception requests table is missing. Ask an admin to run migrations/add_leetcode_exception_requests.sql" });
+        }
+        console.error("Exception request error:", err);
+        return res.status(500).json({ error: "Failed to submit exception request: " + err.message });
+    }
+});
+
+// ==========================================
+// 13. GET My exception requests (drives the "Request accepted" tag)
+// ==========================================
+router.get("/exception-request", authRouteLimiter, requireAuth, requireStudent, async (req, res) => {
+    try {
+        if (!supabaseAdmin) return res.status(200).json({ requests: [], latest: null, hasAccepted: false, hasSquad: true, monthlyUsed: 0, monthlyLimit: MONTHLY_REQUEST_LIMIT });
+        // Squad check so the frontend can disable the form upfront.
+        let squadId = null;
+        try {
+            const { data: profile } = await supabaseAdmin
+                .from("profiles")
+                .select("squad_id")
+                .eq("user_id", req.user.id)
+                .maybeSingle();
+            squadId = profile?.squad_id ?? null;
+        } catch { /* best effort */ }
+        if (squadId === null || squadId === undefined || String(squadId).trim() === "") {
+            try {
+                const { data: assignment } = await supabaseAdmin
+                    .from("squad_students")
+                    .select("squad_id")
+                    .eq("student_user_id", req.user.id)
+                    .maybeSingle();
+                squadId = assignment?.squad_id ?? null;
+            } catch { /* best effort */ }
+        }
+        const hasSquad = !(squadId === null || squadId === undefined || String(squadId).trim() === "");
+        const { data, error } = await supabaseAdmin
+            .from("leetcode_exception_requests")
+            .select("*")
+            .eq("student_user_id", req.user.id)
+            .order("created_at", { ascending: false })
+            .limit(10);
+        if (error) throw error;
+        const requests = data || [];
+        const latest = requests[0] || null;
+        // A request is accepted while its requested_days window is open,
+        // counted from mentor approval (reviewed_at). Rows without
+        // requested_days (pre-migration) keep the legacy 30-day window.
+        const DAY_MS = 24 * 60 * 60 * 1000;
+        let acceptedUntil = null;
+        let hasAccepted = false;
+        for (const r of requests) {
+            if (r.status !== "approved") continue;
+            const days = Number(r.requested_days) || 30;
+            const reviewedMs = Date.parse(r.reviewed_at || r.updated_at || r.created_at || "");
+            const expiresMs = (Number.isFinite(reviewedMs) ? reviewedMs : Date.now()) + days * DAY_MS;
+            if (expiresMs > Date.now()) {
+                const iso = new Date(expiresMs).toISOString();
+                if (!acceptedUntil || expiresMs > Date.parse(acceptedUntil)) acceptedUntil = iso;
+            }
+        }
+        hasAccepted = !!acceptedUntil;
+        // Monthly quota reporting so the form can disable itself up front
+        // instead of failing on submit. Best effort: never fails the GET.
+        let monthlyUsed = 0;
+        try {
+            const quotaStart = new Date();
+            quotaStart.setUTCDate(1);
+            quotaStart.setUTCHours(0, 0, 0, 0);
+            const { count, error: quotaError } = await supabaseAdmin
+                .from("leetcode_exception_requests")
+                .select("id", { count: "exact", head: true })
+                .eq("student_user_id", req.user.id)
+                .gte("created_at", quotaStart.toISOString());
+            if (!quotaError) monthlyUsed = count ?? 0;
+        } catch { /* best effort */ }
+        return res.status(200).json({
+            requests,
+            latest,
+            hasAccepted,
+            activeUntil: acceptedUntil || null,
+            hasSquad,
+            monthlyUsed,
+            monthlyLimit: MONTHLY_REQUEST_LIMIT,
+        });
+    } catch (err) {
+        if (String(err?.message || "").includes("leetcode_exception_requests")) {
+            return res.status(200).json({ requests: [], latest: null, hasAccepted: false, hasSquad: true, monthlyUsed: 0, monthlyLimit: MONTHLY_REQUEST_LIMIT });
+        }
+        console.error("Exception request fetch error:", err);
+        return res.status(500).json({ error: "Failed to fetch exception requests: " + err.message });
+    }
+});
+
+// Fire-and-forget Brevo email to the assigned mentor when a student
+// submits an exception request. Mirrors the cron Brevo style and
+// honours TEST_EMAIL override. Never throws.
+async function notifyMentorOfExceptionRequest({ mentorUserId, studentUserId, reason, days, requestId }) {
+    try {
+        if (!process.env.BREVO_API_KEY) return;
+        let mentorEmail = null;
+        let mentorName = "Mentor";
+        let studentName = "A student";
+        try {
+            if (mentorUserId) {
+                const { data } = await supabaseAdmin.auth.admin.getUserById(mentorUserId);
+                mentorEmail = data?.user?.email || null;
+                mentorName = data?.user?.user_metadata?.full_name || data?.user?.user_metadata?.name || "Mentor";
+            }
+        } catch { /* best effort */ }
+        // Fallback: mentor email from profiles table.
+        if (!mentorEmail && mentorUserId) {
+            try {
+                const { data: mProfile } = await supabaseAdmin
+                    .from("profiles")
+                    .select("kalvium_email,personal_email,name")
+                    .eq("user_id", mentorUserId)
+                    .maybeSingle();
+                mentorEmail = mProfile?.kalvium_email || mProfile?.personal_email || null;
+                mentorName = mProfile?.name || mentorName;
+            } catch { /* best effort */ }
+        }
+        try {
+            const { data: sProfile } = await supabaseAdmin
+                .from("profiles")
+                .select("name,kalvium_email")
+                .eq("user_id", studentUserId)
+                .maybeSingle();
+            studentName = sProfile?.name || studentName;
+        } catch { /* best effort */ }
+        const recipient = (process.env.TEST_EMAIL || "").trim() || mentorEmail;
+        if (!recipient) return;
+        const safe = (v) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        await fetch("https://api.brevo.com/v3/smtp/email", {
+            method: "POST",
+            headers: { accept: "application/json", "content-type": "application/json", "api-key": process.env.BREVO_API_KEY },
+            body: JSON.stringify({
+                sender: { name: "Kalvium Portfolio Management", email: "kpm-squad@googlegroups.com" },
+                to: [{ email: recipient, name: mentorName }],
+                subject: "[KPM] - New LeetCode Exception Request",
+                htmlContent: `<div style="font-family: Arial, Helvetica, sans-serif; color: #333; font-size: 14px; line-height: 1.6;"><p>Hi ${safe(mentorName)},</p><p><strong>${safe(studentName)}</strong> submitted a LeetCode exception request for <strong>${Number(days) || 3} day${Number(days) === 1 ? "" : "s"}</strong>${requestId ? ` (ID: ${safe(requestId)})` : ""}:</p><blockquote style="border-left:3px solid #dc2626;padding-left:12px;color:#555;">${safe(reason)}</blockquote><p>Please review it under Mentor Dashboard &rarr; Exception Requests.</p><p><a href="https://kalvium-portfolio.vercel.app/mentor/dashboard/exceptions" style="display:inline-block;background-color:#dc2626;color:#fff;text-decoration:none;padding:10px 20px;border-radius:6px;">Review Request</a></p><p>Best Regards,<br>Kalvium Portfolio Management</p></div>`,
+            }),
+        });
+    } catch (err) {
+        console.warn("[EXCEPTION EMAIL] failed:", err?.message || err);
+    }
+}
 
 export default router;

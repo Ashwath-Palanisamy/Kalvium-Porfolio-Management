@@ -34,9 +34,12 @@ import {
 } from "../../api/routes/MentorDashboard/main.js";
 
 import { getGithubStats, getLeetcodeStats } from "../../api/routes/Public/StudentInfo.js";
+import { getExceptionRequestCount } from "../../api/routes/Mentor/exception.js";
 import {
   isRecentlyActive as isStudentActive,
   isOneToSixDaysInactive as is1DayInactiveStudent,
+  lastAcceptedFromLeetcodeStats,
+  withLiveLastSolved,
 } from "../../utils/activity";
 
 import "./assigned.css";
@@ -125,7 +128,15 @@ const formatDateTime = (rawTime) => {
   };
 };
 
-export default function Assigned() {
+// Profile URL for lazy live LeetCode status checks (mirrors the modal's URL formatting).
+const getLeetcodeProfileUrl = (student) => {
+  const raw = student?.leetcode || student?.leetcode_url;
+  if (!raw) return null;
+  if (raw.startsWith("http")) return raw;
+  return `https://leetcode.com/u/${raw}`;
+};
+
+export default function Assigned({ onOpenExceptions }) {
   // Data States
   const [assignedStudents, setAssignedStudents] = useState([]);
   const [allStudents, setAllStudents] = useState([]);
@@ -133,6 +144,8 @@ export default function Assigned() {
   const [loading, setLoading] = useState(true);
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [bulkAssigning, setBulkAssigning] = useState(false);
+  // Exception requests badge — head-count endpoint, loads in parallel (fast)
+  const [exceptionCount, setExceptionCount] = useState(0);
 
   // Filters & Search State
   const [searchQuery, setSearchQuery] = useState("");
@@ -148,6 +161,10 @@ export default function Assigned() {
   const [statsData, setStatsData] = useState({ github: null, leetcode: null });
   const [loadingStats, setLoadingStats] = useState(false);
   const [statsError, setStatsError] = useState(null);
+
+  // Live LeetCode stats cache used to refresh stale status badges between
+  // leaderboard cron runs (keyed by student id → { lastSolvedAt }).
+  const [tableStatsCache, setTableStatsCache] = useState({});
 
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [modalSquadFilter, setModalSquadFilter] = useState("all");
@@ -201,6 +218,8 @@ export default function Assigned() {
 
   useEffect(() => {
     fetchDashboardData();
+    // Fire in parallel with the heavy squad fetch so the notice appears fast.
+    getExceptionRequestCount().then((d) => setExceptionCount(d?.pendingCount ?? 0)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -332,24 +351,36 @@ export default function Assigned() {
     [mentorSquads]
   );
 
+  // Overlay fresher live last-solved values so status badges don't lag behind
+  // the daily leaderboard cron snapshot.
+  const assignedWithLiveData = useMemo(
+    () =>
+      safeAssignedStudents.map((student) => {
+        const studentId = student.student_user_id || student.user_id || student.id;
+        const cached = tableStatsCache[studentId];
+        return cached?.lastSolvedAt ? withLiveLastSolved(student, cached.lastSolvedAt) : student;
+      }),
+    [safeAssignedStudents, tableStatsCache]
+  );
+
   // Computed Metrics
   const activeCount = useMemo(
-    () => safeAssignedStudents.filter((s) => isStudentActive(s) && !is1DayInactiveStudent(s)).length,
-    [safeAssignedStudents]
+    () => assignedWithLiveData.filter((s) => isStudentActive(s) && !is1DayInactiveStudent(s)).length,
+    [assignedWithLiveData]
   );
 
   const oneDayInactiveCount = useMemo(
-    () => safeAssignedStudents.filter((s) => is1DayInactiveStudent(s)).length,
-    [safeAssignedStudents]
+    () => assignedWithLiveData.filter((s) => is1DayInactiveStudent(s)).length,
+    [assignedWithLiveData]
   );
 
   const inactiveCount = useMemo(
-    () => safeAssignedStudents.filter((s) => !isStudentActive(s)).length,
-    [safeAssignedStudents]
+    () => assignedWithLiveData.filter((s) => !isStudentActive(s)).length,
+    [assignedWithLiveData]
   );
 
   const filteredStudents = useMemo(() => {
-    return safeAssignedStudents.filter((student) => {
+    return assignedWithLiveData.filter((student) => {
       if (
         selectedSquadFilter !== "all" &&
         String(student.squad_id) !== String(selectedSquadFilter)
@@ -374,13 +405,72 @@ export default function Assigned() {
 
       return true;
     });
-  }, [safeAssignedStudents, selectedSquadFilter, filterStatus, searchQuery]);
+  }, [assignedWithLiveData, selectedSquadFilter, filterStatus, searchQuery]);
 
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage) || 1;
   const paginatedStudents = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return filteredStudents.slice(start, start + itemsPerPage);
   }, [filteredStudents, currentPage]);
+
+  // ==========================================
+  // VERIFY STALE STATUS BADGES WITH LIVE LEETCODE DATA
+  // Rows whose stored status is inactive would render a false "1-Day Inactive"
+  // / "Inactive" badge when the leaderboard cron snapshot hasn't caught up with
+  // recent submissions, so re-check just those rows against live LeetCode stats
+  // (throttled; pauses on rate limits and trusts the stored value after that).
+  // ==========================================
+  useEffect(() => {
+    let isMounted = true;
+
+    const verifyStaleStatuses = async () => {
+      for (const student of paginatedStudents) {
+        if (!isMounted) break;
+
+        const studentId = student.student_user_id || student.user_id || student.id;
+        if (tableStatsCache[studentId]) continue;
+
+        // Only rows that would render a warning/inactive badge need verification.
+        if (!is1DayInactiveStudent(student) && isStudentActive(student)) continue;
+
+        const leetcodeUrl = getLeetcodeProfileUrl(student);
+        if (!leetcodeUrl) {
+          if (isMounted) {
+            setTableStatsCache((prev) => ({ ...prev, [studentId]: { lastSolvedAt: null } }));
+          }
+          continue;
+        }
+
+        try {
+          const res = await getLeetcodeStats(leetcodeUrl);
+          if (isMounted) {
+            const lastSolvedAt = res && !res.error ? lastAcceptedFromLeetcodeStats(res) : null;
+            setTableStatsCache((prev) => ({
+              ...prev,
+              [studentId]: { lastSolvedAt: lastSolvedAt || null },
+            }));
+          }
+        } catch (err) {
+          const is429 = err?.response?.status === 429 || String(err?.message).includes("429");
+          if (is429) {
+            // Rate limited — trust the stored value for the remaining rows.
+            console.warn("LeetCode API rate limit reached (429). Status checks paused.");
+            break;
+          }
+          console.warn("Live LeetCode status check failed for", student.name, err);
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+    };
+
+    verifyStaleStatuses();
+
+    return () => {
+      isMounted = false;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paginatedStudents]);
 
   const assignedUserIds = useMemo(
     () => new Set(safeAssignedStudents.map((s) => s.student_user_id || s.user_id || s.id)),
@@ -544,6 +634,13 @@ export default function Assigned() {
 
   return (
     <div className="dashboard-layout">
+      {exceptionCount > 0 && (
+        <div className="exc-assigned-notice" role="status">
+          <Clock size={16} />
+          <span><strong>{exceptionCount}</strong> student{exceptionCount === 1 ? "" : "s"} requested LeetCode inactivity exception{exceptionCount === 1 ? "" : "s"}.</span>
+          {onOpenExceptions && <button type="button" onClick={onOpenExceptions}>Review requests</button>}
+        </div>
+      )}
       {/* Real-time LeetCode Activity Monitor */}
       <div className="lc-session-section">
         <LeetCodeSessionPanel

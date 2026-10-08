@@ -520,7 +520,24 @@ router.post("/unassign-student", requireAuth, requireMentor, async (req, res) =>
 });
 
 // ==========================================
-// MENTOR REVIEW QUEUE
+// MENTOR REVIEW — NOT IMPLEMENTED (disabled).
+// These stubs are registered BEFORE the legacy implementations below,
+// so Express matches them first and the old logic is never reached.
+// ==========================================
+router.get("/leetcode-review/queue", requireAuth, requireMentor, async (req, res) => {
+  return res.status(501).json({ error: "Mentor Review is not implemented" });
+});
+
+router.patch("/leetcode-review/:studentUserId/approve", requireAuth, requireMentor, async (req, res) => {
+  return res.status(501).json({ error: "Mentor Review is not implemented" });
+});
+
+router.patch("/leetcode-review/:studentUserId/reject", requireAuth, requireMentor, async (req, res) => {
+  return res.status(501).json({ error: "Mentor Review is not implemented" });
+});
+
+// ==========================================
+// MENTOR REVIEW QUEUE (LEGACY — DISABLED, unreachable due to stubs above)
 // ==========================================
 
 router.get("/leetcode-review/queue", requireAuth, requireMentor, async (req, res) => {
@@ -1955,5 +1972,165 @@ router.get("/leetcode-session/update", requireAuth, requireMentor, sessionRateLi
     return res.status(500).json({ error: "Failed to update session" });
   }
 });
+
+// ==========================================
+// LEETCODE EXCEPTION REQUESTS (student -> mentor approval)
+// Fast: count endpoint is head-only so the Assigned badge loads instantly.
+// ==========================================
+
+// GET /mentor/dashboard/exception-requests/count — pending count only
+router.get("/exception-requests/count", requireAuth, requireMentor, async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(200).json({ pendingCount: 0 });
+    const mentorUserId = req.user.id;
+    const { data: assignments } = await supabaseAdmin
+      .from("squad_students")
+      .select("student_user_id")
+      .eq("mentor_user_id", mentorUserId);
+    const assignedIds = (assignments || []).map((a) => a.student_user_id).filter(Boolean);
+    let query = supabaseAdmin
+      .from("leetcode_exception_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending");
+    if (assignedIds.length > 0) {
+      query = query.or(`mentor_user_id.eq.${mentorUserId},and(mentor_user_id.is.null,student_user_id.in.(${assignedIds.join(",")}))`);
+    } else {
+      query = query.eq("mentor_user_id", mentorUserId);
+    }
+    const { count, error } = await query;
+    if (error) throw error;
+    return res.status(200).json({ pendingCount: count || 0 });
+  } catch (err) {
+    if (String(err?.message || "").includes("leetcode_exception_requests")) {
+      return res.status(200).json({ pendingCount: 0 });
+    }
+    return res.status(500).json({ error: "Failed to load exception count" });
+  }
+});
+
+// GET /mentor/dashboard/exception-requests — pending + recent history
+router.get("/exception-requests", requireAuth, requireMentor, async (req, res) => {
+  try {
+    if (!supabaseAdmin) return res.status(200).json({ success: true, requests: [] });
+    const mentorUserId = req.user.id;
+    const { data: assignments } = await supabaseAdmin
+      .from("squad_students")
+      .select("student_user_id")
+      .eq("mentor_user_id", mentorUserId);
+    const assignedIds = (assignments || []).map((a) => a.student_user_id).filter(Boolean);
+    let query = supabaseAdmin
+      .from("leetcode_exception_requests")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (assignedIds.length > 0) {
+      query = query.or(`mentor_user_id.eq.${mentorUserId},student_user_id.in.(${assignedIds.join(",")})`);
+    } else {
+      query = query.eq("mentor_user_id", mentorUserId);
+    }
+    const { data: requests, error } = await query;
+    if (error) throw error;
+    const studentIds = [...new Set((requests || []).map((r) => r.student_user_id).filter(Boolean))];
+    const profileMap = {};
+    if (studentIds.length > 0) {
+      const { data: profiles } = await supabaseAdmin
+        .from("profiles")
+        .select("user_id,name,avatar_url,kalvium_email,squad_id,leetcode")
+        .in("user_id", studentIds);
+      (profiles || []).forEach((p) => { profileMap[p.user_id] = p; });
+    }
+    const enriched = (requests || []).map((r) => ({
+      ...r,
+      student_name: profileMap[r.student_user_id]?.name || "Student",
+      student_avatar: profileMap[r.student_user_id]?.avatar_url || null,
+      student_email: profileMap[r.student_user_id]?.kalvium_email || null,
+      student_squad: profileMap[r.student_user_id]?.squad_id || r.squad_id || null,
+      student_leetcode: profileMap[r.student_user_id]?.leetcode || null,
+    }));
+    return res.status(200).json({ success: true, requests: enriched, pendingCount: enriched.filter((r) => r.status === "pending").length });
+  } catch (err) {
+    if (String(err?.message || "").includes("leetcode_exception_requests")) {
+      return res.status(200).json({ success: true, requests: [], pendingCount: 0 });
+    }
+    return res.status(500).json({ error: "Failed to load exception requests" });
+  }
+});
+
+// PATCH approve / reject a single exception request
+async function decideExceptionRequest(req, res, decision) {
+  try {
+    if (!supabaseAdmin) return res.status(500).json({ error: "Unavailable" });
+    const mentorUserId = req.user.id;
+    const requestId = req.params.id;
+    const mentorNote = String(req.body?.mentor_note || req.body?.note || "").trim().slice(0, 1000) || null;
+    const { data: existing, error: fetchError } = await supabaseAdmin
+      .from("leetcode_exception_requests")
+      .select("*")
+      .eq("id", requestId)
+      .maybeSingle();
+    if (fetchError) throw fetchError;
+    if (!existing) return res.status(404).json({ error: "Request not found" });
+    if (existing.status !== "pending") return res.status(409).json({ error: "Already " + existing.status });
+    let allowed = existing.mentor_user_id === mentorUserId;
+    if (!allowed) {
+      const { data: assignment } = await supabaseAdmin
+        .from("squad_students")
+        .select("mentor_user_id")
+        .eq("mentor_user_id", mentorUserId)
+        .eq("student_user_id", existing.student_user_id)
+        .maybeSingle();
+      allowed = !!assignment;
+    }
+    if (!allowed) return res.status(403).json({ error: "Forbidden: not your assigned student" });
+    const now = new Date().toISOString();
+    const { data: updated, error: updateError } = await supabaseAdmin
+      .from("leetcode_exception_requests")
+      .update({ status: decision, mentor_note: mentorNote, reviewed_by: mentorUserId, reviewed_at: now, updated_at: now })
+      .eq("id", requestId)
+      .select()
+      .single();
+    if (updateError) throw updateError;
+    notifyStudentOfExceptionDecision({ studentUserId: existing.student_user_id, decision, mentorNote, days: existing.requested_days }).catch(() => {});
+    return res.status(200).json({ success: true, request: updated });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to update request" });
+  }
+}
+
+router.patch("/exception-requests/:id/approve", requireAuth, requireMentor, (req, res) => decideExceptionRequest(req, res, "approved"));
+router.patch("/exception-requests/:id/reject", requireAuth, requireMentor, (req, res) => decideExceptionRequest(req, res, "rejected"));
+
+async function notifyStudentOfExceptionDecision({ studentUserId, decision, mentorNote, days }) {
+  try {
+    if (!process.env.BREVO_API_KEY) return;
+    let studentEmail = null;
+    let studentName = "Student";
+    try {
+      const { data: sProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("name,kalvium_email,personal_email")
+        .eq("user_id", studentUserId)
+        .maybeSingle();
+      studentEmail = sProfile?.kalvium_email || sProfile?.personal_email || null;
+      studentName = sProfile?.name || studentName;
+    } catch { /* best effort */ }
+    const recipient = (process.env.TEST_EMAIL || "").trim() || studentEmail;
+    if (!recipient) return;
+    const accepted = decision === "approved";
+    const safe = (v) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: { accept: "application/json", "content-type": "application/json", "api-key": process.env.BREVO_API_KEY },
+      body: JSON.stringify({
+        sender: { name: "Kalvium Portfolio Management", email: "kpm-squad@googlegroups.com" },
+        to: [{ email: recipient, name: studentName }],
+        subject: accepted ? "[KPM] - Your LeetCode Exception Was Accepted" : "[KPM] - Update on Your LeetCode Exception Request",
+        htmlContent: `<div style="font-family: Arial, Helvetica, sans-serif; color:#333; font-size:14px; line-height:1.6;"><p>Hi ${safe(studentName)},</p><p>Your mentor has <strong>${accepted ? "accepted" : "rejected"}</strong> your LeetCode exception request.${accepted ? ` Your dashboard now shows a <strong>Request accepted</strong> tag on your LeetCode Status for <strong>${Number(days) || 30} day${Number(days) === 1 ? "" : "s"}</strong>.` : ""}</p>${mentorNote ? `<blockquote style="border-left:3px solid #2563eb;padding-left:12px;color:#555;">${safe(mentorNote)}</blockquote>` : ""}<p><a href="https://kalvium-portfolio.vercel.app/student/dashboard" style="display:inline-block;background-color:#16a34a;color:#fff;text-decoration:none;padding:10px 20px;border-radius:6px;">View My Dashboard</a></p><p>Best Regards,<br>Kalvium Portfolio Management</p></div>`,
+      }),
+    });
+  } catch (err) {
+    console.warn("[EXCEPTION DECISION EMAIL] failed:", err?.message || err);
+  }
+}
 
 export default router;

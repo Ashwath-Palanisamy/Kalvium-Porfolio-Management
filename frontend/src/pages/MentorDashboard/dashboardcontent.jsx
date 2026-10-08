@@ -18,6 +18,7 @@ import {
 
 import { useCodingStats } from "../../hooks/useCodingStats"; 
 import { getStudents } from "../../api/routes/MentorDashboard/main"; 
+import { DOJO_PULSE_URL } from "./dashboardRoutes.js";
 import "./dashboardcontent.css";
 
 // Brand SVG Icons
@@ -144,6 +145,26 @@ const DashboardContent = ({ onViewStudents }) => {
             <ArrowRight size={16} color="#ffffff" />
           </button>
         </div>
+
+        {/* Dojo Pulse — same card UI, sits next to Total Students */}
+        <a
+          className="stats-card dojo-pulse-card"
+          href={DOJO_PULSE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open Dojo Pulse in a new tab"
+        >
+          <div className="stats-icon">
+            <Activity size={24} color="#64748b" />
+          </div>
+          <span className="stats-label">Kalvium Mentor Analytics</span>
+          <h2>Dojo Pulse</h2>
+          <p>Live mentor and squad insights. Opens in a new tab.</p>
+          <span className="dojo-pulse-cta">
+            Open Dojo Pulse
+            <ArrowRight size={16} color="#ffffff" />
+          </span>
+        </a>
       </div>
 
       {/* Student Roster Table Section */}

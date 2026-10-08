@@ -11,6 +11,8 @@ import { getGithubStats, getLeetcodeStats, getAllStudents } from "../../api/rout
 import {
   isRecentlyActive as isStudentActive,
   isOneToSixDaysInactive as is1DayInactiveStudent,
+  lastAcceptedFromLeetcodeStats,
+  withLiveLastSolved,
 } from "../../utils/activity";
 
 import "./overview.css";
@@ -149,6 +151,17 @@ export default function Overview() {
 
   const safeStudents = useMemo(() => (Array.isArray(students) ? students : []), [students]);
 
+  // Overlay fresher live last-solved values (from the lazy stats cache) so the
+  // status badges don't rely solely on the daily leaderboard cron snapshot.
+  const studentsWithLiveData = useMemo(
+    () =>
+      safeStudents.map((student) => {
+        const cached = tableStatsCache[student.user_id || student.id];
+        return cached?.lastSolvedAt ? withLiveLastSolved(student, cached.lastSolvedAt) : student;
+      }),
+    [safeStudents, tableStatsCache]
+  );
+
   const availableSquads = useMemo(() => {
     const squadSet = new Set(endpointSquads);
     safeStudents.forEach((s) => {
@@ -164,7 +177,7 @@ export default function Overview() {
   }, [endpointSquads, safeStudents]);
 
   const filteredStudents = useMemo(() => {
-    return safeStudents.filter((student) => {
+    return studentsWithLiveData.filter((student) => {
       const squadId = student.squad_id ?? "N/A";
       if (selectedSquad !== "all" && String(squadId) !== String(selectedSquad)) return false;
 
@@ -189,12 +202,12 @@ export default function Overview() {
       }
       return true;
     });
-  }, [safeStudents, searchQuery, selectedSquad, filterStatus]);
+  }, [studentsWithLiveData, searchQuery, selectedSquad, filterStatus]);
 
   const totalStudentsCount = safeStudents.length;
-  const activeStudentsCount = useMemo(() => safeStudents.filter((s) => isStudentActive(s) && !is1DayInactiveStudent(s)).length, [safeStudents]);
-  const oneDayInactiveCount = useMemo(() => safeStudents.filter((s) => is1DayInactiveStudent(s)).length, [safeStudents]);
-  const inactiveStudentsCount = useMemo(() => safeStudents.filter((s) => !isStudentActive(s)).length, [safeStudents]);
+  const activeStudentsCount = useMemo(() => studentsWithLiveData.filter((s) => isStudentActive(s) && !is1DayInactiveStudent(s)).length, [studentsWithLiveData]);
+  const oneDayInactiveCount = useMemo(() => studentsWithLiveData.filter((s) => is1DayInactiveStudent(s)).length, [studentsWithLiveData]);
+  const inactiveStudentsCount = useMemo(() => studentsWithLiveData.filter((s) => !isStudentActive(s)).length, [studentsWithLiveData]);
   const currentSquadsCount = availableSquads.length;
 
   useEffect(() => { setCurrentPage(1); }, [searchQuery, selectedSquad, filterStatus]);
@@ -278,6 +291,9 @@ export default function Overview() {
               easy: res.easySolved ?? 0,
               medium: res.mediumSolved ?? 0,
               hard: res.hardSolved ?? 0,
+              // Freshest accepted-submission time so status badges don't lag
+              // behind the daily leaderboard cron snapshot.
+              lastSolvedAt: lastAcceptedFromLeetcodeStats(res),
             };
 
             updatedCache[studentId] = newStats;

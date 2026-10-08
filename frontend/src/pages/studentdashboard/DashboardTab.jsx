@@ -12,10 +12,14 @@ import {
   ExternalLink,
   Award,
   BookOpen,
-  Target
+  Target,
+  BadgeCheck
 } from "lucide-react";
 import { getGitHubStats, getLeetCodeStats } from "../../api/routes/StudentDashboard/dashboard";
+import { getMyExceptionRequests } from "../../api/routes/StudentDashboard/exception";
 import { getLeaderboardData } from "../../api/routes/Public/leaderboard";
+import RequestException from "./RequestException";
+import "./RequestException.css";
 import {
   isRecentlyActive,
   lastSolvedFromLeetcodeStats,
@@ -30,6 +34,8 @@ function useDashboardStats(githubUrl, leetcodeUrl, profile) {
   const [leetcodeData, setLeetcodeData] = useState(null);
   const [websiteLeaderboard, setWebsiteLeaderboard] = useState([]);
   const [isStatsLoading, setIsStatsLoading] = useState(false);
+  const [hasAcceptedException, setHasAcceptedException] = useState(false);
+  const [acceptedUntil, setAcceptedUntil] = useState(null);
 
   useEffect(() => {
     if (!profile) return;
@@ -38,16 +44,19 @@ function useDashboardStats(githubUrl, leetcodeUrl, profile) {
     async function loadStats() {
       setIsStatsLoading(true);
       try {
-        const [ghStats, lcStats, leaderboardData] = await Promise.all([
+        const [ghStats, lcStats, leaderboardData, exceptionData] = await Promise.all([
           githubUrl ? getGitHubStats(githubUrl) : null,
           leetcodeUrl ? getLeetCodeStats(leetcodeUrl) : null,
-          getLeaderboardData().catch(() => [])
+          getLeaderboardData().catch(() => []),
+          getMyExceptionRequests().catch(() => null)
         ]);
 
         if (isMounted) {
           if (ghStats) setGithubData(ghStats);
           if (lcStats) setLeetcodeData(lcStats);
           setWebsiteLeaderboard(Array.isArray(leaderboardData) ? leaderboardData : []);
+          setHasAcceptedException(!!exceptionData?.hasAccepted);
+          setAcceptedUntil(exceptionData?.acceptedUntil || null);
         }
       } catch (err) {
         console.error("Error loading dashboard stats from backend:", err);
@@ -63,7 +72,7 @@ function useDashboardStats(githubUrl, leetcodeUrl, profile) {
     };
   }, [githubUrl, leetcodeUrl, profile]);
 
-  return { githubData, leetcodeData, websiteLeaderboard, isStatsLoading };
+  return { githubData, leetcodeData, websiteLeaderboard, isStatsLoading, hasAcceptedException, acceptedUntil };
 }
 
 // ----------------------------------------------------------------------
@@ -131,7 +140,7 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
   }, [profile]);
 
   // Hook: Fetch GitHub & LeetCode stats
-  const { githubData, leetcodeData, websiteLeaderboard, isStatsLoading } = useDashboardStats(
+  const { githubData, leetcodeData, websiteLeaderboard, isStatsLoading, hasAcceptedException, acceptedUntil } = useDashboardStats(
     githubUrl,
     leetcodeUrl,
     profile
@@ -182,6 +191,10 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
       }),
     [currentLeaderboardEntry, leetcodeData, profile]
   );
+
+  const acceptedUntilText = acceptedUntil
+    ? new Date(acceptedUntil).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+    : null;
 
   if (isLoading) {
     return (
@@ -532,14 +545,22 @@ export default function DashboardTab({ profile, fileName, isLoading }) {
               <span className="dt-activity-icon"><Flame size={18} /></span>
             </div>
             <p className={`dt-activity-value ${isCurrentUserActive ? "is-active" : "is-inactive"}`}>
-              {isCurrentUserActive ? "Active" : "Inactive"}
+              {hasAcceptedException ? "Request accepted" : isCurrentUserActive ? "Active" : "Inactive"}
             </p>
             <span className="dt-activity-description">
-              {isCurrentUserActive
+              {hasAcceptedException
+                ? acceptedUntilText
+                  ? `Your mentor accepted your LeetCode exception request. Valid until ${acceptedUntilText}.`
+                  : "Your mentor accepted your LeetCode exception request."
+                : isCurrentUserActive
                 ? "You are currently active on LeetCode."
                 : "No recent LeetCode activity detected."}
             </span>
+            {hasAcceptedException && (
+              <span className="dt-activity-tag"><BadgeCheck size={14} /> Request accepted</span>
+            )}
           </div>
+          <RequestException />
         </div>
       </div>
     </div>

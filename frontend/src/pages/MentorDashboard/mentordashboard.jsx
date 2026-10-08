@@ -1,12 +1,15 @@
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Home } from "lucide-react";
+import { AlertTriangle, Home } from "lucide-react";
 
 import Sidebar from "./sidebar";
 import DashboardContent from "./dashboardcontent";
 import Overview from "./Overview";
 import SettingsContent from "./settingsconetnt";
 import Assigned from "./Assigned";
-import MentorReview from "./MentorReview";
+import ExceptionRequests from "./ExceptionRequests";
+
+import { getSquads } from "../../api/routes/MentorDashboard/main.js";
 
 import "./mentordashboard.css";
 
@@ -24,6 +27,28 @@ const MentorDashboard = ({ profile, isLoading = false }) => {
     profile?.user_metadata?.full_name ||
     profile?.user_metadata?.name ||
     "Arun Kumar";
+
+  // Whether the mentor has at least one squad (mentor_squads). null =
+  // unknown/loading → nothing rendered, so there is no flash of a false
+  // notice. Re-checked on every tab change so it clears right after
+  // squads are saved on the Settings page.
+  const [hasSquad, setHasSquad] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSquads()
+      .then((res) => {
+        if (cancelled) return;
+        setHasSquad((res?.count || res?.squads?.length || 0) > 0);
+      })
+      .catch(() => {
+        // Keep the last known state on network errors — never show a
+        // "no squad" notice for a mentor who actually has squads.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeNav]);
 
   return (
     <div className="mentor-dashboard">
@@ -69,6 +94,20 @@ const MentorDashboard = ({ profile, isLoading = false }) => {
 
         </header>
 
+        {hasSquad === false && activeNav !== "Settings" && (
+          <div className="no-squad-notice" role="status">
+            <AlertTriangle size={16} />
+            <span>
+              <strong>No squad assigned yet.</strong>{" "}
+              Add at least one squad in Settings to assign students and run
+              LeetCode sessions.
+            </span>
+            <button type="button" onClick={() => setActiveNav("Settings")}>
+              Go to Settings
+            </button>
+          </div>
+        )}
+
         <div className="dashboard-body">
 
           {activeNav === "Dashboard" && (
@@ -80,11 +119,11 @@ const MentorDashboard = ({ profile, isLoading = false }) => {
           )}
 
           {activeNav === "Assigned" && (
-            <Assigned profile={profile} />
+            <Assigned profile={profile} onOpenExceptions={() => setActiveNav("Exception Requests")} />
           )}
 
-          {activeNav === "Mentor Review" && (
-            <MentorReview profile={profile} />
+          {activeNav === "Exception Requests" && (
+            <ExceptionRequests profile={profile} />
           )}
 
           {activeNav === "Settings" && (
