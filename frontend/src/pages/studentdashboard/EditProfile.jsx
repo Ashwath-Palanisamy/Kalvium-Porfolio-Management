@@ -18,6 +18,8 @@ import {
   Lock,
   PanelLeftClose,
   PanelLeftOpen,
+  Menu,
+  X,
   FileText,
   Save,
   ExternalLink,
@@ -77,6 +79,27 @@ export default function ProfileTab({
     navigate(studentTabPath(studentLabelToSlug(label)));
   };
   const [isCollapsed, setIsCollapsed] = useState(false);
+  // Mobile hamburger (<=768px): nav rows are hidden until the menu opens.
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    const onChange = (e) => {
+      setIsMobile(e.matches);
+      if (e.matches) setIsCollapsed(false); // sidebar always expanded on mobile
+      else setMobileOpen(false); // menu state irrelevant on desktop
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  const handleSidebarToggle = () => {
+    if (isMobile) setMobileOpen((open) => !open);
+    else setIsCollapsed((collapsed) => !collapsed);
+  };
   const [profile, setProfile] = useState(profileData || {});
   const [image, setImage] = useState(null);
   const [cropImage, setCropImage] = useState("");
@@ -431,7 +454,7 @@ export default function ProfileTab({
           </div>
         )}
 
-        <aside className={`pm-sidebar ${isCollapsed ? "is-collapsed" : ""}`}>
+        <aside className={`pm-sidebar ${isCollapsed ? "is-collapsed" : ""} ${mobileOpen ? "is-mobile-open" : ""}`}>
           <div className="pm-brand-header">
             {!isCollapsed && (
               <div className="pm-brand">
@@ -447,11 +470,18 @@ export default function ProfileTab({
             <button
               type="button"
               className="pm-collapse-btn"
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-              aria-label="Toggle Sidebar"
+              onClick={handleSidebarToggle}
+              title={isMobile ? (mobileOpen ? "Close menu" : "Open menu") : isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+              aria-label={isMobile ? (mobileOpen ? "Close menu" : "Open menu") : "Toggle Sidebar"}
+              aria-expanded={isMobile ? mobileOpen : !isCollapsed}
             >
-              {isCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+              {isMobile ? (
+                mobileOpen ? <X size={18} /> : <Menu size={18} />
+              ) : isCollapsed ? (
+                <PanelLeftOpen size={18} />
+              ) : (
+                <PanelLeftClose size={18} />
+              )}
             </button>
           </div>
 
@@ -461,7 +491,10 @@ export default function ProfileTab({
                 key={label}
                 type="button"
                 className={`pm-nav-item ${activeNav === label ? "is-active" : ""}`}
-                onClick={() => setActiveNav(label)}
+                onClick={() => {
+                  setActiveNav(label);
+                  if (isMobile) setMobileOpen(false);
+                }}
                 title={isCollapsed ? label : ""}
               >
                 <Icon size={18} strokeWidth={2} />

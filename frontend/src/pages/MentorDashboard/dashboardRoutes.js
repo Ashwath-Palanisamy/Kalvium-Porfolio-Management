@@ -10,15 +10,20 @@ export const DEFAULT_TAB = "dashboard";
 export const MENTOR_BASE = "/mentor/dashboard";
 export const STUDENT_BASE = "/student/dashboard";
 
-export const MENTOR_TABS = ["dashboard", "overview", "assigned", "review", "settings"];
+export const MENTOR_TABS = ["dashboard", "overview", "assigned", "exceptions", "settings"];
 
 export const MENTOR_TAB_LABELS = {
   dashboard: "Dashboard",
   overview: "Overview",
   assigned: "Assigned",
-  review: "Mentor Review",
+  exceptions: "Exception Requests",
   settings: "Settings",
 };
+
+// External mentor tool (own app, not part of this bundle). Clicking the
+// sidebar Quick Access entry or the Dashboard stats card opens it directly
+// in a new tab — there is deliberately no in-app route for it.
+export const DOJO_PULSE_URL = "https://dojo-pulse.vercel.app/";
 
 export function mentorSlugToLabel(slug) {
   return MENTOR_TAB_LABELS[slug] ?? "Dashboard";

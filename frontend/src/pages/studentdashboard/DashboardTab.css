@@ -308,6 +308,10 @@
   width: 100%;
 }
 
+.dt-dashboard-bottom-grid .req-exc-card {
+  grid-column: 1 / -1;
+}
+
 .dt-leaderboard-section {
   width: 100%;
   padding: 0;

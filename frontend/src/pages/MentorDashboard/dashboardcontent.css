@@ -29,14 +29,65 @@
 }
 
 /* ===========================
+   DOJO PULSE CARD (shares the stats row with .stats-card)
+=========================== */
+
+.dojo-pulse-card {
+  text-decoration: none;
+}
+
+/* A name, not a number — 44px (made for "35") is too big here. */
+.dojo-pulse-card h2 {
+  font-size: 26px;
+  line-height: 1.15;
+  margin: 10px 0 12px;
+}
+
+.dojo-pulse-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
+}
+
+.dojo-pulse-card:hover .dojo-pulse-cta {
+  background: #e0263d;
+}
+
+/* Same look as .stats-card button (which only styles real <button>s).
+   Higher specificity than `.stats-card > span` so the span wins. */
+.stats-card .dojo-pulse-cta {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  border: none;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #ff3b3b;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(255, 59, 59, 0.2);
+}
+
+/* ===========================
    STATS CARD & ROW
 =========================== */
 
 .stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
   margin-bottom: 36px;
 }
 
 .stats-card {
+  display: flex;
+  flex-direction: column;
   width: min(100%, 340px);
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -84,6 +135,7 @@
 }
 
 .stats-card button {
+  margin-top: auto;
   width: 100%;
   border: none;
   padding: 12px 16px;

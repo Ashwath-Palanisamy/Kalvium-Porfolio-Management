@@ -264,8 +264,8 @@ html, body {
 .pm-nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
+  gap: 10px;
+  padding: 10px 12px;
   border-radius: 10px;
   background: none;
   border: none;
@@ -276,6 +276,20 @@ html, body {
   text-align: left;
   transition: all 0.15s ease;
   white-space: nowrap;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.pm-nav-item > svg {
+  flex-shrink: 0;
+}
+
+.pm-nav-item > span:first-of-type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .pm-sidebar.is-collapsed .pm-nav-item {
@@ -292,6 +306,23 @@ html, body {
   background: var(--pm-red-light);
   color: var(--pm-red);
   font-weight: 600;
+}
+
+.pm-nav-badge {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 /* Logout Button */
@@ -922,8 +953,11 @@ html, body {
     width: 100%;
   }
 
+  /* Hamburger toggle (replaces the desktop collapse icon) */
   .pm-collapse-btn {
-    display: none;
+    display: flex;
+    padding: 8px;
+    margin-left: auto;
   }
 
   .pm-nav {
@@ -938,6 +972,20 @@ html, body {
 
   .pm-nav::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Hamburger menu: nav rows stay hidden until .pm-sidebar.is-mobile-open. */
+  .pm-sidebar .pm-nav {
+    display: none;
+  }
+
+  .pm-sidebar.is-mobile-open .pm-nav {
+    display: flex;
+  }
+
+  /* No empty grid rows/gaps while the menu is closed. */
+  .pm-sidebar:not(.is-mobile-open) {
+    gap: 0;
   }
 
   .pm-nav-item {
