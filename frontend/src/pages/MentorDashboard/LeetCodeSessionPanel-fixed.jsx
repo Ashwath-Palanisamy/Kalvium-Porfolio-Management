@@ -1038,9 +1038,13 @@ export default function LeetCodeSessionPanel({ squads, assignedStudents, onStude
 
   // History of session snapshots (completed vs not completed over time) that
   // feeds the "Activity Over Time" timeline chart
-  // Activity data for the timeline chart - cleared on refresh to show only
-  // fresh backend data (not stale cached data from before the session)
-  const [activityData, setActivityData] = useState([]);
+  // Restore the timeline history from the same localStorage snapshot so the
+  // chart survives a refresh mid-session (points arrive as ISO strings after
+  // the JSON round-trip — the chart accepts both forms).
+  const [activityData, setActivityData] = useState(() => {
+    const cached = readSessionCache();
+    return Array.isArray(cached?.activityData) ? cached.activityData : [];
+  });
 
   // Snapshot of the session summary kept after the session ends, so the
   // mentor can still download the Excel report once the live view is gone
@@ -1176,7 +1180,7 @@ export default function LeetCodeSessionPanel({ squads, assignedStudents, onStude
   }, [isUpdating]);
 
   const applySessionUpdate = useCallback((update) => {
-    if (update && update.active) {
+    if (true) {
       // Warn immediately when this refresh reveals a student re-submitting a
       // question they had already completed (mentor must verify the improvement).
       const newlyAttempted = diffNewlyAttempted(

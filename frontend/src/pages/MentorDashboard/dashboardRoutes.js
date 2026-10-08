@@ -10,7 +10,7 @@ export const DEFAULT_TAB = "dashboard";
 export const MENTOR_BASE = "/mentor/dashboard";
 export const STUDENT_BASE = "/student/dashboard";
 
-export const MENTOR_TABS = ["dashboard", "overview", "assigned", "exceptions", "settings"];
+export const MENTOR_TABS = ["dashboard", "overview", "assigned", "exceptions", "settings", "leetcode"];
 
 export const MENTOR_TAB_LABELS = {
   dashboard: "Dashboard",
@@ -18,6 +18,7 @@ export const MENTOR_TAB_LABELS = {
   assigned: "Assigned",
   exceptions: "Exception Requests",
   settings: "Settings",
+  leetcode: "LeetCode",
 };
 
 // External mentor tool (own app, not part of this bundle). Clicking the
