@@ -8,6 +8,7 @@ import Overview from "./Overview";
 import SettingsContent from "./settingsconetnt";
 import Assigned from "./Assigned";
 import ExceptionRequests from "./ExceptionRequests";
+import LeetCodeSessionPanel from "./LeetCodeSessionPanel";
 
 import { getSquads } from "../../api/routes/MentorDashboard/main.js";
 
@@ -128,6 +129,10 @@ const MentorDashboard = ({ profile, isLoading = false }) => {
 
           {activeNav === "Settings" && (
             <SettingsContent profile={profile} />
+          )}
+
+          {activeNav === "LeetCode" && (
+            <LeetCodeSessionPanel />
           )}
 
         </div>
