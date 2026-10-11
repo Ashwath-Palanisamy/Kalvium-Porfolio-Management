@@ -198,8 +198,15 @@ function SessionStudentRow({ student, status }) {
       </div>
 
       <div className="ls-student-info">
-        <span className="ls-student-name">{student.name}</span>
-        <span className="ls-student-email">
+        <span className="ls-student-name" title={student.name}>{student.name}</span>
+        <span
+          className="ls-student-email"
+          title={
+            student.leetcode_username
+              ? `@${student.leetcode_username}`
+              : student.kalvium_email || student.email || "No LeetCode handle"
+          }
+        >
           {student.leetcode_username
             ? `@${student.leetcode_username}`
             : student.kalvium_email || student.email || "No LeetCode handle"}
