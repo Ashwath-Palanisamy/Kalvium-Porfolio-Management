@@ -6,7 +6,7 @@ import "./RequestException.css";
 export default function RequestException() {
   const [reason, setReason] = useState("");
   const [days, setDays] = useState(3);
-  const [status, setStatus] = useState({ loading: true, latest: null, hasAccepted: false, acceptedUntil: null, hasSquad: true, monthlyUsed: 0, monthlyLimit: 2 });
+  const [status, setStatus] = useState({ loading: true, requests: [], latest: null, hasAccepted: false, acceptedUntil: null, hasSquad: true, monthlyUsed: 0, monthlyLimit: 2 });
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
