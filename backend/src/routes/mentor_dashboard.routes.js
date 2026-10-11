@@ -2070,7 +2070,17 @@ async function decideExceptionRequest(req, res, decision) {
       .maybeSingle();
     if (fetchError) throw fetchError;
     if (!existing) return res.status(404).json({ error: "Request not found" });
-    if (existing.status !== "pending") return res.status(409).json({ error: "Already " + existing.status });
+    // A mentor may act on a pending request (approve / reject) and may also
+    // DECLINE (revoke) a previously-approved exception at any time. Re-approving
+    // an already-decided request, or re-rejecting a rejected one, is a no-op.
+    if (decision === "approved" && existing.status !== "pending") {
+      return res.status(409).json({ error: "Already " + existing.status });
+    }
+    if (decision === "rejected" && existing.status === "rejected") {
+      return res.status(409).json({ error: "Already rejected" });
+    }
+    // Revoking = declining a request that was already approved.
+    const isRevoke = decision === "rejected" && existing.status === "approved";
     let allowed = existing.mentor_user_id === mentorUserId;
     if (!allowed) {
       const { data: assignment } = await supabaseAdmin
@@ -2090,7 +2100,7 @@ async function decideExceptionRequest(req, res, decision) {
       .select()
       .single();
     if (updateError) throw updateError;
-    notifyStudentOfExceptionDecision({ studentUserId: existing.student_user_id, decision, mentorNote, days: existing.requested_days }).catch(() => {});
+    notifyStudentOfExceptionDecision({ studentUserId: existing.student_user_id, decision, mentorNote, days: existing.requested_days, revoked: isRevoke }).catch(() => {});
     return res.status(200).json({ success: true, request: updated });
   } catch (err) {
     return res.status(500).json({ error: "Failed to update request" });
@@ -2100,7 +2110,7 @@ async function decideExceptionRequest(req, res, decision) {
 router.patch("/exception-requests/:id/approve", requireAuth, requireMentor, (req, res) => decideExceptionRequest(req, res, "approved"));
 router.patch("/exception-requests/:id/reject", requireAuth, requireMentor, (req, res) => decideExceptionRequest(req, res, "rejected"));
 
-async function notifyStudentOfExceptionDecision({ studentUserId, decision, mentorNote, days }) {
+async function notifyStudentOfExceptionDecision({ studentUserId, decision, mentorNote, days, revoked = false }) {
   try {
     if (!process.env.BREVO_API_KEY) return;
     let studentEmail = null;
@@ -2118,14 +2128,26 @@ async function notifyStudentOfExceptionDecision({ studentUserId, decision, mento
     if (!recipient) return;
     const accepted = decision === "approved";
     const safe = (v) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    // Three distinct outcomes: accepted, declined-after-approval (revoked),
+    // and a plain rejection of a pending request.
+    const subject = accepted
+      ? "[KPM] - Your LeetCode Exception Was Accepted"
+      : revoked
+        ? "[KPM] - Your LeetCode Exception Was Declined"
+        : "[KPM] - Update on Your LeetCode Exception Request";
+    const bodyLine = accepted
+      ? `Your mentor has <strong>accepted</strong> your LeetCode exception request. Your dashboard now shows a <strong>Request accepted</strong> tag on your LeetCode Status for <strong>${Number(days) || 30} day${Number(days) === 1 ? "" : "s"}</strong>.`
+      : revoked
+        ? `Your mentor has <strong>declined</strong> the LeetCode exception that was previously accepted. Your exception is no longer active, so please resume solving on <a href="https://leetcode.com/problemset/">LeetCode</a> to stay on track.`
+        : `Your mentor has <strong>declined</strong> your LeetCode exception request.`;
     await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: { accept: "application/json", "content-type": "application/json", "api-key": process.env.BREVO_API_KEY },
       body: JSON.stringify({
         sender: { name: "Kalvium Portfolio Management", email: "kpm-squad@googlegroups.com" },
         to: [{ email: recipient, name: studentName }],
-        subject: accepted ? "[KPM] - Your LeetCode Exception Was Accepted" : "[KPM] - Update on Your LeetCode Exception Request",
-        htmlContent: `<div style="font-family: Arial, Helvetica, sans-serif; color:#333; font-size:14px; line-height:1.6;"><p>Hi ${safe(studentName)},</p><p>Your mentor has <strong>${accepted ? "accepted" : "rejected"}</strong> your LeetCode exception request.${accepted ? ` Your dashboard now shows a <strong>Request accepted</strong> tag on your LeetCode Status for <strong>${Number(days) || 30} day${Number(days) === 1 ? "" : "s"}</strong>.` : ""}</p>${mentorNote ? `<blockquote style="border-left:3px solid #2563eb;padding-left:12px;color:#555;">${safe(mentorNote)}</blockquote>` : ""}<p><a href="https://kalvium-portfolio.vercel.app/student/dashboard" style="display:inline-block;background-color:#16a34a;color:#fff;text-decoration:none;padding:10px 20px;border-radius:6px;">View My Dashboard</a></p><p>Best Regards,<br>Kalvium Portfolio Management</p></div>`,
+        subject,
+        htmlContent: `<div style="font-family: Arial, Helvetica, sans-serif; color:#333; font-size:14px; line-height:1.6;"><p>Hi ${safe(studentName)},</p><p>${bodyLine}</p>${mentorNote ? `<blockquote style="border-left:3px solid #2563eb;padding-left:12px;color:#555;">${safe(mentorNote)}</blockquote>` : ""}<p><a href="https://kalvium-portfolio.vercel.app/student/dashboard" style="display:inline-block;background-color:#16a34a;color:#fff;text-decoration:none;padding:10px 20px;border-radius:6px;">View My Dashboard</a></p><p>Best Regards,<br>Kalvium Portfolio Management</p></div>`,
       }),
     });
   } catch (err) {

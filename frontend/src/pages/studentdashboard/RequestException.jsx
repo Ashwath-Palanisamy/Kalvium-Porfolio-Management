@@ -14,7 +14,7 @@ export default function RequestException() {
   const MIN_REASON = 10;
   const MAX_REASON = 2000;
   const MIN_DAYS = 1;
-  const MAX_DAYS = 7;
+  const MAX_DAYS = 4;
   const DAY_OPTIONS = Array.from({ length: MAX_DAYS - MIN_DAYS + 1 }, (_, i) => MIN_DAYS + i);
   const trimmedLen = reason.trim().length;
   const hasSquad = status.hasSquad !== false;
@@ -89,8 +89,9 @@ export default function RequestException() {
   };
 
   const latest = status.latest;
-  const acceptedUntilText = status.acceptedUntil
-    ? new Date(status.acceptedUntil).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+  // The GET /exception-request route returns the active window as `activeUntil`.
+  const acceptedUntilText = status.activeUntil
+    ? new Date(status.activeUntil).toLocaleDateString(undefined, { month: "short", day: "numeric" })
     : null;
   const controlsDisabled = submitting || !hasSquad || latest?.status === "pending" || status.requests.length > 0 || quotaReached;
 
@@ -113,11 +114,13 @@ export default function RequestException() {
       ) : (
         <div className="req-exc-current">
           {status.hasAccepted ? (
-            <span className="req-exc-pill is-accepted"><BadgeCheck size={14} /> Request accepted{acceptedUntilText ? ` · until ${acceptedUntilText}` : ""}</span>
+            <span className="req-exc-pill is-accepted"><BadgeCheck size={14} /> Exception active{acceptedUntilText ? ` · until ${acceptedUntilText}` : ""}</span>
+          ) : latest?.status === "approved" ? (
+            <span className="req-exc-pill is-expired"><Clock size={14} /> Exception expired</span>
           ) : latest?.status === "pending" ? (
             <span className="req-exc-pill is-pending"><Clock size={14} /> Pending mentor review{latest?.requested_days ? ` · ${latest.requested_days} day${latest.requested_days === 1 ? "" : "s"}` : ""}</span>
           ) : latest?.status === "rejected" ? (
-            <span className="req-exc-pill is-rejected"><XCircle size={14} /> Last request rejected</span>
+            <span className="req-exc-pill is-rejected"><XCircle size={14} /> Exception declined</span>
           ) : (
             <span className="req-exc-pill is-none">No exception requested yet</span>
           )}

@@ -40,8 +40,11 @@ const ExceptionRequests = () => {
       const note = notes[id] || "";
       if (action === "approve") await approveExceptionRequest(id, note);
       else await rejectExceptionRequest(id, note);
+      // Only a pending request leaves the pending queue; declining an already
+      // approved exception keeps the pending count untouched.
+      const wasPending = requests.find((r) => r.id === id)?.status === "pending";
       setRequests((prev) => prev.map((r) => (r.id === id ? { ...r, status: action === "approve" ? "approved" : "rejected", mentor_note: note } : r)));
-      setPendingCount((c) => Math.max(0, c - 1));
+      if (wasPending) setPendingCount((c) => Math.max(0, c - 1));
     } catch (err) {
       setError(err?.response?.data?.error || err.message || "Failed to update");
     } finally {
@@ -73,7 +76,14 @@ const ExceptionRequests = () => {
         </div></div>)}
         {history.length > 0 && (<div className="exc-section"><h2 className="exc-section-title"><BadgeCheck size={16} /> Reviewed ({history.length})</h2><div className="review-list">
           {history.map((req) => (
-            <div key={req.id} className="review-card exc-card is-decided"><div className="review-student"><div><h3>{req.student_name || "Student"}</h3><p>{req.student_email || ""}</p></div></div><div className="exc-reason"><span className="exc-days-chip"><CalendarDays size={12} /> {req.requested_days || 3} day{(req.requested_days || 3) === 1 ? "" : "s"}</span><p className="exc-reason-text">{req.reason}</p>{req.mentor_note && (<p className="exc-mentor-note">Note: {req.mentor_note}</p>)}</div><span className={"exc-status " + req.status}>{req.status}</span></div>))}
+            <div key={req.id} className="review-card exc-card is-decided"><div className="review-student"><div><h3>{req.student_name || "Student"}</h3><p>{req.student_email || ""}</p></div></div><div className="exc-reason"><span className="exc-days-chip"><CalendarDays size={12} /> {req.requested_days || 3} day{(req.requested_days || 3) === 1 ? "" : "s"}</span><p className="exc-reason-text">{req.reason}</p>{req.mentor_note && (<p className="exc-mentor-note">Note: {req.mentor_note}</p>)}
+              {req.status === "approved" && (
+                <div className="exc-revoke">
+                  <input className="exc-note-input" placeholder="Optional note to student..." value={notes[req.id] || ""} onChange={(e) => setNotes((p) => ({ ...p, [req.id]: e.target.value }))} />
+                  <button className="review-btn reject" disabled={actingId === req.id} onClick={() => decide(req.id, "reject")}><XCircle size={16} />{actingId === req.id ? "Saving..." : "Decline"}</button>
+                </div>
+              )}
+            </div><span className={"exc-status " + req.status}>{req.status}</span></div>))}
         </div></div>)}
       </>)}
     </div>
