@@ -558,7 +558,7 @@ router.post("/exception-request", authRouteLimiter, requireAuth, requireStudent,
         }
         // Requested duration in days. Students pick e.g. 3-5 days.
         const MIN_EXCEPTION_DAYS = 1;
-        const MAX_EXCEPTION_DAYS = 7;
+        const MAX_EXCEPTION_DAYS = 4;
         const rawDays = Number(req.body?.days ?? req.body?.requestedDays ?? 3);
         if (!Number.isFinite(rawDays) || !Number.isInteger(rawDays) || rawDays < MIN_EXCEPTION_DAYS || rawDays > MAX_EXCEPTION_DAYS) {
             return res.status(400).json({ error: `Please choose between ${MIN_EXCEPTION_DAYS} and ${MAX_EXCEPTION_DAYS} days.` });

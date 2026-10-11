@@ -19,6 +19,38 @@ const LEETCODE_GRAPHQL_URL = "https://leetcode.com/graphql";
 const RAPID_SOLVE_SECONDS = 0;
 
 // ============================================================
+// CALENDAR-DAY INACTIVITY HELPERS
+// ============================================================
+// The daily report must reason in CALENDAR days, not a rolling
+// 24h window. A rolling window mislabels a student who solved
+// yesterday as "1 day inactive" the moment the cron runs more
+// than 24h after that solve (e.g. solved 10/10 09:00, cron runs
+// 11/10 10:00 => 25h => wrongly "1 day inactive"). Calendar math
+// keeps "solved yesterday" active (0 days) and only starts
+// counting once a full calendar day with no solve has passed.
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+const startOfLocalDay = (value) => {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+};
+
+// Whole calendar days of inactivity (completed days with no solve,
+// counting up to yesterday). Returns null when there is no valid
+// recorded solve. "Solved today" or "solved yesterday" => 0 (active).
+const getCalendarDaysInactive = (lastSolvedAt, now = Date.now()) => {
+  if (!lastSolvedAt) return null;
+  const solvedTime = new Date(lastSolvedAt).getTime();
+  if (Number.isNaN(solvedTime)) return null;
+  const dayDiff =
+    (startOfLocalDay(now) - startOfLocalDay(solvedTime)) / ONE_DAY_MS;
+  // Subtract 1 so "solved yesterday" reads as 0 inactive days, not 1.
+  return Math.max(0, Math.round(dayDiff) - 1);
+};
+
+
+// ============================================================
 // VALIDATE LEETCODE USERNAME
 // ============================================================
 
@@ -915,6 +947,67 @@ async function notifyMentorsAboutInactiveStudents() {
       `[EMAIL SYSTEM] Students without LeetCode profile: ${missingProfileStudents.length}`,
     );
 
+    // --------------------------------------------------------
+    // 5b. ACTIVE LEETCODE EXCEPTIONS
+    // A student whose mentor approved an exception (and whose
+    // requested_days window is still open) is intentionally
+    // inactive — surface that in the report so the mentor does
+    // not chase them. Mirrors the accepted/active logic in the
+    // student GET /exception-request route.
+    // --------------------------------------------------------
+    const exceptionByUser = {};
+    const inactiveUserIds = [
+      ...new Set((inactiveRecords || []).map((r) => r.user_id).filter(Boolean)),
+    ];
+
+    if (inactiveUserIds.length > 0) {
+      try {
+        const { data: exceptionRows, error: exceptionError } =
+          await supabaseAdmin
+            .from("leetcode_exception_requests")
+            .select(
+              "student_user_id, requested_days, reviewed_at, updated_at, created_at",
+            )
+            .eq("status", "approved")
+            .in("student_user_id", inactiveUserIds);
+
+        if (exceptionError) throw exceptionError;
+
+        const nowMsLocal = Date.now();
+        const DAY_MS_LOCAL = 24 * 60 * 60 * 1000;
+
+        for (const row of exceptionRows || []) {
+          if (!row?.student_user_id) continue;
+          // Rows without requested_days (pre-migration) keep a 30-day window.
+          const days = Number(row.requested_days) || 30;
+          const reviewedMs = Date.parse(
+            row.reviewed_at || row.updated_at || row.created_at || "",
+          );
+          const expiresMs =
+            (Number.isFinite(reviewedMs) ? reviewedMs : nowMsLocal) +
+            days * DAY_MS_LOCAL;
+          if (expiresMs <= nowMsLocal) continue; // expired → no longer excused
+
+          const current = exceptionByUser[row.student_user_id];
+          if (!current || expiresMs > current.expiresMs) {
+            exceptionByUser[row.student_user_id] = { expiresMs, days };
+          }
+        }
+
+        console.log(
+          `[EMAIL SYSTEM] Students with active accepted exception: ${Object.keys(exceptionByUser).length}`,
+        );
+      } catch (err) {
+        if (!String(err?.message || "").includes("leetcode_exception_requests")) {
+          console.error(
+            "[EMAIL SYSTEM] Exception lookup failed:",
+            err.message,
+          );
+        }
+        // Best effort: the report still sends without the annotation.
+      }
+    }
+
     const mentorIdsToNotify = new Set();
 
     for (const record of inactiveRecords || []) {
@@ -988,8 +1081,6 @@ async function notifyMentorsAboutInactiveStudents() {
 
     const nowMs = Date.now();
 
-    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-
     for (const record of inactiveRecords || []) {
       const assignedMentors = studentToMentorsMap[record.user_id] || [];
 
@@ -997,13 +1088,21 @@ async function notifyMentorsAboutInactiveStudents() {
         ? new Date(record.last_solved_at)
         : null;
 
-      const daysInactive = lastSolvedDate
-        ? Math.floor((nowMs - lastSolvedDate.getTime()) / ONE_DAY_MS)
-        : null;
+      // Calendar-day inactivity: a student who solved yesterday reads as
+      // active (0 days), so they are never mislabeled "1 day inactive".
+      const daysInactive = getCalendarDaysInactive(record.last_solved_at, nowMs);
+
+      // Students who solved today or yesterday are active — keep them out of
+      // the inactivity report entirely.
+      if (daysInactive !== null && daysInactive <= 0) {
+        continue;
+      }
 
       const studentProfile = (allStudentProfiles || []).find(
         (profile) => profile.user_id === record.user_id,
       );
+
+      const exception = exceptionByUser[record.user_id];
 
       const student = {
         userId: record.user_id,
@@ -1017,6 +1116,14 @@ async function notifyMentorsAboutInactiveStudents() {
           : "Never / Unknown",
 
         daysInactive: daysInactive !== null ? daysInactive : "Unknown",
+
+        // Accepted exception shields this inactivity — the mentor sees the
+        // "accepted" badge in the email instead of chasing the student.
+        hasAcceptedException: !!exception,
+
+        exceptionUntil: exception
+          ? new Date(exception.expiresMs).toLocaleDateString()
+          : null,
       };
 
       for (const mentorId of assignedMentors) {
@@ -1107,7 +1214,15 @@ async function notifyMentorsAboutInactiveStudents() {
                   — Last active:
                   ${student.lastSolved}
                   (${student.daysInactive}
-                  days inactive)
+                  days inactive)${
+                    student.hasAcceptedException
+                      ? `<br><span style="color:#15803d; font-weight:600;">✅ LeetCode exception accepted${
+                          student.exceptionUntil
+                            ? ` — inactive until ${student.exceptionUntil}`
+                            : ""
+                        } (excused, no action needed)</span>`
+                      : ""
+                  }
                 </li>
               `,
           )
@@ -1326,8 +1441,6 @@ async function notifyInactiveStudentsDirectly() {
 
     const nowMs = Date.now();
 
-    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-
     const testEmail = process.env.TEST_EMAIL?.trim();
 
     let sentCount = 0;
@@ -1372,10 +1485,14 @@ async function notifyInactiveStudentsDirectly() {
         ? new Date(record.last_solved_at)
         : null;
 
-      const daysInactive =
-        lastSolvedDate && !Number.isNaN(lastSolvedDate.getTime())
-          ? Math.floor((nowMs - lastSolvedDate.getTime()) / ONE_DAY_MS)
-          : null;
+      // Calendar-day inactivity: solving yesterday counts as active, so the
+      // student is never emailed "1 day inactive" just because >24h elapsed.
+      const daysInactive = getCalendarDaysInactive(record.last_solved_at, nowMs);
+
+      // A student who solved today or yesterday is active — don't email them.
+      if (daysInactive !== null && daysInactive <= 0) {
+        continue;
+      }
 
       const daysText =
         daysInactive === null
