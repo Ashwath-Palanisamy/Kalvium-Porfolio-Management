@@ -627,6 +627,29 @@ router.post("/exception-request", authRouteLimiter, requireAuth, requireStudent,
             return res.status(403).json({ error: "You must be assigned to a squad before requesting an exception. Please contact your mentor." });
         }
 
+        // If no explicit per-student roster mentor was found in squad_students,
+        // resolve the mentor who owns the student's squad via mentor_squads (the
+        // authoritative squad -> mentor map). Without this fallback, students who
+        // are only linked to their mentor through their squad end up with a null
+        // mentor_user_id, so the "new exception request" email has no recipient
+        // and the request never surfaces on the mentor's dashboard.
+        if (!mentorUserId) {
+            const squadCandidates = [Number(squadId), String(squadId)];
+            for (const candidate of squadCandidates) {
+                try {
+                    const { data: mentorSquad } = await supabaseAdmin
+                        .from("mentor_squads")
+                        .select("mentor_user_id")
+                        .eq("squad_id", candidate)
+                        .maybeSingle();
+                    if (mentorSquad?.mentor_user_id) {
+                        mentorUserId = mentorSquad.mentor_user_id;
+                        break;
+                    }
+                } catch { /* best effort */ }
+            }
+        }
+
         let { data: created, error: insertError } = await supabaseAdmin
             .from("leetcode_exception_requests")
             .insert([{
