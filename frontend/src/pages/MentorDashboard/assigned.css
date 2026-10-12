@@ -226,6 +226,11 @@ body {
   color: var(--kalvium-red);
 }
 
+.metric-icon.bg-teal {
+  background: var(--accent-green-bg);
+  color: var(--accent-green);
+}
+
 .metric-data {
   display: flex;
   flex-direction: column;
@@ -287,6 +292,13 @@ body {
   flex: 1;
   flex-wrap: wrap;
   min-width: 0;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .search-box,
@@ -528,6 +540,12 @@ body {
 }
 
 .status-badge.active {
+  background: var(--accent-green-bg);
+  color: var(--accent-green);
+  border: 1px solid var(--accent-green-border);
+}
+
+.status-badge.accepted {
   background: var(--accent-green-bg);
   color: var(--accent-green);
   border: 1px solid var(--accent-green-border);

@@ -21,6 +21,7 @@ import {
   CheckSquare,
   Calendar,
   FileCode2,
+  BadgeCheck,
 } from "lucide-react";
 
 // API Services Imported from main.js
@@ -31,13 +32,16 @@ import {
   assignStudent,
   unassignStudent,
   assignBulkStudents,
+  unassignBulkStudents,
 } from "../../api/routes/MentorDashboard/main.js";
 
 import { getGithubStats, getLeetcodeStats } from "../../api/routes/Public/StudentInfo.js";
-import { getExceptionRequestCount } from "../../api/routes/Mentor/exception.js";
+import { getExceptionRequests, getExceptionRequestCount } from "../../api/routes/Mentor/exception.js";
 import {
   isRecentlyActive as isStudentActive,
   isOneToSixDaysInactive as is1DayInactiveStudent,
+  buildActiveExceptionIds,
+  hasActiveException,
 } from "../../utils/activity";
 
 import "./assigned.css";
@@ -197,8 +201,19 @@ export default function Assigned({ onOpenExceptions }) {
   });
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [bulkAssigning, setBulkAssigning] = useState(false);
+  const [bulkUnassigning, setBulkUnassigning] = useState(false);
   // Exception requests badge — head-count endpoint, loads in parallel (fast)
   const [exceptionCount, setExceptionCount] = useState(0);
+  // Students whose LeetCode exception request has been accepted (and whose
+  // exception window is still open). They must show a "Request accepted" badge
+  // instead of being flagged inactive.
+  const [activeExceptionIds, setActiveExceptionIds] = useState(() => {
+    try {
+      return buildActiveExceptionIds(readAssignedCache()?.activeExceptionRequests || []);
+    } catch {
+      return new Set();
+    }
+  });
 
   // Filters & Search State
   const [searchQuery, setSearchQuery] = useState("");
@@ -230,10 +245,12 @@ export default function Assigned({ onOpenExceptions }) {
   const fetchDashboardData = async ({ silent = false } = {}) => {
     if (!silent) setLoading(true);
     try {
-      const [squadsData, assignedData, allStudentsData] = await Promise.all([
+      const [squadsData, assignedData, allStudentsData, exceptionRes] = await Promise.all([
         getSquads(),
         getAssignedStudents(),
         getStudents(),
+        // Best-effort: a 404 just means the backend predates the endpoint.
+        getExceptionRequests().catch(() => ({ requests: [] })),
       ]);
 
       // Normalize array extraction for responses wrapped in objects
@@ -262,11 +279,13 @@ export default function Assigned({ onOpenExceptions }) {
       setMentorSquads(squadsList);
       setAssignedStudents(assignedList);
       setAllStudents(allStudentsList);
+      setActiveExceptionIds(buildActiveExceptionIds(exceptionRes?.requests || []));
       // Permanently persist so refresh restores data (not just this session).
       writeAssignedCache({
         assignedStudents: assignedList,
         allStudents: allStudentsList,
         mentorSquads: squadsList,
+        activeExceptionRequests: exceptionRes?.requests || [],
         fetchedAt: new Date().toISOString(),
       });
     } catch (err) {
@@ -413,6 +432,43 @@ export default function Assigned({ onOpenExceptions }) {
     }
   };
 
+  // Unassign every student currently assigned to this mentor, scoped to the
+  // squad filter: when a specific squad is selected it clears just that squad,
+  // otherwise it clears the whole roster. Uses the bulk endpoint so a large
+  // squad unassigns in a single click.
+  const handleUnassignAll = async () => {
+    const scopedStudents =
+      selectedSquadFilter === "all"
+        ? safeAssignedStudents
+        : safeAssignedStudents.filter(
+            (s) => String(s.squad_id) === String(selectedSquadFilter)
+          );
+
+    if (scopedStudents.length === 0) return;
+
+    const scopeLabel =
+      selectedSquadFilter === "all"
+        ? "your ENTIRE roster"
+        : `Squad ${selectedSquadFilter}`;
+    const confirmMsg = `Are you sure you want to unassign ALL ${scopedStudents.length} student(s) from ${scopeLabel}? They will be removed from your assigned list.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    const studentUserIds = scopedStudents
+      .map((s) => s.student_user_id || s.user_id || s.id)
+      .filter(Boolean);
+
+    setBulkUnassigning(true);
+    try {
+      await unassignBulkStudents(studentUserIds);
+      await fetchDashboardData();
+    } catch (err) {
+      console.error("Bulk unassign error:", err);
+      alert("An error occurred while unassigning students.");
+    } finally {
+      setBulkUnassigning(false);
+    }
+  };
+
   // Safe Arrays for Memoization Guards
   const safeAssignedStudents = useMemo(
     () => (Array.isArray(assignedStudents) ? assignedStudents : []),
@@ -438,18 +494,23 @@ export default function Assigned({ onOpenExceptions }) {
 
   // Computed Metrics
   const activeCount = useMemo(
-    () => assignedWithLiveData.filter((s) => isStudentActive(s) && !is1DayInactiveStudent(s)).length,
-    [assignedWithLiveData]
+    () => assignedWithLiveData.filter((s) => isStudentActive(s) && !is1DayInactiveStudent(s) && !hasActiveException(s, activeExceptionIds)).length,
+    [assignedWithLiveData, activeExceptionIds]
   );
 
   const oneDayInactiveCount = useMemo(
-    () => assignedWithLiveData.filter((s) => is1DayInactiveStudent(s)).length,
-    [assignedWithLiveData]
+    () => assignedWithLiveData.filter((s) => is1DayInactiveStudent(s) && !hasActiveException(s, activeExceptionIds)).length,
+    [assignedWithLiveData, activeExceptionIds]
   );
 
   const inactiveCount = useMemo(
-    () => assignedWithLiveData.filter((s) => !isStudentActive(s)).length,
-    [assignedWithLiveData]
+    () => assignedWithLiveData.filter((s) => !isStudentActive(s) && !hasActiveException(s, activeExceptionIds)).length,
+    [assignedWithLiveData, activeExceptionIds]
+  );
+
+  const acceptedExceptionCount = useMemo(
+    () => assignedWithLiveData.filter((s) => hasActiveException(s, activeExceptionIds)).length,
+    [assignedWithLiveData, activeExceptionIds]
   );
 
   const filteredStudents = useMemo(() => {
@@ -463,10 +524,15 @@ export default function Assigned({ onOpenExceptions }) {
 
       const active = isStudentActive(student);
       const is1DayInactive = is1DayInactiveStudent(student);
+      // Students with an open accepted exception are "excused" — they only
+      // appear under "All Statuses" / "Request accepted" and show a
+      // "Request accepted" badge, never under the active/inactive buckets.
+      const excused = hasActiveException(student, activeExceptionIds);
 
-      if (filterStatus === "active" && (!active || is1DayInactive)) return false;
-      if (filterStatus === "1day_inactive" && !is1DayInactive) return false;
-      if (filterStatus === "inactive" && active) return false;
+      if (filterStatus === "active" && (!active || is1DayInactive || excused)) return false;
+      if (filterStatus === "1day_inactive" && (!is1DayInactive || excused)) return false;
+      if (filterStatus === "inactive" && (active || excused)) return false;
+      if (filterStatus === "request_accepted" && !excused) return false;
 
       if (searchQuery.trim() !== "") {
         const query = searchQuery.toLowerCase();
@@ -478,7 +544,7 @@ export default function Assigned({ onOpenExceptions }) {
 
       return true;
     });
-  }, [assignedWithLiveData, selectedSquadFilter, filterStatus, searchQuery]);
+  }, [assignedWithLiveData, selectedSquadFilter, filterStatus, searchQuery, activeExceptionIds]);
 
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage) || 1;
   const paginatedStudents = useMemo(() => {
@@ -722,6 +788,19 @@ export default function Assigned({ onOpenExceptions }) {
             <span className="metric-value">{inactiveCount}</span>
           </div>
         </div>
+
+        <div
+          className={`metric-card interactive ${filterStatus === "request_accepted" ? "active-filter" : ""}`}
+          onClick={() => setFilterStatus("request_accepted")}
+        >
+          <div className="metric-icon bg-teal">
+            <BadgeCheck size={22} />
+          </div>
+          <div className="metric-data">
+            <span className="metric-label">Request accepted</span>
+            <span className="metric-value">{acceptedExceptionCount}</span>
+          </div>
+        </div>
       </div>
 
       {/* Main Content Area */}
@@ -749,6 +828,7 @@ export default function Assigned({ onOpenExceptions }) {
                 <option value="active">Active (Last 7 Days)</option>
                 <option value="1day_inactive">1-Day Inactive (&gt; 24h)</option>
                 <option value="inactive">Inactive (&gt; 7 Days)</option>
+                <option value="request_accepted">Request accepted</option>
               </select>
             </div>
 
@@ -768,13 +848,38 @@ export default function Assigned({ onOpenExceptions }) {
             </div>
           </div>
 
-          <button
-            className="btn-primary"
-            onClick={() => setIsAssignModalOpen(true)}
-          >
-            <UserPlus size={18} />
-            <span>Assign Students</span>
-          </button>
+          <div className="toolbar-actions">
+            <button
+              className="btn-primary"
+              onClick={() => setIsAssignModalOpen(true)}
+            >
+              <UserPlus size={18} />
+              <span>Assign Students</span>
+            </button>
+            <button
+              className="btn-danger"
+              onClick={handleUnassignAll}
+              disabled={bulkUnassigning || safeAssignedStudents.length === 0}
+              title={
+                selectedSquadFilter === "all"
+                  ? "Unassign every student from your roster"
+                  : `Unassign all students in Squad ${selectedSquadFilter}`
+              }
+            >
+              {bulkUnassigning ? (
+                <RefreshCw size={18} className="spin-icon" />
+              ) : (
+                <UserX size={18} />
+              )}
+              <span>
+                {bulkUnassigning
+                  ? "Unassigning..."
+                  : selectedSquadFilter === "all"
+                  ? "Unassign All"
+                  : `Unassign Squad ${selectedSquadFilter}`}
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Assigned Table */}
@@ -804,6 +909,7 @@ export default function Assigned({ onOpenExceptions }) {
                   const studentId = student.student_user_id || student.user_id || student.id;
                   const active = isStudentActive(student);
                   const is1DayInactive = is1DayInactiveStudent(student);
+                  const excused = hasActiveException(student, activeExceptionIds);
 
                   return (
                     <tr key={studentId}>
@@ -834,7 +940,11 @@ export default function Assigned({ onOpenExceptions }) {
                       </td>
 
                       <td data-label="LeetCode Activity">
-                        {is1DayInactive ? (
+                        {excused ? (
+                          <span className="status-badge accepted">
+                            <BadgeCheck size={14} /> Request accepted
+                          </span>
+                        ) : is1DayInactive ? (
                           <span className="status-badge warning">
                             <Clock size={14} /> 1-Day Inactive
                           </span>

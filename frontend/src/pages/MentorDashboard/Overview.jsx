@@ -3,14 +3,17 @@ import * as XLSX from "xlsx";
 import {
   Search, Filter, ExternalLink, Code2, Mail, CheckCircle2, UserX, Users,
   Layers, X, RefreshCw, AlertCircle, ChevronLeft, ChevronRight, Clock,
-  Calendar, FileCode2, Globe, Link2, Download,
+  Calendar, FileCode2, Globe, Link2, Download, BadgeCheck,
 } from "lucide-react";
 
 import { getsquadsOverview } from "../../api/routes/MentorDashboard/main.js";
 import { getGithubStats, getLeetcodeStats, getAllStudents } from "../../api/routes/Public/StudentInfo.js";
+import { getExceptionRequests } from "../../api/routes/Mentor/exception.js";
 import {
   isRecentlyActive as isStudentActive,
   isOneToSixDaysInactive as is1DayInactiveStudent,
+  buildActiveExceptionIds,
+  hasActiveException,
   lastAcceptedFromLeetcodeStats,
   withLiveLastSolved,
 } from "../../utils/activity";
@@ -121,6 +124,11 @@ export default function Overview() {
   const [loadingStats, setLoadingStats] = useState(false);
   const [statsError, setStatsError] = useState(null);
 
+  // Students whose LeetCode exception request has been accepted (and whose
+  // exception window is still open). They must show a "Request accepted" badge
+  // instead of being flagged inactive.
+  const [activeExceptionIds, setActiveExceptionIds] = useState(() => new Set());
+
   const triggerToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -132,14 +140,17 @@ export default function Overview() {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [squadsRes, studentsRes] = await Promise.all([
+        const [squadsRes, studentsRes, exceptionRes] = await Promise.all([
           getsquadsOverview().catch(() => ({ squads: [] })),
           getAllStudents().catch(() => []),
+          // Best-effort: a 404 just means the backend predates the endpoint.
+          getExceptionRequests().catch(() => ({ requests: [] })),
         ]);
 
         setEndpointSquads(squadsRes.squads || []);
         const studentsData = studentsRes?.data || studentsRes?.students || (Array.isArray(studentsRes) ? studentsRes : []);
         setStudents(studentsData);
+        setActiveExceptionIds(buildActiveExceptionIds(exceptionRes?.requests || []));
       } catch (err) {
         console.error("Failed to load overview data:", err);
       } finally {
@@ -183,10 +194,15 @@ export default function Overview() {
 
       const active = isStudentActive(student);
       const is1DayInactive = is1DayInactiveStudent(student);
+      // Students with an open accepted exception are "excused" — they only
+      // appear under "All Statuses" / "Request accepted" and show a
+      // "Request accepted" badge, never under the active/inactive buckets.
+      const excused = hasActiveException(student, activeExceptionIds);
 
-      if (filterStatus === "active" && (!active || is1DayInactive)) return false;
-      if (filterStatus === "1day_inactive" && !is1DayInactive) return false;
-      if (filterStatus === "inactive" && active) return false;
+      if (filterStatus === "active" && (!active || is1DayInactive || excused)) return false;
+      if (filterStatus === "1day_inactive" && (!is1DayInactive || excused)) return false;
+      if (filterStatus === "inactive" && (active || excused)) return false;
+      if (filterStatus === "request_accepted" && !excused) return false;
 
       if (searchQuery.trim() !== "") {
         const query = searchQuery.toLowerCase();
@@ -202,12 +218,13 @@ export default function Overview() {
       }
       return true;
     });
-  }, [studentsWithLiveData, searchQuery, selectedSquad, filterStatus]);
+  }, [studentsWithLiveData, searchQuery, selectedSquad, filterStatus, activeExceptionIds]);
 
   const totalStudentsCount = safeStudents.length;
-  const activeStudentsCount = useMemo(() => studentsWithLiveData.filter((s) => isStudentActive(s) && !is1DayInactiveStudent(s)).length, [studentsWithLiveData]);
-  const oneDayInactiveCount = useMemo(() => studentsWithLiveData.filter((s) => is1DayInactiveStudent(s)).length, [studentsWithLiveData]);
-  const inactiveStudentsCount = useMemo(() => studentsWithLiveData.filter((s) => !isStudentActive(s)).length, [studentsWithLiveData]);
+  const activeStudentsCount = useMemo(() => studentsWithLiveData.filter((s) => isStudentActive(s) && !is1DayInactiveStudent(s) && !hasActiveException(s, activeExceptionIds)).length, [studentsWithLiveData, activeExceptionIds]);
+  const oneDayInactiveCount = useMemo(() => studentsWithLiveData.filter((s) => is1DayInactiveStudent(s) && !hasActiveException(s, activeExceptionIds)).length, [studentsWithLiveData, activeExceptionIds]);
+  const inactiveStudentsCount = useMemo(() => studentsWithLiveData.filter((s) => !isStudentActive(s) && !hasActiveException(s, activeExceptionIds)).length, [studentsWithLiveData, activeExceptionIds]);
+  const acceptedExceptionCount = useMemo(() => studentsWithLiveData.filter((s) => hasActiveException(s, activeExceptionIds)).length, [studentsWithLiveData, activeExceptionIds]);
   const currentSquadsCount = availableSquads.length;
 
   useEffect(() => { setCurrentPage(1); }, [searchQuery, selectedSquad, filterStatus]);
@@ -228,7 +245,8 @@ export default function Overview() {
       const active = isStudentActive(student);
       const is1DayInactive = is1DayInactiveStudent(student);
       let statusStr = "Inactive";
-      if (is1DayInactive) statusStr = "1-6 Day Inactive";
+      if (hasActiveException(student, activeExceptionIds)) statusStr = "Request accepted";
+      else if (is1DayInactive) statusStr = "1-6 Day Inactive";
       else if (active) statusStr = "Active";
 
       return {
@@ -440,6 +458,14 @@ export default function Overview() {
           </div>
         </div>
 
+        <div className={`stat-card ${filterStatus === "request_accepted" ? "active-filter" : ""}`} onClick={() => setFilterStatus("request_accepted")} style={{ cursor: "pointer" }}>
+          <div className="stat-icon icon-teal"><BadgeCheck size={22} /></div>
+          <div className="stat-details">
+            <span className="stat-label">Request accepted</span>
+            {loading ? <div className="skeleton-box skeleton-text short mt-1"></div> : <span className="stat-value">{acceptedExceptionCount}</span>}
+          </div>
+        </div>
+
         <div className="stat-card">
           <div className="stat-icon icon-blue"><Layers size={22} /></div>
           <div className="stat-details">
@@ -466,6 +492,7 @@ export default function Overview() {
                 <option value="active">Active (Last 7 Days)</option>
                 <option value="1day_inactive">1-6 Day Inactive</option>
                 <option value="inactive">Inactive (&gt; 7 Days)</option>
+                <option value="request_accepted">Request accepted</option>
               </select>
             </div>
 
@@ -536,6 +563,7 @@ export default function Overview() {
                   const studentId = student.user_id || student.id;
                   const active = isStudentActive(student);
                   const is1DayInactive = is1DayInactiveStudent(student);
+                  const excused = hasActiveException(student, activeExceptionIds);
                   const cleanHandle = cleanLeetcodeHandle(student);
 
                   const cachedStats = tableStatsCache[studentId] || {};
@@ -593,7 +621,9 @@ export default function Overview() {
                       </td>
 
                       <td data-label="LeetCode Status">
-                        {is1DayInactive ? (
+                        {excused ? (
+                          <span className="status-badge accepted"><BadgeCheck size={14} /> Request accepted</span>
+                        ) : is1DayInactive ? (
                           <span className="status-badge warning"><Clock size={14} /> 1-6 Day Inactive</span>
                         ) : active ? (
                           <span className="status-badge active"><CheckCircle2 size={14} /> Active</span>

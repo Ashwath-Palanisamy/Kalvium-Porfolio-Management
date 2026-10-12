@@ -74,6 +74,7 @@
 .stat-icon.icon-green { background-color: #dcfce7; color: #16a34a; }
 .stat-icon.icon-red { background-color: #fee2e2; color: #dc2626; }
 .stat-icon.icon-purple { background-color: #f3e8ff; color: #9333ea; }
+.stat-icon.icon-teal { background-color: #ccfbf1; color: #0d9488; }
 
 .stat-details {
   display: flex;
@@ -410,10 +411,16 @@
   border: 1px solid;
 }
 
-.status-badge.active { 
-  background-color: #dcfce7; 
+.status-badge.active {
+  background-color: #dcfce7;
   color: #15803d;
   border-color: #86efac;
+}
+
+.status-badge.accepted {
+  background-color: #ecfdf5;
+  color: #047857;
+  border-color: #6ee7b7;
 }
 
 .status-badge.warning { 
