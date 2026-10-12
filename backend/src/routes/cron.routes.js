@@ -1381,7 +1381,7 @@ async function notifyMentorsAboutInactiveStudents() {
 
 // ============================================================
 // NOTIFY INACTIVE STUDENTS DIRECTLY
-// Sends "[KPM] - Leetcode Inactive Report" to inactive students
+// Sends "Leetcode Inactive Report" to inactive students
 // only (is_leetcode_active = false). Active users are skipped.
 // Mentor summary emails are unchanged and still sent separately.
 // ============================================================
@@ -1545,7 +1545,7 @@ async function notifyInactiveStudentsDirectly() {
             },
           ],
 
-          subject: "[KPM] - Leetcode Inactive Report",
+          subject: "Leetcode Inactive Report",
 
           htmlContent: `
                 <div style="font-family: Arial, Helvetica, sans-serif; color: #333333; font-size: 14px; line-height: 1.6;">

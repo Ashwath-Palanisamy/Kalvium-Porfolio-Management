@@ -543,9 +543,10 @@ router.delete("/achievements/:id", authRouteLimiter, requireAuth, requireStudent
 
 // ==========================================
 // 12. POST Request a LeetCode exception (student -> assigned mentor)
-// Body: { reason, days }   days = requested duration in days (1-7, default 3)
-// One pending request per student. On submit, the assigned mentor
-// gets an email (Brevo, fire-and-forget).
+// Body: { reason, days }   days = requested duration in days (1-4, default 3)
+// Students may submit a new request even if a previous one is pending or was
+// rejected — the only hard limit is the monthly quota below. On submit, every
+// mentor linked to the student's squad gets an email (Brevo, fire-and-forget).
 // ==========================================
 router.post("/exception-request", authRouteLimiter, requireAuth, requireStudent, async (req, res) => {
     try {
@@ -570,20 +571,11 @@ router.post("/exception-request", authRouteLimiter, requireAuth, requireStudent,
 
         const studentUserId = req.user.id;
 
-        const { data: existing, error: existingError } = await supabaseAdmin
-            .from("leetcode_exception_requests")
-            .select("id,status")
-            .eq("student_user_id", studentUserId)
-            .eq("status", "pending")
-            .maybeSingle();
-        if (existingError && existingError.code !== "PGRST116") throw existingError;
-        if (existing) {
-            return res.status(409).json({ error: "You already have a pending exception request.", request: existing });
-        }
-
         // Monthly quota: at most MONTHLY_REQUEST_LIMIT requests per calendar
         // month no matter the outcome (pending, approved and rejected all
-        // count). Stacks with the single-pending rule above.
+        // count). This is the ONLY limit — a pending or previously rejected
+        // request does NOT block a new one, so students can retry after a
+        // decline or while another request is still awaiting review.
         const quotaStart = new Date();
         quotaStart.setUTCDate(1);
         quotaStart.setUTCHours(0, 0, 0, 0);
@@ -850,7 +842,7 @@ async function notifyMentorOfExceptionRequest({ mentorUserIds = [], mentorUserId
                     body: JSON.stringify({
                         sender: { name: "Kalvium Portfolio Management", email: "kpm-squad@googlegroups.com" },
                         to: [{ email: recipient, name: mentorName }],
-                        subject: "[KPM] - New LeetCode Exception Request",
+                        subject: "New LeetCode Exception Request",
                         htmlContent: `<div style="font-family: Arial, Helvetica, sans-serif; color: #333; font-size: 14px; line-height: 1.6;"><p>Hi ${safe(mentorName)},</p><p><strong>${safe(studentName)}</strong> submitted a LeetCode exception request for <strong>${Number(days) || 3} day${Number(days) === 1 ? "" : "s"}</strong>${requestId ? ` (ID: ${safe(requestId)})` : ""}:</p><blockquote style="border-left:3px solid #dc2626;padding-left:12px;color:#555;">${safe(reason)}</blockquote><p>Please review it under Mentor Dashboard &rarr; Exception Requests.</p><p><a href="https://kalvium-portfolio.vercel.app/mentor/dashboard/exceptions" style="display:inline-block;background-color:#dc2626;color:#fff;text-decoration:none;padding:10px 20px;border-radius:6px;">Review Request</a></p><p>Best Regards,<br>Kalvium Portfolio Management</p></div>`,
                     }),
                 });
