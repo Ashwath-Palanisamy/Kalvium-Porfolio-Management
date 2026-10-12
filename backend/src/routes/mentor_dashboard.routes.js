@@ -1392,7 +1392,7 @@ router.post("/leetcode-session/start", requireAuth, requireMentor, async (req, r
       // solves as "completed at second 0".
       const initialStudents = await attachLiveStats(baseStudents, "fast", { forceFresh: true });
 
-      setSessionBaseline(newSession, initialStudents);
+      setSessionBaseline(newSession, initialStudents, db);
 
       payload = await buildSessionPayload(db, newSession, "fast", { forceFresh: true });
     } catch (baselineError) {
@@ -1621,7 +1621,12 @@ function toReviewReportRow(row) {
 
 // Snapshot used as the reference point for "did this student solve something
 // during the session?"
-function setSessionBaseline(session, students = []) {
+//
+// The baseline is kept in memory for fast diffing AND mirrored to the session
+// row (baseline JSONB) so it survives a server restart / redeploy. On refresh
+// the backend reloads it from the DB instead of re-deriving it from current
+// live data (which would reset every student's "solved during session" to 0).
+function setSessionBaseline(session, students = [], db = null) {
   if (!session?.id) return;
 
   const users = {};
@@ -1649,11 +1654,73 @@ function setSessionBaseline(session, students = []) {
     };
   });
 
-  sessionBaselines.set(String(session.id), {
+  const baseline = {
     startedAt: session.started_at,
     capturedCount,
     users,
-  });
+  };
+  sessionBaselines.set(String(session.id), baseline);
+
+  // Mirror to the DB (fire-and-forget). solvedSlugs is a Set in memory, so it
+  // is serialized to a plain array for JSONB. A failed write is non-fatal —
+  // the in-memory baseline still works for the life of this process.
+  if (db) {
+    const serializable = {
+      startedAt: baseline.startedAt,
+      capturedCount: baseline.capturedCount,
+      users: Object.fromEntries(
+        Object.entries(baseline.users).map(([userId, u]) => [
+          userId,
+          {
+            totalSolved: u.totalSolved,
+            stale: u.stale,
+            submissionIds: u.submissionIds,
+            solvedSlugs: [...u.solvedSlugs],
+          },
+        ])
+      ),
+    };
+    Promise.resolve(
+      db
+        .from("mentor_leetcode_sessions")
+        .update({ baseline: serializable })
+        .eq("id", session.id)
+    )
+      .then(({ error }) => {
+        if (error && !/baseline/i.test(error.message || "")) {
+          console.warn("[BASELINE PERSIST] Failed:", error.message);
+        }
+      })
+      .catch(() => {});
+  }
+}
+
+// Rebuilds an in-memory baseline (with solvedSlugs back as a Set) from the
+// JSONB value stored on the session row. Returns null when there is nothing
+// usable stored, so the caller can fall back to capturing a fresh baseline.
+function loadBaselineFromDb(session) {
+  const stored = session?.baseline;
+  if (!stored || typeof stored !== "object" || !stored.users) return null;
+  try {
+    const users = Object.fromEntries(
+      Object.entries(stored.users).map(([userId, u]) => [
+        userId,
+        {
+          totalSolved: Number(u.totalSolved) || 0,
+          stale: Boolean(u.stale),
+          submissionIds: Array.isArray(u.submissionIds) ? u.submissionIds : [],
+          solvedSlugs: new Set(Array.isArray(u.solvedSlugs) ? u.solvedSlugs : []),
+        },
+      ])
+    );
+    return {
+      startedAt: stored.startedAt || session.started_at,
+      capturedCount: Number(stored.capturedCount) || 0,
+      users,
+    };
+  } catch {
+    return null;
+  }
 }
 
 // Compares the live snapshot against the baseline of the running session.
@@ -1896,22 +1963,35 @@ async function buildSessionPayload(db, session, mode = "full", { forceFresh = fa
   const baseStudents = await getSessionStudents(db, session.squad_ids || []);
 
   // A fresh session - or one restored after a server restart - has no baseline
-  // yet, so capture one now and compare later updates against it.
+  // in memory yet. Prefer the baseline persisted on the session row so a
+  // restart does NOT reset every student's "solved during session" to 0; only
+  // capture a brand-new one when nothing usable was stored.
   if (!sessionBaselines.has(String(session.id))) {
-    const initialStudents = await attachLiveStats(baseStudents, mode, { forceFresh });
-    setSessionBaseline(session, initialStudents);
+    const restored = loadBaselineFromDb(session);
+    if (restored) {
+      sessionBaselines.set(String(session.id), restored);
+    } else {
+      const initialStudents = await attachLiveStats(baseStudents, mode, { forceFresh });
+      setSessionBaseline(session, initialStudents, db);
+    }
 
-    // IMPORTANT: diff the payload against the JUST-captured baseline, not
-    // against live data alone — solved_during_session must be ~0 at start.
+    // IMPORTANT: diff the payload against the JUST-captured/restored baseline,
+    // not against live data alone — solved_during_session must be ~0 at start.
     // When the baseline had to come from fast mode (no submission ids), the
     // timestamp guard in withSessionActivity keeps old solves out.
-    const students = withSessionActivity(initialStudents, session);
+    const students = withSessionActivity(
+      await attachLiveStats(baseStudents, mode, { forceFresh }),
+      session
+    );
 
     return {
       active: true,
       session,
       students,
       summary: buildSessionSummary(students),
+      activityTimeline: Array.isArray(session.activity_timeline)
+        ? session.activity_timeline
+        : [],
       lastUpdated: new Date().toISOString(),
     };
   }
@@ -1926,8 +2006,45 @@ async function buildSessionPayload(db, session, mode = "full", { forceFresh = fa
     session,
     students,
     summary: buildSessionSummary(students),
+    activityTimeline: Array.isArray(session.activity_timeline)
+      ? session.activity_timeline
+      : [],
     lastUpdated: new Date().toISOString(),
   };
+}
+
+// Appends one {time, completed, attempted, notCompleted} point to the session's
+// activity_timeline and persists it (fire-and-forget), so the Activity-Over-Time
+// chart is backend-authoritative and survives a refresh / device change instead
+// of living only in the browser's localStorage. Keeps at most TIMELINE_MAX
+// points (newest last). Returns the full timeline for the response payload.
+const TIMELINE_MAX = 30;
+
+async function appendTimelinePoint(db, session, summary) {
+  const point = {
+    time: new Date().toISOString(),
+    completed: summary?.completedToday ?? summary?.completed ?? 0,
+    attempted: summary?.attemptedToday ?? summary?.attempted ?? 0,
+    notCompleted: summary?.notCompletedToday ?? summary?.not_completed ?? 0,
+  };
+  const existing = Array.isArray(session.activity_timeline)
+    ? session.activity_timeline
+    : [];
+  const timeline = [...existing, point].slice(-TIMELINE_MAX);
+
+  try {
+    const { error } = await db
+      .from("mentor_leetcode_sessions")
+      .update({ activity_timeline: timeline })
+      .eq("id", session.id);
+    if (error && !/activity_timeline/i.test(error.message || "")) {
+      console.warn("[TIMELINE PERSIST] Failed:", error.message);
+    }
+  } catch (err) {
+    console.warn("[TIMELINE PERSIST] Exception:", err?.message || err);
+  }
+
+  return timeline;
 }
 
 // GET /mentor/dashboard/leetcode-session/update - Rate limited to 45s
@@ -1966,7 +2083,24 @@ router.get("/leetcode-session/update", requireAuth, requireMentor, sessionRateLi
       .eq("id", session.id);
 
     // Live LeetCode snapshot diffed against the baseline captured at start
-    return res.status(200).json(await buildSessionPayload(db, session));
+    const payload = await buildSessionPayload(db, session);
+
+    // Persist the fresh activity snapshot back into leetcode_leaderboard on
+    // every auto-refresh (not just at session end). This keeps the mentor's
+    // Assigned/Overview tabs live during the session and survives an abrupt
+    // tab close, since the backend — not the browser — now holds the truth.
+    // Fire-and-forget: a failed write must never break the refresh response.
+    persistSessionActivity(payload.students || []).catch(() => {});
+
+    // Append a timeline point (persisted to the DB) so the Activity-Over-Time
+    // chart is backend-authoritative and restored from the backend on refresh.
+    payload.activityTimeline = await appendTimelinePoint(
+      db,
+      session,
+      payload.summary
+    );
+
+    return res.status(200).json(payload);
   } catch (err) {
     console.error("Session update error:", err);
     return res.status(500).json({ error: "Failed to update session" });
@@ -2104,6 +2238,11 @@ async function decideExceptionRequest(req, res, decision) {
     }
     // Revoking = declining a request that was already approved.
     const isRevoke = decision === "rejected" && existing.status === "approved";
+    // A mentor may decide a request if they are the stored primary mentor, an
+    // explicit per-student roster mentor (squad_students), OR any mentor who
+    // owns the student's squad (mentor_squads) — a squad can have several
+    // mentors, and all of them see the request on their dashboard, so all of
+    // them must be able to act on it.
     let allowed = existing.mentor_user_id === mentorUserId;
     if (!allowed) {
       const { data: assignment } = await supabaseAdmin
@@ -2113,6 +2252,15 @@ async function decideExceptionRequest(req, res, decision) {
         .eq("student_user_id", existing.student_user_id)
         .maybeSingle();
       allowed = !!assignment;
+    }
+    if (!allowed && existing.squad_id != null && String(existing.squad_id).trim() !== "") {
+      const { data: squadMentor } = await supabaseAdmin
+        .from("mentor_squads")
+        .select("mentor_user_id")
+        .eq("mentor_user_id", mentorUserId)
+        .eq("squad_id", existing.squad_id)
+        .maybeSingle();
+      allowed = !!squadMentor;
     }
     if (!allowed) return res.status(403).json({ error: "Forbidden: not your assigned student" });
     const now = new Date().toISOString();
