@@ -1978,16 +1978,43 @@ router.get("/leetcode-session/update", requireAuth, requireMentor, sessionRateLi
 // Fast: count endpoint is head-only so the Assigned badge loads instantly.
 // ==========================================
 
+// Resolve every student a mentor oversees. Students can be linked to a mentor
+// two ways: (1) an explicit per-student roster row in squad_students, and
+// (2) by squad — the mentor claims the squad in mentor_squads and the student's
+// profile carries that squad_id. Both are authoritative, so a request from a
+// squad-only student still surfaces on the mentor's dashboard.
+async function getMentorStudentIds(mentorUserId) {
+  const ids = new Set();
+  try {
+    const { data: assignments } = await supabaseAdmin
+      .from("squad_students")
+      .select("student_user_id")
+      .eq("mentor_user_id", mentorUserId);
+    (assignments || []).forEach((a) => a.student_user_id && ids.add(a.student_user_id));
+  } catch { /* best effort */ }
+  try {
+    const { data: mentorSquads } = await supabaseAdmin
+      .from("mentor_squads")
+      .select("squad_id")
+      .eq("mentor_user_id", mentorUserId);
+    const squadIds = (mentorSquads || []).map((s) => String(s.squad_id)).filter(Boolean);
+    if (squadIds.length > 0) {
+      const { data: profiles } = await supabaseAdmin
+        .from("profiles")
+        .select("user_id")
+        .in("squad_id", squadIds);
+      (profiles || []).forEach((p) => p.user_id && ids.add(p.user_id));
+    }
+  } catch { /* best effort */ }
+  return [...ids];
+}
+
 // GET /mentor/dashboard/exception-requests/count — pending count only
 router.get("/exception-requests/count", requireAuth, requireMentor, async (req, res) => {
   try {
     if (!supabaseAdmin) return res.status(200).json({ pendingCount: 0 });
     const mentorUserId = req.user.id;
-    const { data: assignments } = await supabaseAdmin
-      .from("squad_students")
-      .select("student_user_id")
-      .eq("mentor_user_id", mentorUserId);
-    const assignedIds = (assignments || []).map((a) => a.student_user_id).filter(Boolean);
+    const assignedIds = await getMentorStudentIds(mentorUserId);
     let query = supabaseAdmin
       .from("leetcode_exception_requests")
       .select("id", { count: "exact", head: true })
@@ -2013,11 +2040,7 @@ router.get("/exception-requests", requireAuth, requireMentor, async (req, res) =
   try {
     if (!supabaseAdmin) return res.status(200).json({ success: true, requests: [] });
     const mentorUserId = req.user.id;
-    const { data: assignments } = await supabaseAdmin
-      .from("squad_students")
-      .select("student_user_id")
-      .eq("mentor_user_id", mentorUserId);
-    const assignedIds = (assignments || []).map((a) => a.student_user_id).filter(Boolean);
+    const assignedIds = await getMentorStudentIds(mentorUserId);
     let query = supabaseAdmin
       .from("leetcode_exception_requests")
       .select("*")
