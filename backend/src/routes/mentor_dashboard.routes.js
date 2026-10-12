@@ -2302,10 +2302,10 @@ async function notifyStudentOfExceptionDecision({ studentUserId, decision, mento
     // Three distinct outcomes: accepted, declined-after-approval (revoked),
     // and a plain rejection of a pending request.
     const subject = accepted
-      ? "[KPM] - Your LeetCode Exception Was Accepted"
+      ? "Your LeetCode Exception Was Accepted"
       : revoked
-        ? "[KPM] - Your LeetCode Exception Was Declined"
-        : "[KPM] - Update on Your LeetCode Exception Request";
+        ? "Your LeetCode Exception Was Declined"
+        : "Update on Your LeetCode Exception Request";
     const bodyLine = accepted
       ? `Your mentor has <strong>accepted</strong> your LeetCode exception request. Your dashboard now shows a <strong>Request accepted</strong> tag on your LeetCode Status for <strong>${Number(days) || 30} day${Number(days) === 1 ? "" : "s"}</strong>.`
       : revoked

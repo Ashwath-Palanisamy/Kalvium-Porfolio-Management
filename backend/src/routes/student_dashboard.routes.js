@@ -842,7 +842,7 @@ async function notifyMentorOfExceptionRequest({ mentorUserIds = [], mentorUserId
                     body: JSON.stringify({
                         sender: { name: "Kalvium Portfolio Management", email: "kpm-squad@googlegroups.com" },
                         to: [{ email: recipient, name: mentorName }],
-                        subject: "[KPM] - New LeetCode Exception Request",
+                        subject: "New LeetCode Exception Request",
                         htmlContent: `<div style="font-family: Arial, Helvetica, sans-serif; color: #333; font-size: 14px; line-height: 1.6;"><p>Hi ${safe(mentorName)},</p><p><strong>${safe(studentName)}</strong> submitted a LeetCode exception request for <strong>${Number(days) || 3} day${Number(days) === 1 ? "" : "s"}</strong>${requestId ? ` (ID: ${safe(requestId)})` : ""}:</p><blockquote style="border-left:3px solid #dc2626;padding-left:12px;color:#555;">${safe(reason)}</blockquote><p>Please review it under Mentor Dashboard &rarr; Exception Requests.</p><p><a href="https://kalvium-portfolio.vercel.app/mentor/dashboard/exceptions" style="display:inline-block;background-color:#dc2626;color:#fff;text-decoration:none;padding:10px 20px;border-radius:6px;">Review Request</a></p><p>Best Regards,<br>Kalvium Portfolio Management</p></div>`,
                     }),
                 });
