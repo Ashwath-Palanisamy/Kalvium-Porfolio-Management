@@ -627,27 +627,33 @@ router.post("/exception-request", authRouteLimiter, requireAuth, requireStudent,
             return res.status(403).json({ error: "You must be assigned to a squad before requesting an exception. Please contact your mentor." });
         }
 
-        // If no explicit per-student roster mentor was found in squad_students,
-        // resolve the mentor who owns the student's squad via mentor_squads (the
-        // authoritative squad -> mentor map). Without this fallback, students who
-        // are only linked to their mentor through their squad end up with a null
-        // mentor_user_id, so the "new exception request" email has no recipient
-        // and the request never surfaces on the mentor's dashboard.
-        if (!mentorUserId) {
-            const squadCandidates = [Number(squadId), String(squadId)];
-            for (const candidate of squadCandidates) {
-                try {
-                    const { data: mentorSquad } = await supabaseAdmin
-                        .from("mentor_squads")
-                        .select("mentor_user_id")
-                        .eq("squad_id", candidate)
-                        .maybeSingle();
-                    if (mentorSquad?.mentor_user_id) {
-                        mentorUserId = mentorSquad.mentor_user_id;
-                        break;
-                    }
-                } catch { /* best effort */ }
-            }
+        // Resolve EVERY mentor linked to this student. A squad can have multiple
+        // mentors (mentor_squads is squad -> mentor, so several rows can share a
+        // squad_id), so collect them all: the explicit per-student roster mentor
+        // (squad_students) plus every mentor who owns the student's squad
+        // (mentor_squads). The first is stored as mentor_user_id (primary, keeps
+        // the dashboard filter working); ALL of them are emailed so no squad
+        // mentor misses the request.
+        const mentorUserIds = new Set();
+        if (mentorUserId) mentorUserIds.add(mentorUserId);
+        const squadCandidates = [Number(squadId), String(squadId)];
+        for (const candidate of squadCandidates) {
+            if (candidate === null || candidate === undefined || Number.isNaN(candidate)) continue;
+            try {
+                const { data: squadMentors } = await supabaseAdmin
+                    .from("mentor_squads")
+                    .select("mentor_user_id")
+                    .eq("squad_id", candidate);
+                (squadMentors || []).forEach((row) => {
+                    if (row?.mentor_user_id) mentorUserIds.add(row.mentor_user_id);
+                });
+            } catch { /* best effort */ }
+        }
+        const allMentorIds = [...mentorUserIds];
+        // Keep the explicit roster mentor as the stored primary when present,
+        // otherwise fall back to the first squad mentor so mentor_user_id is set.
+        if (!mentorUserId && allMentorIds.length > 0) {
+            mentorUserId = allMentorIds[0];
         }
 
         let { data: created, error: insertError } = await supabaseAdmin
@@ -679,8 +685,9 @@ router.post("/exception-request", authRouteLimiter, requireAuth, requireStudent,
         }
         if (insertError) throw insertError;
 
-        // Email the assigned mentor (fire-and-forget, never blocks submit).
-        notifyMentorOfExceptionRequest({ mentorUserId, studentUserId, reason, days: requestedDays, requestId: created?.id }).catch(() => {});
+        // Email every mentor linked to this student's squad (fire-and-forget,
+        // never blocks submit). A squad can have multiple mentors.
+        notifyMentorOfExceptionRequest({ mentorUserIds: allMentorIds, studentUserId, reason, days: requestedDays, requestId: created?.id }).catch(() => {});
 
         return res.status(201).json({ success: true, request: created });
     } catch (err) {
@@ -777,34 +784,29 @@ router.get("/exception-request", authRouteLimiter, requireAuth, requireStudent, 
     }
 });
 
-// Fire-and-forget Brevo email to the assigned mentor when a student
-// submits an exception request. Mirrors the cron Brevo style and
-// honours TEST_EMAIL override. Never throws.
-async function notifyMentorOfExceptionRequest({ mentorUserId, studentUserId, reason, days, requestId }) {
+// Fire-and-forget Brevo email(s) to EVERY mentor linked to a student's squad
+// when they submit an exception request. A squad can have multiple mentors
+// (mentor_squads is squad -> mentor), so we email each one individually with a
+// personalized greeting. Mirrors the cron Brevo style, honours the TEST_EMAIL
+// override, and never throws.
+async function notifyMentorOfExceptionRequest({ mentorUserIds = [], mentorUserId, studentUserId, reason, days, requestId }) {
     try {
         if (!process.env.BREVO_API_KEY) return;
-        let mentorEmail = null;
-        let mentorName = "Mentor";
+        // Accept a single mentorUserId for backward-compat, otherwise the array.
+        const ids = [
+            ...new Set(
+                (Array.isArray(mentorUserIds) && mentorUserIds.length > 0
+                    ? mentorUserIds
+                    : mentorUserId
+                        ? [mentorUserId]
+                        : []
+                ).filter(Boolean)
+            ),
+        ];
+        if (ids.length === 0) return;
+
+        // Resolve the submitting student's name once (shared across all emails).
         let studentName = "A student";
-        try {
-            if (mentorUserId) {
-                const { data } = await supabaseAdmin.auth.admin.getUserById(mentorUserId);
-                mentorEmail = data?.user?.email || null;
-                mentorName = data?.user?.user_metadata?.full_name || data?.user?.user_metadata?.name || "Mentor";
-            }
-        } catch { /* best effort */ }
-        // Fallback: mentor email from profiles table.
-        if (!mentorEmail && mentorUserId) {
-            try {
-                const { data: mProfile } = await supabaseAdmin
-                    .from("profiles")
-                    .select("kalvium_email,personal_email,name")
-                    .eq("user_id", mentorUserId)
-                    .maybeSingle();
-                mentorEmail = mProfile?.kalvium_email || mProfile?.personal_email || null;
-                mentorName = mProfile?.name || mentorName;
-            } catch { /* best effort */ }
-        }
         try {
             const { data: sProfile } = await supabaseAdmin
                 .from("profiles")
@@ -813,19 +815,50 @@ async function notifyMentorOfExceptionRequest({ mentorUserId, studentUserId, rea
                 .maybeSingle();
             studentName = sProfile?.name || studentName;
         } catch { /* best effort */ }
-        const recipient = (process.env.TEST_EMAIL || "").trim() || mentorEmail;
-        if (!recipient) return;
+
         const safe = (v) => String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        await fetch("https://api.brevo.com/v3/smtp/email", {
-            method: "POST",
-            headers: { accept: "application/json", "content-type": "application/json", "api-key": process.env.BREVO_API_KEY },
-            body: JSON.stringify({
-                sender: { name: "Kalvium Portfolio Management", email: "kpm-squad@googlegroups.com" },
-                to: [{ email: recipient, name: mentorName }],
-                subject: "[KPM] - New LeetCode Exception Request",
-                htmlContent: `<div style="font-family: Arial, Helvetica, sans-serif; color: #333; font-size: 14px; line-height: 1.6;"><p>Hi ${safe(mentorName)},</p><p><strong>${safe(studentName)}</strong> submitted a LeetCode exception request for <strong>${Number(days) || 3} day${Number(days) === 1 ? "" : "s"}</strong>${requestId ? ` (ID: ${safe(requestId)})` : ""}:</p><blockquote style="border-left:3px solid #dc2626;padding-left:12px;color:#555;">${safe(reason)}</blockquote><p>Please review it under Mentor Dashboard &rarr; Exception Requests.</p><p><a href="https://kalvium-portfolio.vercel.app/mentor/dashboard/exceptions" style="display:inline-block;background-color:#dc2626;color:#fff;text-decoration:none;padding:10px 20px;border-radius:6px;">Review Request</a></p><p>Best Regards,<br>Kalvium Portfolio Management</p></div>`,
-            }),
-        });
+        const testOverride = (process.env.TEST_EMAIL || "").trim();
+
+        for (const id of ids) {
+            try {
+                // Resolve this mentor's email + name (auth first, profiles fallback).
+                let mentorEmail = null;
+                let mentorName = "Mentor";
+                try {
+                    const { data } = await supabaseAdmin.auth.admin.getUserById(id);
+                    mentorEmail = data?.user?.email || null;
+                    mentorName = data?.user?.user_metadata?.full_name || data?.user?.user_metadata?.name || "Mentor";
+                } catch { /* best effort */ }
+                if (!mentorEmail) {
+                    try {
+                        const { data: mProfile } = await supabaseAdmin
+                            .from("profiles")
+                            .select("kalvium_email,personal_email,name")
+                            .eq("user_id", id)
+                            .maybeSingle();
+                        mentorEmail = mProfile?.kalvium_email || mProfile?.personal_email || null;
+                        mentorName = mProfile?.name || mentorName;
+                    } catch { /* best effort */ }
+                }
+
+                const recipient = testOverride || mentorEmail;
+                if (!recipient) continue;
+
+                await fetch("https://api.brevo.com/v3/smtp/email", {
+                    method: "POST",
+                    headers: { accept: "application/json", "content-type": "application/json", "api-key": process.env.BREVO_API_KEY },
+                    body: JSON.stringify({
+                        sender: { name: "Kalvium Portfolio Management", email: "kpm-squad@googlegroups.com" },
+                        to: [{ email: recipient, name: mentorName }],
+                        subject: "[KPM] - New LeetCode Exception Request",
+                        htmlContent: `<div style="font-family: Arial, Helvetica, sans-serif; color: #333; font-size: 14px; line-height: 1.6;"><p>Hi ${safe(mentorName)},</p><p><strong>${safe(studentName)}</strong> submitted a LeetCode exception request for <strong>${Number(days) || 3} day${Number(days) === 1 ? "" : "s"}</strong>${requestId ? ` (ID: ${safe(requestId)})` : ""}:</p><blockquote style="border-left:3px solid #dc2626;padding-left:12px;color:#555;">${safe(reason)}</blockquote><p>Please review it under Mentor Dashboard &rarr; Exception Requests.</p><p><a href="https://kalvium-portfolio.vercel.app/mentor/dashboard/exceptions" style="display:inline-block;background-color:#dc2626;color:#fff;text-decoration:none;padding:10px 20px;border-radius:6px;">Review Request</a></p><p>Best Regards,<br>Kalvium Portfolio Management</p></div>`,
+                    }),
+                });
+            } catch (err) {
+                // One mentor failing must not stop the others.
+                console.warn("[EXCEPTION EMAIL] failed for mentor", id, ":", err?.message || err);
+            }
+        }
     } catch (err) {
         console.warn("[EXCEPTION EMAIL] failed:", err?.message || err);
     }

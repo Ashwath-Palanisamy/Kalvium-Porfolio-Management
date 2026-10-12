@@ -1219,18 +1219,37 @@ export default function LeetCodeSessionPanel({ squads, assignedStudents, onStude
         setToast(null);
       }
       setRetryCount(0);
-      setActivityData((prev) => [
-        ...prev.slice(-20),
-        {
-          time: new Date(),
-          completed:
-            update.summary?.completedToday ?? update.summary?.completed ?? 0,
-          attempted:
-            update.summary?.attemptedToday ?? update.summary?.attempted ?? 0,
-          notCompleted:
-            update.summary?.notCompletedToday ?? update.summary?.not_completed ?? 0,
-        },
-      ]);
+      // The backend appends + persists a timeline point on every /update poll
+      // and returns the full series, so adopt it directly (backend is the
+      // source of truth). Fall back to a local append only if it is missing.
+      const serverTimeline = Array.isArray(update.activityTimeline)
+        ? update.activityTimeline
+            .map((p) => ({
+              time: new Date(p.time),
+              completed: p.completed ?? 0,
+              attempted: p.attempted ?? 0,
+              notCompleted: p.notCompleted ?? 0,
+            }))
+            .filter((p) => !Number.isNaN(p.time.getTime()))
+        : [];
+      if (serverTimeline.length > 0) {
+        setActivityData(serverTimeline);
+      } else {
+        setActivityData((prev) => [
+          ...prev.slice(-20),
+          {
+            time: new Date(),
+            completed:
+              update.summary?.completedToday ?? update.summary?.completed ?? 0,
+            attempted:
+              update.summary?.attemptedToday ?? update.summary?.attempted ?? 0,
+            notCompleted:
+              update.summary?.notCompletedToday ??
+              update.summary?.not_completed ??
+              0,
+          },
+        ]);
+      }
       if (onStudentUpdateRef.current) onStudentUpdateRef.current(update);
       return { ok: true };
     }
@@ -1455,30 +1474,41 @@ export default function LeetCodeSessionPanel({ squads, assignedStudents, onStude
           // a NEW re-submit apart from state that already existed on load.
           prevStudentsRef.current = effective.students || [];
           setLastUpdated(new Date());
-          // Seed the timeline chart with the current snapshot so mentors who
-          // reopen the tab mid-session still see a starting data point
-          // Keep the restored timeline history; only seed a starting point
-          // when there is nothing cached (first open mid-session).
+          // The Activity-Over-Time chart is backend-authoritative: prefer the
+          // timeline the server returned (persisted across refreshes / devices)
+          // and only fall back to a single seeded point when it is empty.
+          const serverTimeline = Array.isArray(effective.activityTimeline)
+            ? effective.activityTimeline
+                .map((p) => ({
+                  time: new Date(p.time),
+                  completed: p.completed ?? 0,
+                  attempted: p.attempted ?? 0,
+                  notCompleted: p.notCompleted ?? 0,
+                }))
+                .filter((p) => !Number.isNaN(p.time.getTime()))
+            : [];
           setActivityData((prev) =>
-            prev.length > 0
-              ? prev
-              : [
-                  {
-                    time: new Date(),
-                    completed:
-                      effective.summary?.completedToday ??
-                      effective.summary?.completed ??
-                      0,
-                    attempted:
-                      effective.summary?.attemptedToday ??
-                      effective.summary?.attempted ??
-                      0,
-                    notCompleted:
-                      effective.summary?.notCompletedToday ??
-                      effective.summary?.not_completed ??
-                      0,
-                  },
-                ]
+            serverTimeline.length > 0
+              ? serverTimeline
+              : prev.length > 0
+                ? prev
+                : [
+                    {
+                      time: new Date(),
+                      completed:
+                        effective.summary?.completedToday ??
+                        effective.summary?.completed ??
+                        0,
+                      attempted:
+                        effective.summary?.attemptedToday ??
+                        effective.summary?.attempted ??
+                        0,
+                      notCompleted:
+                        effective.summary?.notCompletedToday ??
+                        effective.summary?.not_completed ??
+                        0,
+                    },
+                  ]
           );
         } else {
           prevStudentsRef.current = null;
