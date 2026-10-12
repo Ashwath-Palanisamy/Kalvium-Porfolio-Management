@@ -93,3 +93,45 @@ export const withLiveLastSolved = (student, liveLastSolvedAt) => {
 
   return { ...student, last_solved_at: new Date(liveMs).toISOString() };
 };
+
+// ==========================================
+// ACCEPTED EXCEPTION HELPERS (mentor dashboard)
+// ==========================================
+// A student whose LeetCode exception request has been ACCEPTED must not be
+// flagged as inactive while the exception window is still open. The student's
+// own dashboard already shows a "Request accepted" tag; the mentor Overview /
+// Assigned tabs previously ignored exception requests entirely, so an accepted
+// student kept reading "1-6 Day Inactive" / "1-Day Inactive".
+
+// Mirror the server-side window math (cron + student GET route): an "approved"
+// request shields the student for `requested_days` counted from mentor approval
+// (reviewed_at, falling back to updated_at / created_at). Rows without
+// requested_days (pre-migration) keep a 30-day window. Returns a Set of string
+// student user IDs that currently have an active accepted exception.
+export const buildActiveExceptionIds = (requests = [], now = Date.now()) => {
+  const ids = new Set();
+  for (const r of Array.isArray(requests) ? requests : []) {
+    if (!r || r.status !== "approved") continue;
+    const studentId = r.student_user_id;
+    if (studentId === null || studentId === undefined) continue;
+
+    const days = Number(r.requested_days) || 30;
+    const reviewedMs = Date.parse(
+      r.reviewed_at || r.updated_at || r.created_at || ""
+    );
+    const expiresMs =
+      (Number.isFinite(reviewedMs) ? reviewedMs : now) + days * ONE_DAY_MS;
+
+    if (expiresMs > now) ids.add(String(studentId));
+  }
+  return ids;
+};
+
+// True when the given student currently has an active accepted exception.
+export const hasActiveException = (student, activeExceptionIds) => {
+  if (!student || !activeExceptionIds || activeExceptionIds.size === 0) {
+    return false;
+  }
+  const id = student.user_id ?? student.student_user_id ?? student.id;
+  return id !== undefined && id !== null && activeExceptionIds.has(String(id));
+};
