@@ -51,18 +51,9 @@ export default function RequestException() {
       setMessageType("error");
       return;
     }
-    // Any existing exception request (pending or approved) means the
-    // student already has one active exception and cannot request another.
-    if (status.requests.length > 0) {
-      const latest = status.requests[0];
-      const activeUntil = status.activeUntil;
-      const activeText = activeUntil
-        ? ` Your exception is active until ${new Date(activeUntil).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}.`
-        : "";
-      setMessage(`You already have an exception request${activeText} (status: ${latest?.status || "unknown"}). Please contact your mentor before requesting another.`);
-      setMessageType("error");
-      return;
-    }
+    // A pending or previously rejected request does NOT block a new one — the
+    // only hard limit is the monthly quota, so students can retry after a
+    // decline or while another request is still awaiting review.
     if (quotaReached) {
       setMessage(`You have already used all ${monthlyLimit} exception requests this month. The limit resets on the 1st of next month.`);
       setMessageType("error");
@@ -93,7 +84,9 @@ export default function RequestException() {
   const acceptedUntilText = status.activeUntil
     ? new Date(status.activeUntil).toLocaleDateString(undefined, { month: "short", day: "numeric" })
     : null;
-  const controlsDisabled = submitting || !hasSquad || latest?.status === "pending" || status.requests.length > 0 || quotaReached;
+  // The form stays usable even with a pending or rejected request — only the
+  // monthly quota (or a missing squad) disables it.
+  const controlsDisabled = submitting || !hasSquad || quotaReached;
 
   return (
     <section className="req-exc-card" aria-label="Request Exception">
@@ -190,17 +183,17 @@ export default function RequestException() {
             type="submit"
             className="req-exc-submit"
             disabled={controlsDisabled || trimmedLen < MIN_REASON}
-            title={!hasSquad ? "You must be assigned to a squad first" : latest?.status === "pending" ? "Waiting for your mentor to review your pending request" : quotaReached ? "Monthly limit reached — resets on the 1st" : trimmedLen < MIN_REASON ? `Type ${MIN_REASON - trimmedLen} more character(s) to submit` : "Submit request"}
+            title={!hasSquad ? "You must be assigned to a squad first" : quotaReached ? "Monthly limit reached — resets on the 1st" : trimmedLen < MIN_REASON ? `Type ${MIN_REASON - trimmedLen} more character(s) to submit` : "Submit request"}
           >
             <Send size={15} />
-            {submitting ? "Submitting..." : !hasSquad ? "No squad assigned" : latest?.status === "pending" ? "Request pending" : quotaReached ? "Monthly limit reached" : trimmedLen < MIN_REASON ? `Need ${MIN_REASON - trimmedLen} more` : "Submit request"}
+            {submitting ? "Submitting..." : !hasSquad ? "No squad assigned" : quotaReached ? "Monthly limit reached" : trimmedLen < MIN_REASON ? `Need ${MIN_REASON - trimmedLen} more` : "Submit request"}
           </button>
         </div>
       </form>
 
       {message && <p className={`req-exc-message ${messageType}`}>{message}</p>}
       {latest?.status === "pending" && (
-        <p className="req-exc-hint">You already have a pending request. You can submit a new one after your mentor reviews it.</p>
+        <p className="req-exc-hint">You have a request awaiting review. You can still submit another if needed — your mentor will review both.</p>
       )}
       {quotaReached ? (
         <p className="req-exc-hint">

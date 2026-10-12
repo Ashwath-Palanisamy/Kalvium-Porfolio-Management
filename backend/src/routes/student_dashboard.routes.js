@@ -543,9 +543,10 @@ router.delete("/achievements/:id", authRouteLimiter, requireAuth, requireStudent
 
 // ==========================================
 // 12. POST Request a LeetCode exception (student -> assigned mentor)
-// Body: { reason, days }   days = requested duration in days (1-7, default 3)
-// One pending request per student. On submit, the assigned mentor
-// gets an email (Brevo, fire-and-forget).
+// Body: { reason, days }   days = requested duration in days (1-4, default 3)
+// Students may submit a new request even if a previous one is pending or was
+// rejected — the only hard limit is the monthly quota below. On submit, every
+// mentor linked to the student's squad gets an email (Brevo, fire-and-forget).
 // ==========================================
 router.post("/exception-request", authRouteLimiter, requireAuth, requireStudent, async (req, res) => {
     try {
@@ -570,20 +571,11 @@ router.post("/exception-request", authRouteLimiter, requireAuth, requireStudent,
 
         const studentUserId = req.user.id;
 
-        const { data: existing, error: existingError } = await supabaseAdmin
-            .from("leetcode_exception_requests")
-            .select("id,status")
-            .eq("student_user_id", studentUserId)
-            .eq("status", "pending")
-            .maybeSingle();
-        if (existingError && existingError.code !== "PGRST116") throw existingError;
-        if (existing) {
-            return res.status(409).json({ error: "You already have a pending exception request.", request: existing });
-        }
-
         // Monthly quota: at most MONTHLY_REQUEST_LIMIT requests per calendar
         // month no matter the outcome (pending, approved and rejected all
-        // count). Stacks with the single-pending rule above.
+        // count). This is the ONLY limit — a pending or previously rejected
+        // request does NOT block a new one, so students can retry after a
+        // decline or while another request is still awaiting review.
         const quotaStart = new Date();
         quotaStart.setUTCDate(1);
         quotaStart.setUTCHours(0, 0, 0, 0);
