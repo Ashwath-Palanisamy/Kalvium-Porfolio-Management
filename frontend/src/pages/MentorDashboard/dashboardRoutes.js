@@ -26,6 +26,11 @@ export const MENTOR_TAB_LABELS = {
 // in a new tab — there is deliberately no in-app route for it.
 export const DOJO_PULSE_URL = "https://dojo-pulse.vercel.app/";
 
+// External attendance tool (own app, not part of this bundle). Linked from the
+// same two places as Dojo Pulse — the sidebar Quick Access entry and the
+// Dashboard stats card — and always opens in a new tab (no in-app route).
+export const ATTEND_FLOW_URL = "https://attendflow-system.vercel.app/";
+
 export function mentorSlugToLabel(slug) {
   return MENTOR_TAB_LABELS[slug] ?? "Dashboard";
 }
