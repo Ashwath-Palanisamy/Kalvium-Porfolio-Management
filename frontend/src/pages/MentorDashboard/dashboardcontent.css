@@ -29,27 +29,36 @@
 }
 
 /* ===========================
-   DOJO PULSE CARD (shares the stats row with .stats-card)
+   EXTERNAL TOOL CARDS — Dojo Pulse & AttendFlow share the stats row
+   with .stats-card and reuse these classes for identical styling.
 =========================== */
 
 .dojo-pulse-card {
   text-decoration: none;
 }
 
-/* A name, not a number — 44px (made for "35") is too big here. */
+/* A product name, not a stat — lighter and smaller than the "35". */
 .dojo-pulse-card h2 {
-  font-size: 26px;
-  line-height: 1.15;
-  margin: 10px 0 12px;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin: 8px 0 8px;
 }
 
 .dojo-pulse-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
+  transform: translateY(-3px);
+  border-color: #d7dee8;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.05), 0 16px 32px -12px rgba(15, 23, 42, 0.18);
 }
 
 .dojo-pulse-card:hover .dojo-pulse-cta {
   background: #e0263d;
+}
+
+.dojo-pulse-card:focus-visible {
+  outline: 2px solid #ff3b3b;
+  outline-offset: 3px;
 }
 
 /* Same look as .stats-card button (which only styles real <button>s).
@@ -175,6 +184,90 @@
   opacity: 0.6;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+/* ===========================
+   STATS ROW POLISH — equal-height cards, eyebrow labels, tinted
+   icon chips, and CTAs pinned to the card bottoms.
+=========================== */
+
+.stats-row {
+  align-items: stretch;
+}
+
+.stats-row .stats-card {
+  flex: 1 1 280px;
+  min-height: 300px;
+  border-radius: 18px;
+  padding: 26px 26px 24px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-color: #e6ebf2;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 24px -14px rgba(15, 23, 42, 0.18);
+}
+
+/* Small uppercase eyebrow above each title. */
+.stats-card .stats-label {
+  margin-top: 18px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+/* Let the copy grow so every CTA sits on the same baseline. */
+.stats-row .stats-card p {
+  flex: 1 1 auto;
+  font-size: 13.5px;
+  line-height: 1.65;
+  margin: 0 0 22px;
+}
+
+/* Tinted icon chips — color comes from the wrapper (lucide uses
+   currentColor), one accent per card. */
+.stats-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.07);
+}
+
+.stats-icon--slate {
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+  color: #475569;
+}
+
+.stats-icon--rose {
+  background: linear-gradient(135deg, #fff1f2, #ffe4e6);
+  color: #e11d48;
+}
+
+.stats-icon--emerald {
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  color: #059669;
+}
+
+/* CTA arrow nudges right on card hover; press feedback on click. */
+.stats-card .dojo-pulse-cta svg {
+  transition: transform 0.2s ease;
+}
+
+.dojo-pulse-card:hover .dojo-pulse-cta svg {
+  transform: translateX(4px);
+}
+
+.stats-card .dojo-pulse-cta:active {
+  transform: translateY(1px);
+}
+
+@media (max-width: 720px) {
+  .stats-row .stats-card {
+    min-height: 0;
+  }
+
+  .dojo-pulse-card h2 {
+    font-size: 22px;
+  }
 }
 
 /* ===========================

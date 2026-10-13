@@ -12,12 +12,13 @@ import {
   Activity,
   Menu,
   X,
+  CalendarCheck,
 } from "lucide-react";
 
 import kalviumLogo from "../../assets/kalvium-logo.svg";
 import { supabase } from "../../lib/supabase";
 import { getExceptionRequestCount } from "../../api/routes/Mentor/exception";
-import { DOJO_PULSE_URL } from "./dashboardRoutes.js";
+import { DOJO_PULSE_URL, ATTEND_FLOW_URL } from "./dashboardRoutes.js";
 import "./mentordashboard.css";
 import "./sidebar.css";
 
@@ -146,6 +147,19 @@ const Sidebar = ({ activeNav, setActiveNav }) => {
         >
           <Activity size={18} strokeWidth={2} />
           {!isCollapsed && <span>Dojo Pulse</span>}
+        </a>
+        <a
+          className="pm-nav-item"
+          href={ATTEND_FLOW_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={isCollapsed ? "AttendFlow (opens in a new tab)" : ""}
+          onClick={() => {
+            if (isMobile) setMobileOpen(false);
+          }}
+        >
+          <CalendarCheck size={18} strokeWidth={2} />
+          {!isCollapsed && <span>AttendFlow</span>}
         </a>
       </nav>
 

@@ -13,12 +13,13 @@ import {
   GitCommit,
   CheckCircle2,
   Clock,
-  FolderGit2
+  FolderGit2,
+  CalendarCheck
 } from "lucide-react";
 
 import { useCodingStats } from "../../hooks/useCodingStats"; 
 import { getStudents } from "../../api/routes/MentorDashboard/main"; 
-import { DOJO_PULSE_URL } from "./dashboardRoutes.js";
+import { DOJO_PULSE_URL, ATTEND_FLOW_URL } from "./dashboardRoutes.js";
 import "./dashboardcontent.css";
 
 // Brand SVG Icons
@@ -119,8 +120,8 @@ const DashboardContent = ({ onViewStudents }) => {
       {/* Top Overview Card */}
       <div className="stats-row">
         <div className="stats-card">
-          <div className="stats-icon">
-            <Users size={24} color="#64748b" />
+          <div className="stats-icon stats-icon--slate">
+            <Users size={24} />
           </div>
 
           <span className="stats-label">Total Students</span>
@@ -154,14 +155,34 @@ const DashboardContent = ({ onViewStudents }) => {
           rel="noopener noreferrer"
           title="Open Dojo Pulse in a new tab"
         >
-          <div className="stats-icon">
-            <Activity size={24} color="#64748b" />
+          <div className="stats-icon stats-icon--rose">
+            <Activity size={24} />
           </div>
           <span className="stats-label">Kalvium Mentor Analytics</span>
           <h2>Dojo Pulse</h2>
           <p>Live mentor and squad insights. Opens in a new tab.</p>
           <span className="dojo-pulse-cta">
             Open Dojo Pulse
+            <ArrowRight size={16} color="#ffffff" />
+          </span>
+        </a>
+
+        {/* AttendFlow — same card UI, third entry in the stats row */}
+        <a
+          className="stats-card dojo-pulse-card"
+          href={ATTEND_FLOW_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open AttendFlow in a new tab"
+        >
+          <div className="stats-icon stats-icon--emerald">
+            <CalendarCheck size={24} />
+          </div>
+          <span className="stats-label">Attendance Tracking</span>
+          <h2>AttendFlow</h2>
+          <p>Mark and track student attendance. Opens in a new tab.</p>
+          <span className="dojo-pulse-cta">
+            Open AttendFlow
             <ArrowRight size={16} color="#ffffff" />
           </span>
         </a>
