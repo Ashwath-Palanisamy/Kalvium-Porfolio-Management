@@ -328,7 +328,20 @@ export default function Students() {
               </div>
             ))
           : currentStudents.map((student) => (
-              <div className="student-card" key={student.user_id}>
+              <div
+                className="student-card student-card-clickable"
+                key={student.user_id}
+                onClick={() => navigate(`/portfolio/${student.user_id}`)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    navigate(`/portfolio/${student.user_id}`);
+                  }
+                }}
+                tabIndex={0}
+                role="link"
+                aria-label={`View ${student.name}'s profile`}
+              >
                 <LazyAvatar src={student.avatar} alt={student.name} />
 
                 <h3 className="student-name">{student.name}</h3>
@@ -343,12 +356,9 @@ export default function Students() {
                   ))}
                 </div>
 
-                <button
-                  className="view-profile-btn"
-                  onClick={() => navigate(`/portfolio/${student.user_id}`)}
-                >
+                <span className="view-profile-btn" aria-hidden="true">
                   View Profile
-                </button>
+                </span>
               </div>
             ))}
       </div>
