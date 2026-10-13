@@ -37,6 +37,21 @@
   text-decoration: none;
 }
 
+/* Dojo Pulse banner — official shrine (torii) mark in the stats icon slot.
+   White tile lets the red gate read at 24px without clashing with the rose bg. */
+.stats-icon--shrine {
+  background: #ffffff;
+  border: 1px solid #ffe4e6;
+  overflow: hidden;
+}
+
+.stats-icon--shrine img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  display: block;
+}
+
 /* A product name, not a stat — lighter and smaller than the "35". */
 .dojo-pulse-card h2 {
   font-size: 24px;

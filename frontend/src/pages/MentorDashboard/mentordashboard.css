@@ -385,3 +385,13 @@ html, body {
 a.pm-nav-item {
   text-decoration: none;
 }
+
+/* Dojo Pulse — official shrine (torii) mark in Quick Access.
+   Fixed 18px box so it aligns with the lucide icons beside it. */
+.pm-nav-shrine-logo {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  object-fit: contain;
+  display: block;
+}

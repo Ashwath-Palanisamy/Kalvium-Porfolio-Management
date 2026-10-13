@@ -1,0 +1,16 @@
+<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dojo Pulse shrine logo">
+  <!-- Dojo Pulse — shrine (torii gate) mark.
+       Placeholder drawn to match the official ⛩️ logo. To use the official
+       file from the Dojo Pulse team, replace this file's contents with it
+       (keep the same viewBox/filename) — no code changes needed. -->
+  <!-- Top lintel (kasagi) with slight upward curve -->
+  <path d="M1.8 5.2C6.2 3.6 17.8 3.6 22.2 5.2L21.6 7.9C17.4 6.5 6.6 6.5 2.4 7.9L1.8 5.2Z" fill="#E11D48"/>
+  <!-- Second beam (nuki) -->
+  <rect x="3.6" y="9.6" width="16.8" height="2.1" rx="1.05" fill="#E11D48"/>
+  <!-- Left pillar -->
+  <path d="M6.1 8.6h2.5l-.45 11.1c-.03.7-.6 1.2-1.3 1.2-.7 0-1.27-.5-1.3-1.2L6.1 8.6Z" fill="#E11D48"/>
+  <!-- Right pillar -->
+  <path d="M15.4 8.6h2.5l.55 11.1c.03.7-.6 1.2-1.3 1.2-.7 0-1.27-.5-1.3-1.2L15.4 8.6Z" fill="#E11D48"/>
+  <!-- Centre plaque -->
+  <rect x="10.9" y="4.1" width="2.2" height="9.4" rx="1.1" fill="#881337"/>
+</svg>

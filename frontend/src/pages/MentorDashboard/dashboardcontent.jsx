@@ -20,6 +20,7 @@ import {
 import { useCodingStats } from "../../hooks/useCodingStats"; 
 import { getStudents } from "../../api/routes/MentorDashboard/main"; 
 import { DOJO_PULSE_URL, ATTEND_FLOW_URL } from "./dashboardRoutes.js";
+import dojoPulseShrine from "../../assets/dojo-pulse-shrine.svg";
 import "./dashboardcontent.css";
 
 // Brand SVG Icons
@@ -155,8 +156,13 @@ const DashboardContent = ({ onViewStudents }) => {
           rel="noopener noreferrer"
           title="Open Dojo Pulse in a new tab"
         >
-          <div className="stats-icon stats-icon--rose">
-            <Activity size={24} />
+          <div className="stats-icon stats-icon--rose stats-icon--shrine">
+            <img
+              src={dojoPulseShrine}
+              alt="Dojo Pulse shrine logo"
+              width={24}
+              height={24}
+            />
           </div>
           <span className="stats-label">Kalvium Mentor Analytics</span>
           <h2>Dojo Pulse</h2>
