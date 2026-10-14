@@ -2144,6 +2144,92 @@ async function getMentorStudentIds(mentorUserId) {
 }
 
 // GET /mentor/dashboard/exception-requests/count — pending count only
+// GET /mentor/dashboard/student-monthly-activity/:studentUserId?month=YYYY-MM
+// Monthly consistency graph source. DB reads only (snapshots + approved
+// exception overlay) — zero LeetCode calls.
+router.get("/student-monthly-activity/:studentUserId", requireAuth, requireMentor, async (req, res) => {
+  try {
+    const { studentUserId } = req.params;
+    if (!studentUserId) return res.status(400).json({ error: "studentUserId required" });
+    const monthParam = String(req.query?.month || "").slice(0, 7);
+    const nowDate = new Date();
+    const fallbackMonth = `${nowDate.getUTCFullYear()}-${String(nowDate.getUTCMonth() + 1).padStart(2, "0")}`;
+    const monthStr = /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : fallbackMonth;
+    const yr = Number(monthStr.slice(0, 4));
+    const mo = Number(monthStr.slice(5, 7));
+    if (!yr || mo < 1 || mo > 12) return res.status(400).json({ error: "month must be YYYY-MM" });
+    const assignedIds = await getMentorStudentIds(req.user.id);
+    if (!assignedIds.includes(String(studentUserId))) {
+      return res.status(403).json({ error: "Forbidden: student not assigned to you" });
+    }
+    const daysInMonth = new Date(Date.UTC(yr, mo, 0)).getUTCDate();
+    const monthStart = `${monthStr}-01`;
+    const monthEnd = `${monthStr}-${String(daysInMonth).padStart(2, "0")}`;
+    const istTodayStr = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    let snapshotByDate = {};
+    try {
+      const { data: rows, error: snapErr } = await supabaseAdmin
+        .from("leetcode_daily_snapshots")
+        .select("date, total_solved, solved_count, did_solve, had_exception")
+        .eq("user_id", String(studentUserId))
+        .gte("date", monthStart)
+        .lte("date", monthEnd);
+      if (snapErr) throw snapErr;
+      for (const r of rows || []) { if (r?.date) snapshotByDate[r.date] = r; }
+    } catch (snapErr) {
+      if (!String(snapErr.message || "").includes("leetcode_daily_snapshots")) throw snapErr;
+      snapshotByDate = {};
+    }
+    let windows = [];
+    try {
+      const { data: exRows, error: exErr } = await supabaseAdmin
+        .from("leetcode_exception_requests")
+        .select("requested_days, reviewed_at, updated_at, created_at")
+        .eq("student_user_id", String(studentUserId))
+        .eq("status", "approved");
+      if (exErr) throw exErr;
+      windows = (exRows || []).map((row) => {
+        const start = String(row.reviewed_at || row.updated_at || row.created_at || "").slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return null;
+        const n = Number(row.requested_days) || 30;
+        const [wy, wm, wd] = start.split("-").map(Number);
+        const end = new Date(Date.UTC(wy, wm - 1, wd) + (n - 1) * 86400000).toISOString().slice(0, 10);
+        return { start, end };
+      }).filter(Boolean);
+    } catch { windows = []; }
+    const days = [];
+    let completedDays = 0;
+    let missedDays = 0;
+    let exceptionDays = 0;
+    let totalSolvedThisMonth = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${monthStr}-${String(d).padStart(2, "0")}`;
+      const snap = snapshotByDate[dateStr];
+      const solved = Number(snap?.solved_count) || 0;
+      const exc = Boolean(snap?.had_exception) || windows.some((w) => w.start <= dateStr && dateStr <= w.end);
+      let status;
+      if (dateStr > istTodayStr) { status = "future"; }
+      else if (exc) { status = "exception"; exceptionDays++; }
+      else if (solved > 0 || snap?.did_solve) { status = "completed"; completedDays++; }
+      else { status = "missed"; missedDays++; }
+      totalSolvedThisMonth += solved;
+      days.push({
+        date: dateStr, day: d, solved_count: solved,
+        total_solved: snap ? Number(snap.total_solved) || 0 : null,
+        has_snapshot: Boolean(snap), had_exception: exc, status,
+      });
+    }
+    return res.status(200).json({
+      student_user_id: String(studentUserId), month: monthStr,
+      summary: { completedDays, missedDays, exceptionDays, totalSolvedThisMonth, daysTracked: Object.keys(snapshotByDate).length },
+      days,
+    });
+  } catch (err) {
+    console.error("[MONTHLY ACTIVITY] Failed:", err.message);
+    return res.status(500).json({ error: "Failed to load monthly activity" });
+  }
+});
+
 router.get("/exception-requests/count", requireAuth, requireMentor, async (req, res) => {
   try {
     if (!supabaseAdmin) return res.status(200).json({ pendingCount: 0 });
