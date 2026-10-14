@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import kalviumLogo from "../../assets/kalvium-logo.svg";
+import dojoPulseShrine from "../../assets/dojo-pulse-shrine.svg";
 import { supabase } from "../../lib/supabase";
 import { getExceptionRequestCount } from "../../api/routes/Mentor/exception";
 import { DOJO_PULSE_URL, ATTEND_FLOW_URL } from "./dashboardRoutes.js";
@@ -145,7 +146,14 @@ const Sidebar = ({ activeNav, setActiveNav }) => {
             if (isMobile) setMobileOpen(false);
           }}
         >
-          <Activity size={18} strokeWidth={2} />
+          <img
+            src={dojoPulseShrine}
+            alt=""
+            aria-hidden="true"
+            className="pm-nav-shrine-logo"
+            width={18}
+            height={18}
+          />
           {!isCollapsed && <span>Dojo Pulse</span>}
         </a>
         <a
