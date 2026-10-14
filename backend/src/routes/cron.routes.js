@@ -58,6 +58,114 @@ const isValidLeetCodeUsername = (username) =>
   /^[a-zA-Z0-9_-]{1,30}$/.test(username);
 
 // ============================================================
+// DAILY SNAPSHOTS (monthly consistency graph)
+// One row per student per Asia/Kolkata calendar day in
+// leetcode_daily_snapshots. Written by POST /cron/update-leetcode
+// using data the cron ALREADY fetched — zero extra LeetCode calls.
+// The Assigned tab monthly graph reads these rows (+ a live
+// overlay, so late-approved exceptions still colour past days).
+// ============================================================
+
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+const getISTDateParts = (value) => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(value));
+  const get = (type) => parts.find((p) => p.type === type)?.value;
+  return {
+    year: Number(get("year")),
+    month: Number(get("month")),
+    day: Number(get("day")),
+  };
+};
+
+const getISTDateString = (value = Date.now()) => {
+  const { year, month, day } = getISTDateParts(value);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+};
+
+// UTC bounds of an IST calendar day, for Supabase range queries on
+// submitted_at (stored as UTC timestamptz).
+const getISTDayBoundsUTC = (dateStr) => {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const startUTC = Date.UTC(y, m - 1, d) - IST_OFFSET_MS;
+  return {
+    startISO: new Date(startUTC).toISOString(),
+    endISO: new Date(startUTC + ONE_DAY_MS).toISOString(),
+  };
+};
+
+const addDaysToDateStr = (dateStr, days) => {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d) + days * ONE_DAY_MS)
+    .toISOString()
+    .slice(0, 10);
+};
+
+// Does any approved exception window cover this IST calendar day?
+// Mirrors the window rule used for inactivity emails.
+const doesExceptionCoverDay = (rows = [], dayDateStr) => {
+  if (!dayDateStr) return false;
+  return (rows || []).some((row) => {
+    if (!row?.reviewed_at) return false;
+    const reviewedDateStr = getISTDateString(row.reviewed_at);
+    const days = Number(row.requested_days) || 30;
+    const endDateStr = addDaysToDateStr(reviewedDateStr, days - 1);
+    return reviewedDateStr <= dayDateStr && dayDateStr <= endDateStr;
+  });
+};
+
+const countSubmissionsForISTDay = async (db, userId, dateStr) => {
+  if (!db || !userId || !dateStr) return 0;
+  const { startISO, endISO } = getISTDayBoundsUTC(dateStr);
+  const { count, error } = await db
+    .from("leetcode_submissions")
+    .select("submission_id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("submitted_at", startISO)
+    .lt("submitted_at", endISO);
+  if (error) throw error;
+  return count ?? 0;
+};
+
+const writeDailySnapshot = async ({
+  userId,
+  profileId = null,
+  totalSolved = 0,
+  exceptionRowsForUser = [],
+  dateStr = getISTDateString(),
+}) => {
+  if (!supabaseAdmin || !userId || !dateStr) return { written: false };
+  let solvedCount = 0;
+  try {
+    solvedCount = await countSubmissionsForISTDay(supabaseAdmin, userId, dateStr);
+  } catch (error) {
+    console.warn(`[SNAPSHOT] Count failed for ${userId} on ${dateStr}:`, error.message);
+    solvedCount = 0;
+  }
+  const hadException = doesExceptionCoverDay(exceptionRowsForUser, dateStr);
+  const row = {
+    user_id: userId,
+    profile_id: profileId,
+    date: dateStr,
+    total_solved: Number(totalSolved) || 0,
+    solved_count: solvedCount,
+    did_solve: solvedCount > 0,
+    had_exception: hadException,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await supabaseAdmin
+    .from("leetcode_daily_snapshots")
+    .upsert(row, { onConflict: "user_id,date" });
+  if (error) throw error;
+  return { written: true, solvedCount, hadException };
+};
+
+// ============================================================
 // EXTRACT LEETCODE USERNAME
 // ============================================================
 
@@ -2122,6 +2230,83 @@ router.post("/update-leetcode", async (req, res) => {
       await delay(getRandomDelay());
     }
 
+    // --------------------------------------------------------
+    // DAILY SNAPSHOTS (monthly consistency graph)
+    // One row per student per Asia/Kolkata day in
+    // leetcode_daily_snapshots. Uses data ALREADY in the DB
+    // (leaderboard totals + submissions written above) + approved
+    // exception windows — zero extra LeetCode requests, so no
+    // additional block risk. Upsert = safe to re-run same day.
+    // --------------------------------------------------------
+    try {
+      const snapshotDateStr = getISTDateString();
+      console.log(`\n[SNAPSHOT] Writing daily snapshots for ${snapshotDateStr}...`);
+
+      const studentUserIds = users.map((u) => u.user_id).filter(Boolean);
+
+      const { data: totalsRows } = await supabaseAdmin
+        .from("leetcode_leaderboard")
+        .select("user_id, profile_id, total_solved")
+        .in("user_id", studentUserIds);
+
+      const totalsByUser = {};
+      for (const row of totalsRows || []) {
+        if (row?.user_id) totalsByUser[row.user_id] = row;
+      }
+
+      let exceptionByUserSnapshot = {};
+      try {
+        const { data: approvedExceptions } = await supabaseAdmin
+          .from("leetcode_exception_requests")
+          .select("student_user_id, requested_days, reviewed_at, updated_at, created_at")
+          .eq("status", "approved")
+          .in("student_user_id", studentUserIds);
+        for (const row of approvedExceptions || []) {
+          if (!row?.student_user_id) continue;
+          if (!exceptionByUserSnapshot[row.student_user_id]) {
+            exceptionByUserSnapshot[row.student_user_id] = [];
+          }
+          exceptionByUserSnapshot[row.student_user_id].push(row);
+        }
+      } catch (exceptionFetchError) {
+        console.warn("[SNAPSHOT] Exception fetch failed (continuing without exception flags):", exceptionFetchError.message);
+      }
+
+      const profileIdByUserId = {};
+      for (const u of users) {
+        if (u?.user_id) profileIdByUserId[u.user_id] = u.id;
+      }
+
+      let snapshotOk = 0;
+      let snapshotFail = 0;
+      for (const userId of studentUserIds) {
+        try {
+          const totals = totalsByUser[userId] || {};
+          await writeDailySnapshot({
+            userId,
+            profileId: totals.profile_id ?? profileIdByUserId[userId] ?? null,
+            totalSolved: totals.total_solved ?? 0,
+            exceptionRowsForUser: exceptionByUserSnapshot[userId] || [],
+            dateStr: snapshotDateStr,
+          });
+          snapshotOk++;
+        } catch (snapshotError) {
+          snapshotFail++;
+          // Missing table (migration not run yet) → log once, don't fail cron.
+          if (String(snapshotError.message || "").includes("leetcode_daily_snapshots")) {
+            console.warn(
+              "[SNAPSHOT] Table leetcode_daily_snapshots missing — run migrations/add_daily_snapshots.sql. Skipping snapshots.",
+            );
+            break;
+          }
+          console.warn(`[SNAPSHOT] Failed for ${userId}:`, snapshotError.message);
+        }
+      }
+      console.log(`[SNAPSHOT] Done: ${snapshotOk} written, ${snapshotFail} failed.`);
+    } catch (snapshotFatal) {
+      console.warn("[SNAPSHOT] Snapshot pass failed (leaderboard + emails unaffected):", snapshotFatal.message);
+    }
+
     await notifyMentorsAboutInactiveStudents();
 
     await notifyInactiveStudentsDirectly();
@@ -2137,6 +2322,94 @@ router.post("/update-leetcode", async (req, res) => {
 
       stack: error.stack,
     });
+  }
+});
+
+// ============================================================
+// MANUAL SNAPSHOT TRIGGER (backfill / testing)
+// POST /cron/snapshot-daily?date=YYYY-MM-DD — same snapshot pass
+// as the daily cron, but runnable on demand (e.g. after running
+// the migration, or to backfill a missed day). Auth: CRON_SECRET.
+// ============================================================
+
+const runSnapshotPass = async (dateStr) => {
+  const targetDate = dateStr || getISTDateString();
+  const { data: users, error: usersError } = await supabaseAdmin
+    .from("profiles")
+    .select("id, user_id, leetcode")
+    .not("user_id", "is", null)
+    .not("leetcode", "is", null)
+    .neq("leetcode", "");
+  if (usersError) throw usersError;
+
+  const studentUserIds = (users || []).map((u) => u.user_id).filter(Boolean);
+
+  const { data: totalsRows } = await supabaseAdmin
+    .from("leetcode_leaderboard")
+    .select("user_id, profile_id, total_solved")
+    .in("user_id", studentUserIds.length > 0 ? studentUserIds : ["__none__"]);
+
+  const totalsByUser = {};
+  for (const row of totalsRows || []) {
+    if (row?.user_id) totalsByUser[row.user_id] = row;
+  }
+
+  let exceptionByUser = {};
+  try {
+    const { data: approvedExceptions } = await supabaseAdmin
+      .from("leetcode_exception_requests")
+      .select("student_user_id, requested_days, reviewed_at, updated_at, created_at")
+      .eq("status", "approved")
+      .in("student_user_id", studentUserIds.length > 0 ? studentUserIds : ["__none__"]);
+    for (const row of approvedExceptions || []) {
+      if (!row?.student_user_id) continue;
+      if (!exceptionByUser[row.student_user_id]) exceptionByUser[row.student_user_id] = [];
+      exceptionByUser[row.student_user_id].push(row);
+    }
+  } catch {
+    exceptionByUser = {};
+  }
+
+  const profileIdByUserId = {};
+  for (const u of users || []) {
+    if (u?.user_id) profileIdByUserId[u.user_id] = u.id;
+  }
+
+  let written = 0;
+  const errors = [];
+  for (const userId of studentUserIds) {
+    try {
+      const totals = totalsByUser[userId] || {};
+      await writeDailySnapshot({
+        userId,
+        profileId: totals.profile_id ?? profileIdByUserId[userId] ?? null,
+        totalSolved: totals.total_solved ?? 0,
+        exceptionRowsForUser: exceptionByUser[userId] || [],
+        dateStr: targetDate,
+      });
+      written++;
+    } catch (error) {
+      errors.push({ userId, message: error.message });
+    }
+  }
+  return { date: targetDate, written, failed: errors.length, errors: errors.slice(0, 10) };
+};
+
+router.post("/snapshot-daily", async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  try {
+    const dateStr = req.query?.date || req.body?.date || getISTDateString();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return res.status(400).json({ error: "date must be YYYY-MM-DD" });
+    }
+    const result = await runSnapshotPass(dateStr);
+    return res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    console.error("[SNAPSHOT MANUAL] Failed:", error.message);
+    return res.status(500).json({ error: error.message });
   }
 });
 

@@ -133,6 +133,29 @@ export async function getAssignedStudents() {
 }
 
 /**
+ * Monthly consistency graph source. Reads daily snapshots for YYYY-MM.
+ * @param {string|number} studentUserId
+ * @param {string} month "2026-10"
+ */
+export async function getStudentMonthlyActivity(studentUserId, month) {
+  const token = await jwt();
+  if (!token || !studentUserId) return null;
+  try {
+    const response = await apiClient.get(
+      `/mentor/dashboard/student-monthly-activity/${studentUserId}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        params: month ? { month } : {},
+      }
+    );
+    return response.data || null;
+  } catch (error) {
+    console.error(`Error fetching monthly activity for ${studentUserId}:`, error?.response?.data || error.message);
+    return null;
+  }
+}
+
+/**
  * Fetches detailed stats/activity breakdown for a specific student.
  * @param {string|number} studentUserId
  */

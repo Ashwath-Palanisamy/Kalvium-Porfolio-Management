@@ -46,6 +46,7 @@ import {
 
 import "./assigned.css";
 import LeetCodeSessionPanel from "./LeetCodeSessionPanel.jsx";
+import MonthlyActivityGraph from "./MonthlyActivityGraph.jsx";
 
 // ==========================================
 // SVG ICON COMPONENTS FOR GITHUB & LINKEDIN
@@ -1439,6 +1440,15 @@ export default function Assigned({ onOpenExceptions }) {
                         </tbody>
                       </table>
                     </div>
+                  </div>
+
+                  {/* Monthly record — daily snapshots updated by cron */}
+                  <div className="modal-section">
+                    <MonthlyActivityGraph
+                      studentUserId={
+                        selectedStudentForStats.user_id || selectedStudentForStats.id
+                      }
+                    />
                   </div>
 
                   {/* Connected External Handles */}
