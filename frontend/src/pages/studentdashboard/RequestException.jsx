@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { BadgeCheck, Clock, FileWarning, Send, XCircle } from "lucide-react";
-import { getMyExceptionRequests, submitExceptionRequest } from "../../api/routes/StudentDashboard/exception";
+import { BadgeCheck, Clock, FileWarning, Send, Trash2, XCircle } from "lucide-react";
+import { getMyExceptionRequests, submitExceptionRequest, withdrawExceptionRequest } from "../../api/routes/StudentDashboard/exception";
 import "./RequestException.css";
 
 export default function RequestException() {
@@ -8,6 +8,7 @@ export default function RequestException() {
   const [days, setDays] = useState(3);
   const [status, setStatus] = useState({ loading: true, requests: [], latest: null, hasAccepted: false, acceptedUntil: null, hasSquad: true, monthlyUsed: 0, monthlyLimit: 2 });
   const [submitting, setSubmitting] = useState(false);
+  const [withdrawingId, setWithdrawingId] = useState(null);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
 
@@ -76,6 +77,24 @@ export default function RequestException() {
       setMessageType("error");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleWithdraw = async (id) => {
+    if (!id || withdrawingId) return;
+    if (!window.confirm("Withdraw this request? Your mentor will no longer see it, and you can submit a corrected one right away.")) return;
+    setWithdrawingId(id);
+    setMessage("");
+    try {
+      await withdrawExceptionRequest(id);
+      setMessage("Request withdrawn. You can submit a corrected request below.");
+      setMessageType("success");
+      await load();
+    } catch (err) {
+      setMessage(err?.response?.data?.error || "Failed to withdraw request.");
+      setMessageType("error");
+    } finally {
+      setWithdrawingId(null);
     }
   };
 
@@ -192,8 +211,34 @@ export default function RequestException() {
       </form>
 
       {message && <p className={`req-exc-message ${messageType}`}>{message}</p>}
-      {latest?.status === "pending" && (
-        <p className="req-exc-hint">You have a request awaiting review. You can still submit another if needed — your mentor will review both.</p>
+      {!status.loading && status.requests.filter((r) => r.status === "pending").length > 0 && (
+        <div className="req-exc-pending-list" aria-label="Pending requests">
+          <p className="req-exc-pending-title">Awaiting mentor review ({status.requests.filter((r) => r.status === "pending").length})</p>
+          {status.requests.filter((r) => r.status === "pending").map((r) => (
+            <div key={r.id} className="req-exc-pending-item">
+              <div className="req-exc-pending-info">
+                <span className="req-exc-pending-days">
+                  <Clock size={13} /> {r.requested_days || 3} day{(r.requested_days || 3) === 1 ? "" : "s"}
+                </span>
+                <span className="req-exc-pending-date">
+                  {r.created_at ? new Date(r.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : ""}
+                </span>
+                <p className="req-exc-pending-reason">{r.reason}</p>
+              </div>
+              <button
+                type="button"
+                className="req-exc-withdraw"
+                disabled={withdrawingId === r.id}
+                onClick={() => handleWithdraw(r.id)}
+                title="Withdraw this request (e.g. you picked the wrong days)"
+              >
+                <Trash2 size={14} />
+                {withdrawingId === r.id ? "Withdrawing..." : "Withdraw"}
+              </button>
+            </div>
+          ))}
+          <p className="req-exc-hint">Picked the wrong days or made a typo? Withdraw it above, then submit a corrected one — withdrawing frees the slot.</p>
+        </div>
       )}
       {quotaReached ? (
         <p className="req-exc-hint">

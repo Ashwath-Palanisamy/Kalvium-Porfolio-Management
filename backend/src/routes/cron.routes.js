@@ -148,9 +148,19 @@ const writeDailySnapshot = async ({
     solvedCount = 0;
   }
   const hadException = doesExceptionCoverDay(exceptionRowsForUser, dateStr);
+  // profiles.id values are integers-as-strings ("66", "96") but the
+  // leetcode_daily_snapshots.profile_id column is UUID in prod.
+  // Sending a non-UUID aborts the whole upsert, so only pass through
+  // real UUIDs and store null otherwise. Nothing reads profile_id
+  // (monthly API queries by user_id + date), so null loses nothing.
+  const safeProfileId =
+    typeof profileId === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(profileId)
+      ? profileId
+      : null;
   const row = {
     user_id: userId,
-    profile_id: profileId,
+    profile_id: safeProfileId,
     date: dateStr,
     total_solved: Number(totalSolved) || 0,
     solved_count: solvedCount,
@@ -2282,14 +2292,20 @@ router.post("/update-leetcode", async (req, res) => {
       for (const userId of studentUserIds) {
         try {
           const totals = totalsByUser[userId] || {};
-          await writeDailySnapshot({
+          const snapResult = await writeDailySnapshot({
             userId,
             profileId: totals.profile_id ?? profileIdByUserId[userId] ?? null,
             totalSolved: totals.total_solved ?? 0,
             exceptionRowsForUser: exceptionByUserSnapshot[userId] || [],
             dateStr: snapshotDateStr,
           });
-          snapshotOk++;
+          // writeDailySnapshot can return { written: false } without
+          // throwing (e.g. missing service key) — count honestly.
+          if (snapResult?.written) {
+            snapshotOk++;
+          } else {
+            snapshotFail++;
+          }
         } catch (snapshotError) {
           snapshotFail++;
           // Missing table (migration not run yet) → log once, don't fail cron.

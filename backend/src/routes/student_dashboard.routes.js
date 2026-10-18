@@ -692,6 +692,48 @@ router.post("/exception-request", authRouteLimiter, requireAuth, requireStudent,
 });
 
 // ==========================================
+// 12b. DELETE Withdraw a pending exception request (student owns it)
+// Lets a student remove a request they submitted by mistake (e.g. wrong
+// days / reason) — but ONLY while it is still pending. Approved / rejected
+// rows are history and cannot be withdrawn; deleting the pending row also
+// frees that month's quota slot so they can immediately re-submit.
+// ==========================================
+router.delete("/exception-request/:id", authRouteLimiter, requireAuth, requireStudent, async (req, res) => {
+    try {
+        if (!supabaseAdmin) {
+            return res.status(500).json({ error: "Exception requests are unavailable right now." });
+        }
+        const requestId = req.params.id;
+        const studentUserId = req.user.id;
+        const { data: existing, error: fetchError } = await supabaseAdmin
+            .from("leetcode_exception_requests")
+            .select("id,student_user_id,status")
+            .eq("id", requestId)
+            .maybeSingle();
+        if (fetchError) throw fetchError;
+        if (!existing) {
+            return res.status(404).json({ error: "Request not found." });
+        }
+        if (existing.student_user_id !== studentUserId) {
+            return res.status(403).json({ error: "You can only withdraw your own requests." });
+        }
+        if (existing.status !== "pending") {
+            return res.status(409).json({ error: `Only pending requests can be withdrawn (this one is ${existing.status}).` });
+        }
+        const { error: deleteError } = await supabaseAdmin
+            .from("leetcode_exception_requests")
+            .delete()
+            .eq("id", requestId)
+            .eq("student_user_id", studentUserId);
+        if (deleteError) throw deleteError;
+        return res.status(200).json({ success: true, id: requestId });
+    } catch (err) {
+        console.error("Exception withdraw error:", err);
+        return res.status(500).json({ error: "Failed to withdraw request: " + err.message });
+    }
+});
+
+// ==========================================
 // 13. GET My exception requests (drives the "Request accepted" tag)
 // ==========================================
 router.get("/exception-request", authRouteLimiter, requireAuth, requireStudent, async (req, res) => {
