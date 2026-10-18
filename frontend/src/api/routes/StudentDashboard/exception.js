@@ -29,3 +29,13 @@ export async function submitExceptionRequest(reason, days = 3) {
     );
     return response.data;
 }
+
+export async function withdrawExceptionRequest(id) {
+    const token = await jwt();
+    if (!token) throw new Error("No active session found");
+    const response = await apiClient.delete(
+        `/student/dashboard/exception-request/${id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data;
+}
