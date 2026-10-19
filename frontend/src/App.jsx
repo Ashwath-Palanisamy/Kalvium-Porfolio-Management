@@ -12,9 +12,9 @@ import EditProfile from "./pages/studentdashboard/EditProfile";
 import ErrorPage from "./pages/ErrorPage/404page";
 import AuthGate, { STUDENT_HOME, MENTOR_HOME } from "./components/AuthGate";
 import MentorDashboard from "./pages/MentorDashboard/mentordashboard.jsx";
+import Policypage from "./pages/Policypage/Policypage.jsx";
 import { DEFAULT_TAB, MENTOR_TABS, STUDENT_TABS } from "./pages/MentorDashboard/dashboardRoutes.js";
 import { getUserRole } from "./hooks/useAuthStatus";
-
 function LegacyStudentRedirect() {
   const { user_id } = useParams();
 
@@ -83,6 +83,7 @@ function App() {
         <Route path="/portfolio/:user_id/projects" element={<StudentProjectsAll />} />
         <Route path="/portfolio/:user_id/projects/:project_slug" element={<StudentProjectDetails />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
+        <Route path="/privacy-policy" element={<Policypage />} />
 
         {/* Role-based dashboards — students and mentors are fenced off from
             each other's area by AuthGate's allowedRoles check. The default

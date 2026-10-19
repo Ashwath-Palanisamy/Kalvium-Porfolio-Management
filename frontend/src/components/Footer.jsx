@@ -91,7 +91,7 @@ function Footer() {
                 <div className="footer-section">
                     <h3>Legal</h3>
 
-                    <a href="#privacy">
+                    <a href="/privacy-policy">
                         Privacy
                     </a>
 

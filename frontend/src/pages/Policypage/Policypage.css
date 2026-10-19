@@ -1,0 +1,119 @@
+.privacy-policy {
+	min-height: calc(100vh - 60px);
+	padding: 56px 32px 80px;
+	background: #f7f8fa;
+	color: #202939;
+	font-family: 'Inter', sans-serif;
+	font-size: 15px;
+	line-height: 1.7;
+}
+
+.privacy-policy > * {
+	width: min(100%, 920px);
+	margin-right: auto;
+	margin-left: auto;
+}
+
+.privacy-policy h1 {
+	margin-bottom: 10px;
+	color: #111827;
+	font-size: 40px;
+	font-weight: 700;
+	line-height: 1.15;
+}
+
+.privacy-policy h2 {
+	margin-top: 40px;
+	margin-bottom: 14px;
+	padding-top: 20px;
+	border-top: 1px solid #dfe3e8;
+	color: #111827;
+	font-size: 25px;
+	font-weight: 700;
+	line-height: 1.3;
+}
+
+.privacy-policy h3 {
+	margin-top: 25px;
+	margin-bottom: 8px;
+	color: #252f3f;
+	font-size: 19px;
+	font-weight: 650;
+	line-height: 1.4;
+}
+
+.privacy-policy h4 {
+	margin-top: 20px;
+	margin-bottom: 6px;
+	color: #303b4c;
+	font-size: 16px;
+	font-weight: 650;
+	line-height: 1.45;
+}
+
+.privacy-policy p {
+	margin-bottom: 14px;
+}
+
+.privacy-policy h1 + p {
+	margin-bottom: 24px;
+	color: #687386;
+	font-size: 14px;
+}
+
+.privacy-policy ul {
+	margin: 8px 0 20px;
+	padding-left: 24px;
+}
+
+.privacy-policy > ul {
+	margin-right: auto;
+	margin-left: auto;
+}
+
+.privacy-policy li {
+	padding-left: 4px;
+	margin-bottom: 8px;
+}
+
+.privacy-policy li::marker {
+	color: #ef4444;
+}
+
+.privacy-policy li p:last-child {
+	margin-bottom: 0;
+}
+
+.privacy-policy a {
+	color: #d92d35;
+	text-decoration: underline;
+	text-decoration-color: rgba(217, 45, 53, 0.35);
+	text-underline-offset: 3px;
+	overflow-wrap: anywhere;
+}
+
+.privacy-policy a:hover {
+	color: #a91f28;
+	text-decoration-color: currentColor;
+}
+
+@media (max-width: 640px) {
+	.privacy-policy {
+		padding: 36px 20px 56px;
+		font-size: 14px;
+		line-height: 1.65;
+	}
+
+	.privacy-policy h1 {
+		font-size: 32px;
+	}
+
+	.privacy-policy h2 {
+		margin-top: 32px;
+		font-size: 22px;
+	}
+
+	.privacy-policy h3 {
+		font-size: 18px;
+	}
+}
