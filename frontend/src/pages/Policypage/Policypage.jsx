@@ -228,8 +228,8 @@ const PrivacyPolicy = () => {
             <h2>Contact Us</h2>
             <p>If You have any questions about this Privacy Policy, You can contact Us:</p>
             <ul>
-                <li>By email: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="99f2e9f4b4eae8ecf8fdd9fef6f6fef5fcfeebf6ece9eab7faf6f4">[email&#160;protected]</a></li>
-            </ul><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+                <li>By email: <a href="mailto:kpm-squad@googlegroups.com">kpm-squad@googlegroups.com</a></li>
+            </ul>
         </main>
     );
 };
