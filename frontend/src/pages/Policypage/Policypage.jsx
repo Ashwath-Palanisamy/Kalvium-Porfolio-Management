@@ -1,7 +1,11 @@
-import React from "react";
+import React, { useEffect } from "react";
 import "./Policypage.css";
 
 const PrivacyPolicy = () => {
+    useEffect(() => {
+        document.title = "Privacy Policy | Kalvium Portfolio Management (KPM)";
+    }, []);
+
     return (
         <main className="privacy-policy">
             <h1>Privacy Policy</h1>
