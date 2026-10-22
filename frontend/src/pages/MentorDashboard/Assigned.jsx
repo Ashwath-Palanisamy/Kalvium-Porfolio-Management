@@ -665,7 +665,12 @@ export default function Assigned({ onOpenExceptions }) {
       const titleString =
         typeof qTitle === "string"
           ? qTitle
-          : qTitle?.title || qTitle?.name || "Recent LeetCode Submission";
+          : qTitle?.title ||
+            qTitle?.titleSlug ||
+            qTitle?.questionTitle ||
+            qTitle?.question ||
+            qTitle?.name ||
+            "";
 
       const normalizedTitle = typeof titleString === "string" ? titleString.trim() : "";
       if (!normalizedTitle || /^no recent/i.test(normalizedTitle)) {
