@@ -79,23 +79,23 @@ export default function MonthlyActivityGraph() {
       peak <= 3
         ? Array.from({ length: peak + 1 }, (_, i) => i)
         : [0, Math.ceil(peak / 2), peak];
-    const x = (i) =>
-      days.length <= 1
+    const x = (plotIdx) =>
+      plotDays.length <= 1
         ? PAD_L
-        : PAD_L + (i / (days.length - 1)) * plotW;
+        : PAD_L + (plotIdx / (plotDays.length - 1)) * plotW;
     const y = (v) => PAD_T + plotH - (v / peak) * plotH;
     let path = "";
     plotDays.forEach((day) => {
-      const i = days.indexOf(day);
+      const i = plotDays.indexOf(day);
       const cmd = path ? "L" : "M";
       path += `${cmd}${x(i).toFixed(1)},${y(day.solved_count || 0).toFixed(1)} `;
     });
     const area =
       plotDays.length > 0
         ? `${path.trim()} L${x(
-            days.indexOf(plotDays[plotDays.length - 1])
+            plotDays.length - 1
           ).toFixed(1)},${(PAD_T + plotH).toFixed(1)} L${x(
-            days.indexOf(plotDays[0])
+            0
           ).toFixed(1)},${(PAD_T + plotH).toFixed(1)} Z`
         : "";
     return {
@@ -174,7 +174,7 @@ export default function MonthlyActivityGraph() {
       ) : (
         <>
           <div className="ma-chart-line" role="img" aria-label={`Daily solves line for ${monthLabel(month)}`}>
-            <svg viewBox={`0 0 ${lineGeom.W} ${lineGeom.H}`} className="ma-svg" preserveAspectRatio="none">
+            <svg width="100%" viewBox={`0 0 ${lineGeom.W} ${lineGeom.H}`} className="ma-svg" preserveAspectRatio="xMidYMid meet">
               <defs>
                 <linearGradient id="maLineFill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#16a34a" stopOpacity="0.25" />
@@ -213,7 +213,7 @@ export default function MonthlyActivityGraph() {
                 />
               )}
               {lineGeom.plotDays.map((day) => {
-                const i = days.indexOf(day);
+                const i = lineGeom.plotDays.indexOf(day);
                 const cx = lineGeom.x(i);
                 const cy = lineGeom.y(day.solved_count || 0);
                 return (
@@ -249,8 +249,8 @@ export default function MonthlyActivityGraph() {
                   </g>
                 );
               })}
-              {[1, Math.ceil(days.length / 2), days.length].map((dNum, idx) => {
-                if (!days[dNum - 1]) return null;
+              {[1, Math.ceil(lineGeom.plotDays.length / 2), lineGeom.plotDays.length].map((dNum, idx) => {
+                if (!lineGeom.plotDays[dNum - 1]) return null;
                 return (
                   <text
                     key={idx}

@@ -107,7 +107,7 @@
 
 .ma-svg {
   width: 100%;
-  height: 210px;
+  height: auto;
   display: block;
 }
 
@@ -172,5 +172,5 @@
 
 @media (max-width: 640px) {
   .ma-section { margin-top: 16px; }
-  .ma-svg { height: 180px; }
+  .ma-svg { min-height: 160px; }
 }
